@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ScalaCompilerConfiguration">
+    <option name="separateProdTestSources" value="true" />
+    <profile name="sbt 1" modules="project-cabo-online-v01,project-cabo-online-v01.main,project-cabo-online-v01.test" />
+  </component>
+</project>
