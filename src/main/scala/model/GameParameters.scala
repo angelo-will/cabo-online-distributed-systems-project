@@ -15,9 +15,15 @@ case class NoRoundLimitation() extends RoundLimitationParameter:
 case class RoundLimitation(maxRound: Int) extends RoundLimitationParameter:
   override def isRoundsEnded: Boolean = maxRound <= 0
 
+trait IGameParameters:
+  def gameVisibility: GameVisibility
+  def maxTimeRound: Int
+  def roundLimitation: RoundLimitationParameter
+  def maxPlayers: Int
+
 case class GameParameters(
                            gameVisibility: GameVisibility = GameVisibility.Private(),
                            maxTimeRound: Int,
                            roundLimitation: RoundLimitationParameter = NoRoundLimitation(),
                            maxPlayers: Int = 5
-                         )
+                         ) extends IGameParameters
