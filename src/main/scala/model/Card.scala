@@ -83,11 +83,13 @@ object Card:
     case _ => throw new RuntimeException(f"Invalid card string $s")
 
 case class Card(rank: Rank, suit: Suit):
+
+  import model.Power
+
   def name: String = f"${rank.name} of ${suit.name}"
 
   def shortName: String = f"${rank.shortName}${suit.shortName}"
 
-  // TODO: Ridefinire in base ai nostri punteggi
   def score: Int =
     rank match
       case Rank.Ace() => 1
@@ -104,6 +106,11 @@ case class Card(rank: Rank, suit: Suit):
       case Rank.Queen() => 10
       case Rank.King() => 10
       case _ => 10
+
+  def power: Power = rank match
+    case Rank.Jack() => Power.SeeYourCard()
+    case Rank.Queen() => Power.SeeYourOpponentCard()
+    case Rank.King() => Power.ChangeOneOfYourCardWithOpponent()
 
   def canFish(other: Card): Boolean =
     if (rank == Rank.Jack()) true
