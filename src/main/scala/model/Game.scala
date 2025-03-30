@@ -16,11 +16,13 @@ object GameStatus:
   case class Finished() extends GameStatus("Finished")
 
 case class GameInConstruction(
+                               code: String,
                                gameParameters: IGameParameters,
                                players: List[PlayerPlaying],
-                               code: String
                              ) extends WithStatus:
   override def gameStatus: GameStatus = GameStatus.WaitingForPlayers()
+
+  def playersAddress: List[String] = players.map(_.address)
 
 case class GameInProgress(
                            gameParameters: IGameParameters,
