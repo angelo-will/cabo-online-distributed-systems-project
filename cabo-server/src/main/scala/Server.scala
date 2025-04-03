@@ -1,5 +1,3 @@
-package controller
-
 import akka.actor.typed.scaladsl.ActorContext
 
 
@@ -10,24 +8,10 @@ object Server:
   import akka.actor.typed.Behavior
   import akka.actor.typed.scaladsl.Behaviors
 
-  import utils.Message
-
-  import model.GameInConstruction
-
-  sealed trait Command extends Message
+  import model.*
+  import utils.*
 
   private type Games = Seq[GameInConstruction]
-
-  case class RegisterGame(game: GameInConstruction, replyTo: ActorRef[Message]) extends Command
-  case class GameRegistered(game: GameInConstruction, replyTo: ActorRef[Message]) extends Command
-
-  case class StartGame(game: GameInConstruction, replyTo: ActorRef[Message]) extends Command
-
-  case class AbortGame(game: GameInConstruction, replyTo: ActorRef[Message]) extends Command
-
-  case class GetGames(replyTo: ActorRef[Message]) extends Command
-
-  case class GamesList(games: Games) extends Command
 
   def apply(serverCode: String): Behavior[Message] = Behaviors.setup { ctx =>
     ctx.log.info("Server started")
