@@ -11,6 +11,8 @@ lazy val deps = Seq(
   "com.typesafe.akka" %% "akka-remote" % akkaVersion, // For akka remote
   "com.typesafe.akka" %% "akka-cluster-typed" % akkaVersion, // akka clustering module
   "com.typesafe.akka" %% "akka-serialization-jackson" % akkaVersion,
+  "com.typesafe.akka" %% "akka-actor-testkit-typed" % akkaVersion % Test,
+  "org.scalatest" %% "scalatest" % "3.2.19" % Test,
   "ch.qos.logback" % "logback-classic" % "1.2.3"
 )
 
