@@ -11,8 +11,6 @@ object Server:
   import model.*
   import utils.*
 
-  private type Games = Seq[GameInConstruction]
-
   def apply(serverCode: String): Behavior[Message] = Behaviors.setup { ctx =>
     ctx.log.info("Server started")
     ctx.system.receptionist ! Receptionist.register(ServiceKey[Message](serverCode), ctx.self)
@@ -30,10 +28,11 @@ object Server:
     case (ctx, RegisterGame(game, ref)) =>
       ctx.log.info(s"Registering game: $game")
       val updatedGames = games :+ game
+      ref ! GameRegistered(game, ctx.self)
       nextBehaviors(updatedGames)
 
   private def handleGameStarted(games: Games, nextBehaviors: Games => Behavior[Message]): PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
-    case (ctx, RegisterGame(game, ref)) =>
+    case (ctx, StartGame(game, ref)) =>
       ctx.log.info(s"Game started: $game, deleting from list")
       val updatedGames = games.filterNot(_.code == game.code)
       nextBehaviors(updatedGames)
