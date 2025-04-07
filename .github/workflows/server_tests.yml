@@ -4,9 +4,11 @@ on:
   push:
     branches:
       - test-actions
+      - feature/add_github_actions
   pull_request:
     branches:
       - test-actions
+      - feature/add_github_actions
 
 jobs:
   build:
