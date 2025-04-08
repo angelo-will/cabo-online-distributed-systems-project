@@ -9,7 +9,8 @@ object Server:
   import akka.actor.typed.scaladsl.Behaviors
 
   import model.*
-  import utils.*
+  import utils.ServerMessages.*
+  import utils.Message
 
   def apply(serverCode: String): Behavior[Message] = Behaviors.setup { ctx =>
     ctx.log.info("Server started")
