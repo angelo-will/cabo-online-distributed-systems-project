@@ -58,12 +58,12 @@ class ServerTest extends ScalaTestWithActorTestKit
         server ! RegisterGame(game1, testProbe.ref)
         val registerGame = testProbe.receiveMessage()
         registerGame match {
-          case _ =>
-            fail("Expected GameRegistered message")
           case GameRegistered(game, ref) =>
             server ! StartGame(game, testProbe.ref)
             server ! GetGames(testProbe.ref)
             testProbe.expectMessage(GamesList(Seq()))
+          case _ =>
+            fail("Expected GameRegistered message")
         }
       }
     }
