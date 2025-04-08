@@ -76,7 +76,7 @@ class ServerTest extends ScalaTestWithActorTestKit
           case GameRegistered(game, ref) =>
             server ! AbortGame(game, testProbe.ref)
             server ! GetGames(testProbe.ref)
-            testProbe.expectMessage(GamesList(Seq(game1)))
+            testProbe.expectMessage(GamesList(Seq()))
           case _ =>
             fail("Expected GameRegistered message")
         }
