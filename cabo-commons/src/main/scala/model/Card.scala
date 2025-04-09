@@ -84,8 +84,6 @@ object Card:
 
 case class Card(rank: Rank, suit: Suit):
 
-  import model.Power
-
   def name: String = f"${rank.name} of ${suit.name}"
 
   def shortName: String = f"${rank.shortName}${suit.shortName}"
@@ -119,11 +117,26 @@ case class Card(rank: Rank, suit: Suit):
   override def toString: String = shortName
 
 object CardStack:
-  def sorted: CardStack = CardStack(Card.fullDeck)
+  /**
+   * Creates a sorted full deck of cards.
+   *
+   * @return a CardStack containing all cards in sorted order
+   */
+  def buildSortedFullDeck: CardStack = CardStack(Card.fullDeck)
 
-  def shuffled: CardStack = CardStack(scala.util.Random.shuffle(Card.fullDeck))
+  /**
+   * Creates a shuffled full deck of cards.
+   *
+   * @return a CardStack containing all cards in shuffled order
+   */
+  def buildShuffledFullDeck: CardStack = CardStack(scala.util.Random.shuffle(Card.fullDeck))
 
-  val empty: CardStack = CardStack(List())
+  /**
+   * Creates an empty deck of cards.
+   *
+   * @return a CardStack containing no cards
+   */
+  def buildEmptyDeck: CardStack = CardStack(List())
 
   implicit def cards2stack(cards: List[Card]): CardStack = CardStack(cards)
 
@@ -138,12 +151,71 @@ object CardStack:
     remove(list.reverse).reverse
 
 case class CardStack(cards: List[Card]):
-  def removed(card: Card): CardStack = CardStack(CardStack.removeLast(cards, card))
+  def removeCard(card: Card): CardStack = CardStack(CardStack.removeLast(cards, card))
 
-  def removed(cards: Seq[Card]): CardStack = cards.foldLeft(this)((stack, card) => stack.removed(card))
+  /**
+   * Removes a list of cards from the stack.
+   *
+   * @param cards the cards to be removed
+   * @return a new CardStack with the specified cards removed
+   */
+  def removeCards(cards: Seq[Card]): CardStack = cards.foldLeft(this)((stack, card) => stack.removeCard(card))
 
-  def added(card: Card): CardStack = CardStack(cards :+ card)
+  /**
+   * Adds a card to the stack.
+   *
+   * @param card the card to be added
+   * @return a new CardStack with the specified card added
+   */
+  def addCard(card: Card): CardStack = CardStack(cards :+ card)
+
+  /**
+   * Draws the first card from the stack and returns it along with the new CardStack.
+   *
+   * @return a tuple containing the drawn card and the new CardStack
+   */
+  def drawFirstCard: (Card, CardStack) = (cards.head, CardStack(cards.tail))
 
   def isEmpty: Boolean = cards.isEmpty
 
   override def toString: String = cards.mkString(", ")
+
+object Hand:
+  private val maxCardsNumber = 4
+
+  /**
+   * Creates a hand with the given cards.
+   *
+   * @param cards the cards to be included in the hand
+   * @throws IllegalArgumentException if the number of cards is not equal to 4
+   */
+  def apply(cards: List[Card]): Hand =
+    if (cards.size != maxCardsNumber)
+      throw new IllegalArgumentException(s"Hand must have $maxCardsNumber cards, but has ${cards.size}")
+    else
+      new Hand(cards)
+
+/**
+ * Represents a hand of cards.
+ *
+ * @param cards the cards in the hand
+ */
+case class Hand private (cards: List[Card]):
+  
+  def score: Int = cards.map(_.score).sum
+
+  def viewFirstCard: Card = cards.head
+
+  def viewSecondCard: Card = cards(1)
+
+  def viewThirdCard: Card = cards(2)
+
+  def viewFourthCard: Card = cards(Hand.maxCardsNumber - 1)
+
+  def changeFirstCard(card: Card): Hand = Hand(cards.updated(0, card))
+
+  def changeSecondCard(card: Card): Hand = Hand(cards.updated(1, card))
+
+  def changeThirdCard(card: Card): Hand = Hand(cards.updated(2, card))
+
+  def changeFourthCard(card: Card): Hand = Hand(cards.updated(3, card))
