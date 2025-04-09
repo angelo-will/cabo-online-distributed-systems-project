@@ -1,6 +1,6 @@
 import akka.actor.testkit.typed.scaladsl.{ActorTestKit, ScalaTestWithActorTestKit, TestProbe}
 import akka.actor.typed.ActorRef
-import controller.GameLogicActor
+import controller.GameCoordinatorActor
 import model.Suit.{Clubs, Spades}
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatest.wordspec.AnyWordSpecLike
@@ -8,10 +8,10 @@ import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration.*
 import model.{Card, GameInConstruction, GameParameters}
-import utils.ClientMessages.{CardDrawn, DrawCardFromDeck}
-import utils.{ClientMessages, Message, ServerMessages}
+import utils.GameCoordinatorMessage.{CardDrawn, DrawCardFromDeck}
+import utils.{GameCoordinatorMessage, Message, ServerMessages}
 
-class ActorPlayerTest extends ScalaTestWithActorTestKit
+class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
   with AnyWordSpecLike
   with BeforeAndAfterAll
   with BeforeAndAfterEach
@@ -28,7 +28,7 @@ class ActorPlayerTest extends ScalaTestWithActorTestKit
   override def beforeAll(): Unit = {
     super.beforeAll()
     gameCoordinatorProbe = createTestProbe[Message]()
-    gameLogicActor = testKit.spawn(GameLogicActor(gameCoordinatorProbe.ref))
+    gameLogicActor = testKit.spawn(GameCoordinatorActor(gameCoordinatorProbe.ref))
   }
 
   "Actor Player" must {
@@ -36,11 +36,11 @@ class ActorPlayerTest extends ScalaTestWithActorTestKit
     "send information about the card drawn" when {
       "receive the command to draw a card" in {
         gameLogicActor ! DrawCardFromDeck()
-//        gameCoordinatorProbe.expectMessageType[ClientMessages.CardDrawn]
+        //        gameCoordinatorProbe.expectMessageType[ClientMessages.CardDrawn]
         gameCoordinatorProbe.expectMessage(CardDrawn(Card("5", Spades())))
       }
     }
-    
+
     // Discard when receive the command to discard and send it
     // Ideally in future could be a different card so start to think about how notify what is discarded
     "send ack about card discarded" when {
@@ -48,14 +48,14 @@ class ActorPlayerTest extends ScalaTestWithActorTestKit
 
       }
     }
-    
+
     // Send to other players new status of the game when receive the command to end turn
     "send new status of the game" when {
       "receive the command to end turn" in {
 
       }
     }
-    
+
     // during the game there are more ways to see the cards
     "send card value" when {
       // at start or power 
