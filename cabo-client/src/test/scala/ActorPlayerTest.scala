@@ -1,15 +1,15 @@
 import akka.actor.testkit.typed.scaladsl.{ActorTestKit, ScalaTestWithActorTestKit, TestProbe}
 import akka.actor.typed.ActorRef
+import controller.GameLogicActor
+import model.Suit.{Clubs, Spades}
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration.*
-
-import model.GameInConstruction
-import model.GameParameters
-import utils.ServerMessages
-import utils.Message
+import model.{Card, GameInConstruction, GameParameters}
+import utils.ClientMessages.{CardDrawn, DrawCardFromDeck}
+import utils.{ClientMessages, Message, ServerMessages}
 
 class ActorPlayerTest extends ScalaTestWithActorTestKit
   with AnyWordSpecLike
@@ -22,11 +22,22 @@ class ActorPlayerTest extends ScalaTestWithActorTestKit
   // view expects messages from player actor
   // other players' actors expect messages from player actor in the end of the turn to know what happened
 
+  var gameLogicActor: ActorRef[Message] = _
+  var gameCoordinatorProbe: TestProbe[Message] = _
+
+  override def beforeAll(): Unit = {
+    super.beforeAll()
+    gameCoordinatorProbe = createTestProbe[Message]()
+    gameLogicActor = testKit.spawn(GameLogicActor(gameCoordinatorProbe.ref))
+  }
+
   "Actor Player" must {
     // Draw a card when receive draw command and send what he draws
     "send information about the card drawn" when {
       "receive the command to draw a card" in {
-
+        gameLogicActor ! DrawCardFromDeck()
+//        gameCoordinatorProbe.expectMessageType[ClientMessages.CardDrawn]
+        gameCoordinatorProbe.expectMessage(CardDrawn(Card("5", Spades())))
       }
     }
     
