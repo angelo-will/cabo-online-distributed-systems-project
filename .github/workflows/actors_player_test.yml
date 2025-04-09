@@ -4,11 +4,11 @@ on:
   push:
     branches:
       - develop
-      - feature/creation_player_actor
+      - feature/creation_player_actors
   pull_request:
     branches:
       - develop
-      - feature/creation_player_actor
+      - feature/creation_player_actors
 
 jobs:
   build:
@@ -28,4 +28,4 @@ jobs:
         uses: sbt/setup-sbt@v1
 
       - name: Build and Test
-        run: sbt client/test
+        run: sbt test
