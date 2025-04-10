@@ -1,5 +1,7 @@
 package model
 
+import model.Suit.Spades
+
 trait WithDeck:
   def deck: List[Card]
 
@@ -30,6 +32,7 @@ case class GameInProgress(
                            code: String,
                            currentRound: Int
                          ) extends WithStatus with WithDeck:
-  override def deck: List[Card] = deck
+  
+  override def deck: List[Card] = List(Card("5", Spades()))
 
   override def gameStatus: GameStatus = GameStatus.InProgress()
