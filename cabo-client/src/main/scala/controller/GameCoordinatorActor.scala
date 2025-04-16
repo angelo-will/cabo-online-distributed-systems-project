@@ -2,7 +2,8 @@ package controller
 
 import akka.actor.typed.Behavior
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
-import model.{GameInProgress, GameParameters}
+import model.Suit.Spades
+import model.{Card, GameInProgress, GameParameters}
 
 object GameCoordinatorActor:
 
@@ -10,23 +11,43 @@ object GameCoordinatorActor:
 
   import utils.Message
   import utils.GameCoordinatorMessage
+  import model.CardStack
+  import model.GameStatus
 
-  val game: GameInProgress = GameInProgress(GameParameters(maxTimeRound = 5), List.empty, "code", 0)
+  val debugValue: GameInProgress = GameInProgress(
+    "gameCode",
+    GameParameters(maxTimeRound = 5),
+    GameStatus.InProgress(),
+    List.empty,
+    CardStack.buildSortedFullDeck,
+    CardStack(List(Card("A", Spades()))),
+    0
+  )
 
   def apply(gameCoordinatorRef: ActorRef[Message]): Behavior[Message] = Behaviors.setup { ctx =>
     ctx.log.info("GameLogic Actor started")
-    idle(gameCoordinatorRef)
+    myTurn(gameCoordinatorRef)
   }
 
-  private def idle(gameCoordinatorRef: ActorRef[Message]): Behavior[Message] = Behaviors.receivePartial {
-    handleDrawCardFromDeck(gameCoordinatorRef, idle)
+  private def myTurn(gameCoordinatorRef: ActorRef[Message]): Behavior[Message] = Behaviors.receivePartial {
+    handleDrawCardFromDeck(gameCoordinatorRef, myTurn)
+      .orElse(handleDrawCardFromDiscardStack(gameCoordinatorRef, myTurn))
   }
 
   private def handleDrawCardFromDeck(gameCoordinatorRef: ActorRef[Message], nextBehaviors: ActorRef[Message] => Behavior[Message]): PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
     case (ctx, GameCoordinatorMessage.DrawCardFromDeck()) =>
       ctx.log.info(s"I draw a card from deck")
 
-      val card = game.deck.head
+      val (topCard, _) = debugValue.deckStack.drawFirstCard
 
-      gameCoordinatorRef ! GameCoordinatorMessage.CardDrawn(card)
+      gameCoordinatorRef ! GameCoordinatorMessage.CardDrawn(topCard)
+      nextBehaviors(gameCoordinatorRef)
+
+  private def handleDrawCardFromDiscardStack(gameCoordinatorRef: ActorRef[Message], nextBehaviors: ActorRef[Message] => Behavior[Message]): PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
+    case (ctx, GameCoordinatorMessage.DrawCardFromDiscardStack()) =>
+      ctx.log.info(s"I draw a card from discard stack")
+
+      val (topCard, _) = debugValue.discardDeckStack.drawFirstCard
+
+      gameCoordinatorRef ! GameCoordinatorMessage.CardDrawn(topCard)
       nextBehaviors(gameCoordinatorRef)

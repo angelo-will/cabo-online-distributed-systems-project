@@ -15,7 +15,8 @@ object Suit:
 
   case class Hearts() extends Suit("Hearts", "♥")
 
-  def all: List[Suit] = List(Clubs(), Spades(), Diamonds(), Hearts())
+  // italian suits order
+  def all: List[Suit] = List(Hearts(), Diamonds(), Clubs(), Spades())
 
   implicit def string2suit(s: String): Suit = s match
     case "♣" => Clubs()
@@ -200,8 +201,8 @@ object Hand:
  *
  * @param cards the cards in the hand
  */
-case class Hand private (cards: List[Card]):
-  
+case class Hand private(cards: List[Card]):
+
   def score: Int = cards.map(_.score).sum
 
   def viewFirstCard: Card = cards.head

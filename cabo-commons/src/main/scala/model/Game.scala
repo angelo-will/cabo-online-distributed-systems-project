@@ -27,12 +27,11 @@ case class GameInConstruction(
   def playersAddress: List[String] = players.map(_.address)
 
 case class GameInProgress(
-                           gameParameters: IGameParameters,
-                           players: List[PlayerPlaying],
                            code: String,
+                           gameParameters: IGameParameters,
+                           gameStatus: GameStatus,
+                           players: List[PlayerPlaying],
+                           deckStack: CardStack,
+                           discardDeckStack: CardStack,
                            currentRound: Int
-                         ) extends WithStatus with WithDeck:
-  
-  override def deck: List[Card] = List(Card("5", Spades()))
-
-  override def gameStatus: GameStatus = GameStatus.InProgress()
+                         )
