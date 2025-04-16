@@ -8,7 +8,7 @@ import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration.*
 import model.{Card, GameInConstruction, GameParameters}
-import utils.GameCoordinatorMessage.{CardDrawn, DrawCardFromDeck}
+import utils.GameCoordinatorMessage.{CardDrawn, DrawCardFromDeck, NewTopCardDiscardStack}
 import utils.{GameCoordinatorMessage, Message, ServerMessages}
 
 class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
@@ -16,6 +16,8 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
   with BeforeAndAfterAll
   with BeforeAndAfterEach
   with Matchers:
+
+  import org.scalatest.matchers.must.Matchers.mustBe
 
   // test sequence of steps that user makes for a turn
   // instructions of test emulate messages from view actor to actor representing player
@@ -26,8 +28,8 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
   private var gameCoordinatorProbe: TestProbe[Message] = _
   private val firstCardOfASortedDeck = Card("A", Hearts())
 
-  override def beforeAll(): Unit = {
-    super.beforeAll()
+  override def beforeEach(): Unit = {
+    super.beforeEach()
     gameCoordinatorProbe = createTestProbe[Message]()
     gameCoordinatorActor = testKit.spawn(GameCoordinatorActor(gameCoordinatorProbe.ref))
   }
@@ -48,28 +50,32 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
 
     // Discard when receive the command to discard and send it
     // Ideally in future could be a different card so start to think about how notify what is discarded
-    "send ack about card discarded" when {
-      "receive the command to discard a card" in {
-
+    "send new top card of discard card stack equal to card drawn" when {
+      "receive the command to discard the card drawn without exchange any of own" in {
+        gameCoordinatorActor ! GameCoordinatorMessage.DrawCardFromDeck()
+        gameCoordinatorActor ! GameCoordinatorMessage.DiscardCardDrawn()
+        val messages = gameCoordinatorProbe.receiveMessages(2)
+        val cardDiscarded = messages.tail.head
+        cardDiscarded mustBe NewTopCardDiscardStack(firstCardOfASortedDeck)
       }
     }
 
     // Send to other players new status of the game when receive the command to end turn
     "send new status of the game" when {
       "receive the command to end turn" in {
-
+//        fail("Not implemented yet")
       }
     }
 
     // during the game there are more ways to see the cards
     "send card value" when {
-      // at start or power 
+      // at start or power
       "receive the command to see one of own card" in {
-
+//        fail("Not implemented yet")
       }
       // with power
       "receive the command to see one card of opponents" in {
-
+//        fail("Not implemented yet")
       }
     }
   }

@@ -14,40 +14,87 @@ object GameCoordinatorActor:
   import model.CardStack
   import model.GameStatus
 
-  val debugValue: GameInProgress = GameInProgress(
-    "gameCode",
-    GameParameters(maxTimeRound = 5),
-    GameStatus.InProgress(),
-    List.empty,
-    CardStack.buildSortedFullDeck,
-    CardStack(List(Card("A", Spades()))),
-    0
-  )
+  //  val debugValue: GameInProgress = GameInProgress(
+  //    "gameCode",
+  //    GameParameters(maxTimeRound = 5),
+  //    GameStatus.InProgress(),
+  //    List.empty,
+  //    CardStack.buildSortedFullDeck,
+  //    CardStack(List(Card("A", Spades()))),
+  //    0
+  //  )
 
-  def apply(gameCoordinatorRef: ActorRef[Message]): Behavior[Message] = Behaviors.setup { ctx =>
+  def apply(whoToSendResponse: ActorRef[Message]): Behavior[Message] = Behaviors.setup { ctx =>
     ctx.log.info("GameLogic Actor started")
-    myTurn(gameCoordinatorRef)
+    myTurnBeforeDraw(whoToSendResponse, GameInProgress(
+      "gameCode",
+      GameParameters(maxTimeRound = 5),
+      GameStatus.InProgress(),
+      List.empty,
+      CardStack.buildSortedFullDeck,
+      CardStack(List(Card("A", Spades()))),
+      0
+    ))
+  }
+  
+  // Behaviors during player turn
+
+  private def myTurnBeforeDraw(whoToSendResponse: ActorRef[Message], game: GameInProgress): Behavior[Message] = Behaviors.receivePartial {
+    handleDrawCardFromDeck(whoToSendResponse, game)
+      .orElse(handleDrawCardFromDiscardStack(whoToSendResponse, game))
   }
 
-  private def myTurn(gameCoordinatorRef: ActorRef[Message]): Behavior[Message] = Behaviors.receivePartial {
-    handleDrawCardFromDeck(gameCoordinatorRef, myTurn)
-      .orElse(handleDrawCardFromDiscardStack(gameCoordinatorRef, myTurn))
+  private def myTurnAfterDraw(whoToSendResponse: ActorRef[Message], game: GameInProgress, cardInHand: Card): Behavior[Message] = Behaviors.receivePartial {
+    handleDiscardCard(whoToSendResponse, game, cardInHand)
   }
+  
+  private def myTurnAfterDiscard(value: ActorRef[Message], game: GameInProgress): Behavior[Message] = Behaviors.receivePartial {
+    case (ctx, GameCoordinatorMessage.EndTurn()) =>
+      // send to other atcual status
+      // [...]
+      // to change then
+      myTurnBeforeDraw(value, game)
+  }
+  
+  // Handlers during player turn
 
-  private def handleDrawCardFromDeck(gameCoordinatorRef: ActorRef[Message], nextBehaviors: ActorRef[Message] => Behavior[Message]): PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
+  private def handleDrawCardFromDeck(
+                                      whoToSendResponse: ActorRef[Message],
+                                      game: GameInProgress,
+                                      //                                      nextBehaviors: (ActorRef[Message], GameInProgress) => Behavior[Message]
+                                    ): PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
     case (ctx, GameCoordinatorMessage.DrawCardFromDeck()) =>
       ctx.log.info(s"I draw a card from deck")
 
-      val (topCard, _) = debugValue.deckStack.drawFirstCard
+      val (topCard, newDeck) = game.deckStack.drawFirstCard
 
-      gameCoordinatorRef ! GameCoordinatorMessage.CardDrawn(topCard)
-      nextBehaviors(gameCoordinatorRef)
+      whoToSendResponse ! GameCoordinatorMessage.CardDrawn(topCard)
+      myTurnAfterDraw(whoToSendResponse, game.copy(deckStack = newDeck), topCard)
 
-  private def handleDrawCardFromDiscardStack(gameCoordinatorRef: ActorRef[Message], nextBehaviors: ActorRef[Message] => Behavior[Message]): PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
+  private def handleDrawCardFromDiscardStack(
+                                              whoToSendResponse: ActorRef[Message],
+                                              game: GameInProgress,
+                                              //nextBehaviors: (ActorRef[Message], GameInProgress) => Behavior[Message]
+                                            ): PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
     case (ctx, GameCoordinatorMessage.DrawCardFromDiscardStack()) =>
       ctx.log.info(s"I draw a card from discard stack")
 
-      val (topCard, _) = debugValue.discardDeckStack.drawFirstCard
+      val (topCard, newDiscardStack) = game.discardDeckStack.drawFirstCard
 
-      gameCoordinatorRef ! GameCoordinatorMessage.CardDrawn(topCard)
-      nextBehaviors(gameCoordinatorRef)
+      whoToSendResponse ! GameCoordinatorMessage.CardDrawn(topCard)
+      myTurnAfterDraw(whoToSendResponse, game.copy(discardDeckStack = newDiscardStack), topCard)
+
+  private def handleDiscardCard(
+                                 whoToSendResponse: ActorRef[Message],
+                                 game: GameInProgress,
+                                 cardInHand: Card
+                                 //nextBehaviors: (ActorRef[Message], GameInProgress) => Behavior[Message]
+                               ): PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
+    case (ctx, GameCoordinatorMessage.DiscardCardDrawn()) =>
+      ctx.log.info(s"I discard the card drawn")
+      val g = game.copy(
+        deckStack = game.deckStack,
+        discardDeckStack = game.discardDeckStack.addCard(cardInHand)
+      )
+      whoToSendResponse ! GameCoordinatorMessage.NewTopCardDiscardStack(cardInHand)
+      myTurnAfterDiscard(whoToSendResponse, game)
