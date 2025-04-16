@@ -36,7 +36,7 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
     "send information about the card drawn" when {
       "receive the command to draw a card" in {
         gameLogicActor ! DrawCardFromDeck()
-        //        gameCoordinatorProbe.expectMessageType[ClientMessages.CardDrawn]
+        // gameCoordinatorProbe.expectMessageType[ClientMessages.CardDrawn]
         gameCoordinatorProbe.expectMessage(CardDrawn(Card("5", Spades())))
       }
     }
