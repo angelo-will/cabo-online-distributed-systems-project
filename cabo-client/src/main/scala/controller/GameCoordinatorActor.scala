@@ -66,9 +66,11 @@ object GameCoordinatorActor:
   private def myTurnAfterDiscard(gameData: GameData): Behavior[Message] = Behaviors.receivePartial {
     handleSendGameStatus(gameData, myTurnAfterDiscard)
       .orElse({ case (ctx, GameCoordinatorMessage.EndTurn()) =>
+        // TODO: send to other players the new status of the game
         // send to other atcual status
         // [...]
         // to change then
+        gameData.whoToSendResponse ! GameCoordinatorMessage.GameInformation(gameData.game)
         myTurnBeforeDraw(gameData)
       })
   }
@@ -113,7 +115,7 @@ object GameCoordinatorActor:
     case (ctx, GameCoordinatorMessage.DiscardCardDrawn()) =>
       ctx.log.info(s"I discard the card drawn")
       val newDeck = gameData.temporaryDeck
-      val newDiscardStack = gameData.temporaryDiscardDeck.addCard(cardInHand)
+      val newDiscardStack = gameData.temporaryDiscardDeck.addTopCard(cardInHand)
       val newGameState = gameData.game.copy(
         deckStack = newDeck,
         discardDeckStack = newDiscardStack
