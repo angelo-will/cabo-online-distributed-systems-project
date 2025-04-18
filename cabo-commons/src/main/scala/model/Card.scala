@@ -164,12 +164,14 @@ case class CardStack(cards: List[Card]):
   def removeCards(cards: Seq[Card]): CardStack = cards.foldLeft(this)((stack, card) => stack.removeCard(card))
 
   /**
-   * Adds a card to the stack.
+   * Adds a card at the end of the stack.
    *
    * @param card the card to be added
    * @return a new CardStack with the specified card added
    */
-  def addCard(card: Card): CardStack = CardStack(cards :+ card)
+  def addEndCard(card: Card): CardStack = CardStack(cards :+ card)
+  
+  def addTopCard(card: Card): CardStack = CardStack(card :: cards)
 
   /**
    * Draws the first card from the stack and returns it along with the new CardStack.
