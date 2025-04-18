@@ -110,12 +110,13 @@ case class Card(rank: Rank, suit: Suit):
     case Rank.Jack() => Power.SeeYourCard()
     case Rank.Queen() => Power.SeeYourOpponentCard()
     case Rank.King() => Power.ChangeOneOfYourCardWithOpponent()
+    case _ => Power.NoPower()
 
   def canFish(other: Card): Boolean =
     if (rank == Rank.Jack()) true
     else this == other
 
-  override def toString: String = shortName
+  override def toString: String = name
 
 object CardStack:
   /**
@@ -179,7 +180,7 @@ case class CardStack(cards: List[Card]):
 
   def isEmpty: Boolean = cards.isEmpty
 
-  override def toString: String = cards.mkString(", ")
+  override def toString: String = "CardStack(" + cards.mkString(", ") + ")"
 
 object Hand:
   private val maxCardsNumber = 4
