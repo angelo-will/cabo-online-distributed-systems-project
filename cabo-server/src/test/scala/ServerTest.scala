@@ -6,7 +6,7 @@ import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration.*
 
-import model.GameInConstruction
+import model.Game.GameInConstruction
 import model.GameParameters
 import utils.ServerMessages
 import utils.Message

@@ -2,11 +2,33 @@ package model
 
 import model.Suit.Spades
 
-trait WithDeck:
-  def deck: List[Card]
+object Game:
+  // 0-index
+  val maxPlayersPerGame = 4
 
-trait WithStatus:
-  def gameStatus: GameStatus
+  case class GameInConstruction(
+                                 code: String,
+                                 gameParameters: IGameParameters,
+                                 players: List[PlayerPlaying],
+                               )
+
+  case class GameInProgress(
+                             code: String,
+                             gameParameters: IGameParameters,
+                             gameStatus: GameStatus,
+                             players: List[PlayerPlaying],
+                             deckStack: CardStack,
+                             discardDeckStack: CardStack,
+                             currentRound: Int
+                           ):
+    override def toString: String = "GameInProgress\n" +
+      "\tcode=" + code + "\n" +
+      "\tgameParameters=" + gameParameters + "\n" +
+      "\tgameStatus=" + gameStatus + "\n" +
+      "\tplayers=" + players + "\n" +
+      "\tdeckStack=" + deckStack + "\n" +
+      "\tdiscardDeckStack=" + discardDeckStack + "\n" +
+      "\tcurrentRound=" + currentRound + ""
 
 abstract class GameStatus(val status: String)
 
@@ -17,21 +39,3 @@ object GameStatus:
 
   case class Finished() extends GameStatus("Finished")
 
-case class GameInConstruction(
-                               code: String,
-                               gameParameters: IGameParameters,
-                               players: List[PlayerPlaying],
-                             ) extends WithStatus:
-  override def gameStatus: GameStatus = GameStatus.WaitingForPlayers()
-
-  def playersAddress: List[String] = players.map(_.address)
-
-case class GameInProgress(
-                           code: String,
-                           gameParameters: IGameParameters,
-                           gameStatus: GameStatus,
-                           players: List[PlayerPlaying],
-                           deckStack: CardStack,
-                           discardDeckStack: CardStack,
-                           currentRound: Int
-                         )

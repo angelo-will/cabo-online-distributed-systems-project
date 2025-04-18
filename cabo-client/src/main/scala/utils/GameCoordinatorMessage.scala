@@ -1,6 +1,8 @@
 package utils
 
+import akka.actor.typed.ActorRef
 import model.Card
+import model.Game
 
 object GameCoordinatorMessage:
 
@@ -20,7 +22,11 @@ object GameCoordinatorMessage:
   
   case class DiscardCardDrawn() extends PlayerCommand
   
+  case class DiscardYourNthCard(index: Int) extends PlayerCommand
+  
   case class EndTurn() extends PlayerCommand
+  
+  case class SendGameStatus(toWhoSend: ActorRef[Message]) extends PlayerCommand
 
   // Messages - command sent by the coordinator
   
@@ -30,3 +36,5 @@ object GameCoordinatorMessage:
   case class CardDrawn(card: Card) extends PlayerCommand
   
   case class NewTopCardDiscardStack(card: Card) extends PlayerCommand
+  
+  case class GameInformation(game: Game.GameInProgress) extends PlayerCommand
