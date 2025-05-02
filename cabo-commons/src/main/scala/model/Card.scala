@@ -170,7 +170,7 @@ case class CardStack(cards: List[Card]):
    * @return a new CardStack with the specified card added
    */
   def addEndCard(card: Card): CardStack = CardStack(cards :+ card)
-  
+
   def addTopCard(card: Card): CardStack = CardStack(card :: cards)
 
   /**
@@ -179,6 +179,8 @@ case class CardStack(cards: List[Card]):
    * @return a tuple containing the drawn card and the new CardStack
    */
   def drawFirstCard: (Card, CardStack) = (cards.head, CardStack(cards.tail))
+
+  def drawNCards(cardsQuantity: Int): (List[Card], CardStack) = (cards.take(cardsQuantity), CardStack(cards.drop(cardsQuantity)))
 
   def isEmpty: Boolean = cards.isEmpty
 
@@ -215,6 +217,12 @@ case class Hand private(cards: List[Card]):
   def viewThirdCard: Card = cards(2)
 
   def viewFourthCard: Card = cards(Hand.maxCardsNumber - 1)
+
+  def changeNthCard(index: Int, card: Card): Hand =
+    if (index < 0 || index >= Hand.maxCardsNumber)
+      throw new IllegalArgumentException(s"Index $index is not valid, it must be between 0 and ${Hand.maxCardsNumber - 1}")
+    else
+      Hand(cards.updated(index, card))
 
   def changeFirstCard(card: Card): Hand = Hand(cards.updated(0, card))
 
