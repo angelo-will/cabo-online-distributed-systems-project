@@ -40,6 +40,8 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
 
   private def discardCardDrawn(): Unit = gameCoordinatorActor ! GameCoordinatorMessage.DiscardCardDrawn()
 
+  private def discardNthCard(index: Int): Unit = gameCoordinatorActor ! GameCoordinatorMessage.DiscardYourNthCard(index)
+
   private def sendGameStatus(): Unit = gameCoordinatorActor ! GameCoordinatorMessage.SendGameStatus(gameCoordinatorProbe.ref)
 
   private def endTurn(): Unit = gameCoordinatorActor ! GameCoordinatorMessage.EndTurn()
@@ -98,13 +100,26 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
     }
     "send new top card of discard card stack equal to one of own cards" when {
       "receive the command to discard one of own cards" in {
-        //        gameCoordinatorActor ! GameCoordinatorMessage.DrawCardFromDeck()
-        //        gameCoordinatorActor ! DiscardYourNthCard(0)
-        //        val messages = gameCoordinatorProbe.receiveMessages(2)
-        //        val cardDiscardedMessage = messages.tail.head
-        //        cardDiscardedMessage mustBe NewTopCardDiscardStack(playerNthPreviousCard)
-        //
-        fail("Not implemented yet")
+        val indexPlayer = 0
+        val indexCardToDiscard = 2
+        sendGameStatus()
+        val game = gameCoordinatorProbe.expectMessageType[GameCoordinatorMessage.GameInformation].game
+        println(game)
+        val (cardDrawn, newDeck) = game.deckStack.drawFirstCard
+        drawCardFromDeck()
+        val _ = gameCoordinatorProbe.expectMessageType[CardDrawn]
+        val handCards = game.players(indexPlayer).hand.cards
+        val cardToDiscard = handCards(indexCardToDiscard)
+        discardNthCard(indexCardToDiscard)
+        val cardDiscarded = gameCoordinatorProbe.expectMessageType[NewTopCardDiscardStack].card
+        cardDiscarded mustBe cardToDiscard
+        //        discardCardDrawn()
+        //        val _ = gameCoordinatorProbe.expectMessageType[NewTopCardDiscardStack]
+        //        endTurn()
+        //        val newGameState = gameCoordinatorProbe.expectMessageType[GameCoordinatorMessage.GameInformation].game
+        //        println(newGameState)
+        //        val (topCardDiscardStack, _) = newGameState.discardDeckStack.drawFirstCard
+        //        topCardDiscardStack mustBe cardDrawn
       }
     }
 

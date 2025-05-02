@@ -3,7 +3,7 @@ package controller
 import akka.actor.typed.Behavior
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import model.Suit.Spades
-import model.{Card, GameParameters}
+import model.{Card, GameParameters, Hand, PlayerPlaying}
 import model.Game.GameInProgress
 
 object GameCoordinatorActor:
@@ -26,7 +26,11 @@ object GameCoordinatorActor:
 
   def apply(whoToSendResponse: ActorRef[Message], playerRank: Int): Behavior[Message] =
     // debug values, emulate shuffled deck and the use of the first card as firs of discard stack
-    val (topCardDiscardStack, deckOftheGame) = CardStack.buildShuffledFullDeck.drawFirstCard
+    val fullDeckShuffled = CardStack.buildShuffledFullDeck
+    //    val fullDeckShuffled = CardStack.buildSortedFullDeck
+    val (handPlayer01, remainingDeck01) = fullDeckShuffled.drawNCards(4)
+    val (handPlayer02, remainingDeck02) = remainingDeck01.drawNCards(4)
+    val (topCardDiscardStack, deckToStartTheGame) = remainingDeck02.drawFirstCard
     val discardStack = CardStack(List(topCardDiscardStack))
     if (playerRank < 0 || playerRank > Game.maxPlayersPerGame)
       throw new IllegalArgumentException(s"Player rank $playerRank is not valid, it must be between 0 and ${Game.maxPlayersPerGame}")
@@ -40,12 +44,15 @@ object GameCoordinatorActor:
             "gameCode",
             GameParameters(maxTimeRound = 5),
             GameStatus.InProgress(),
-            List.empty,
-            deckOftheGame,
+            List(
+              PlayerPlaying("player01", "name01", "not-valid-address", Hand(handPlayer01)),
+              PlayerPlaying("player02", "name02", "not-valid-address", Hand(handPlayer02)),
+            ),
+            deckToStartTheGame,
             discardStack,
             0
           ),
-          deckOftheGame,
+          deckToStartTheGame,
           discardStack
         ))
       }
@@ -60,6 +67,7 @@ object GameCoordinatorActor:
 
   private def myTurnAfterDraw(gameData: GameData, cardInHand: Card): Behavior[Message] = Behaviors.receivePartial {
     handleDiscardCard(gameData, cardInHand)
+      .orElse(handleDiscardNthCard(gameData, cardInHand))
       .orElse(handleSendGameStatus(gameData, myTurnAfterDraw(_, cardInHand)))
   }
 
@@ -123,6 +131,31 @@ object GameCoordinatorActor:
       gameData.whoToSendResponse ! GameCoordinatorMessage.NewTopCardDiscardStack(cardInHand)
       myTurnAfterDiscard(gameData.copy(game = newGameState))
 
+  private def handleDiscardNthCard(
+                                    gameData: GameData,
+                                    cardInHand: Card
+                                  ): PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
+    case (ctx, GameCoordinatorMessage.DiscardYourNthCard(index)) =>
+      ctx.log.info(s"I discard the card with index $index")
+      val oldHand = gameData.game.players(gameData.playerRank).hand
+      ctx.log.info(s"The card is ${oldHand.cards(index)}")
+      val newPlayersState = changeCardNthOfNthPlayer(
+        gameData.playerRank,
+        gameData.game.players,
+        index,
+        cardInHand
+      )
+      val newDeck = gameData.temporaryDeck
+      val newDiscardStack = gameData.temporaryDiscardDeck.addTopCard(oldHand.cards(index))
+      val newGameState = gameData.game.copy(
+        deckStack = newDeck,
+        discardDeckStack = newDiscardStack,
+        players = newPlayersState
+      )
+      ctx.log.info(s"New game state: $newGameState")
+      gameData.whoToSendResponse ! GameCoordinatorMessage.NewTopCardDiscardStack(oldHand.cards(index))
+      myTurnAfterDiscard(gameData.copy(game = newGameState))
+
   private def handleSendGameStatus(
                                     gameData: GameData,
                                     nextBehaviors: GameData => Behavior[Message]
@@ -130,3 +163,22 @@ object GameCoordinatorActor:
     case (ctx, GameCoordinatorMessage.SendGameStatus(ref)) =>
       ref ! GameCoordinatorMessage.GameInformation(gameData.game)
       nextBehaviors(gameData)
+
+  private def changeCardNthOfNthPlayer(
+                                        playerRank: Int,
+                                        players: List[PlayerPlaying],
+                                        cardIndexToChange: Int,
+                                        newCard: Card
+                                      ): List[PlayerPlaying] =
+    val newPlayer = changeCardOfPlayer(players(playerRank), cardIndexToChange, newCard)
+    players.updated(playerRank, newPlayer)
+
+
+  private def changeCardOfPlayer(
+                                  player: PlayerPlaying,
+                                  cardIndexToChange: Int,
+                                  newCard: Card
+                                ): PlayerPlaying =
+    player.copy(
+      hand = player.hand.changeNthCard(cardIndexToChange, newCard)
+    )
