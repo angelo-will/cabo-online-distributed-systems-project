@@ -5,6 +5,9 @@ import model.Suit.Spades
 object Game:
   // 0-index
   val maxPlayersPerGame = 4
+  
+  // 0-index
+  val maxCardsPerGame = 4
 
   case class GameInConstruction(
                                  code: String,
