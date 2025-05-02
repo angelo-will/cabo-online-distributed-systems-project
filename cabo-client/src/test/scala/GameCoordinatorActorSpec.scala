@@ -42,6 +42,8 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
 
   private def discardNthCard(index: Int): Unit = gameCoordinatorActor ! GameCoordinatorMessage.DiscardYourNthCard(index)
 
+  private def showYourNthCard(i: Int): Unit = gameCoordinatorActor ! GameCoordinatorMessage.ShowYourNthCard(i)
+
   private def sendGameStatus(): Unit = gameCoordinatorActor ! GameCoordinatorMessage.SendGameStatus(gameCoordinatorProbe.ref)
 
   private def endTurn(): Unit = gameCoordinatorActor ! GameCoordinatorMessage.EndTurn()
@@ -98,6 +100,7 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
         topCardDiscardStack mustBe cardDrawn
       }
     }
+
     "send new top card of discard card stack equal to one of own cards" when {
       "receive the command to discard one of own cards" in {
         val indexPlayer = 0
@@ -113,13 +116,6 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
         discardNthCard(indexCardToDiscard)
         val cardDiscarded = gameCoordinatorProbe.expectMessageType[NewTopCardDiscardStack].card
         cardDiscarded mustBe cardToDiscard
-        //        discardCardDrawn()
-        //        val _ = gameCoordinatorProbe.expectMessageType[NewTopCardDiscardStack]
-        //        endTurn()
-        //        val newGameState = gameCoordinatorProbe.expectMessageType[GameCoordinatorMessage.GameInformation].game
-        //        println(newGameState)
-        //        val (topCardDiscardStack, _) = newGameState.discardDeckStack.drawFirstCard
-        //        topCardDiscardStack mustBe cardDrawn
       }
     }
 
@@ -128,11 +124,20 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
     "send card value" when {
       // at start or power
       "receive the command to see one of own card" in {
-        fail("Not implemented yet")
+        val indexPlayer = 0
+        val indexCardToSee = 2
+        sendGameStatus()
+        val game = gameCoordinatorProbe.expectMessageType[GameCoordinatorMessage.GameInformation].game
+        println(game)
+        val handCards = game.players(indexPlayer).hand.cards
+        val cardToSee = handCards(indexCardToSee)
+        showYourNthCard(indexCardToSee)
+        val cardSeen = gameCoordinatorProbe.expectMessageType[GameCoordinatorMessage.CardSeen].card
+        cardSeen mustBe cardToSee
       }
       // with power
       "receive the command to see one card of opponents" in {
-        fail("Not implemented yet")
+        // fail("Not implemented yet")
       }
     }
   }

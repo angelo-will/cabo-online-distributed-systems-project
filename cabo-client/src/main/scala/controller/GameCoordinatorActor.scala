@@ -61,18 +61,21 @@ object GameCoordinatorActor:
 
   private def myTurnBeforeDraw(gameData: GameData): Behavior[Message] = Behaviors.receivePartial {
     handleDrawCardFromDeck(gameData)
+      .orElse(handleShowOwnNthCard(gameData, myTurnBeforeDraw))
       .orElse(handleDrawCardFromDiscardStack(gameData))
       .orElse(handleSendGameStatus(gameData, myTurnBeforeDraw))
   }
 
   private def myTurnAfterDraw(gameData: GameData, cardInHand: Card): Behavior[Message] = Behaviors.receivePartial {
     handleDiscardCard(gameData, cardInHand)
+      .orElse(handleShowOwnNthCard(gameData, myTurnAfterDraw(_, cardInHand)))
       .orElse(handleDiscardNthCard(gameData, cardInHand))
       .orElse(handleSendGameStatus(gameData, myTurnAfterDraw(_, cardInHand)))
   }
 
   private def myTurnAfterDiscard(gameData: GameData): Behavior[Message] = Behaviors.receivePartial {
     handleSendGameStatus(gameData, myTurnAfterDiscard)
+      .orElse(handleShowOwnNthCard(gameData, myTurnAfterDiscard))
       .orElse({ case (ctx, GameCoordinatorMessage.EndTurn()) =>
         // TODO: send to other players the new status of the game
         // send to other atcual status
@@ -137,7 +140,7 @@ object GameCoordinatorActor:
                                   ): PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
     case (ctx, GameCoordinatorMessage.DiscardYourNthCard(index)) =>
       ctx.log.info(s"I discard the card with index $index")
-      val oldHand = gameData.game.players(gameData.playerRank).hand
+      val oldHand = getOurHand(gameData)
       ctx.log.info(s"The card is ${oldHand.cards(index)}")
       val newPlayersState = changeCardNthOfNthPlayer(
         gameData.playerRank,
@@ -163,6 +166,19 @@ object GameCoordinatorActor:
     case (ctx, GameCoordinatorMessage.SendGameStatus(ref)) =>
       ref ! GameCoordinatorMessage.GameInformation(gameData.game)
       nextBehaviors(gameData)
+
+  private def handleShowOwnNthCard(
+                                    gameData: GameData,
+                                    nextBehaviors: GameData => Behavior[Message]
+                                  ): PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
+    case (ctx, GameCoordinatorMessage.ShowYourNthCard(index)) =>
+      ctx.log.info(s"I show the card with index $index")
+      val hand = getOurHand(gameData)
+      ctx.log.info(s"The card is ${hand.cards(index)}")
+      gameData.whoToSendResponse ! GameCoordinatorMessage.CardSeen(hand.cards(index))
+      nextBehaviors(gameData)
+
+  private def getOurHand(gameData: GameData) = gameData.game.players(gameData.playerRank).hand
 
   private def changeCardNthOfNthPlayer(
                                         playerRank: Int,
