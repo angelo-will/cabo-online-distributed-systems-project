@@ -22,14 +22,16 @@ object Server:
   private case class InternalGetResponse(rsp: GetResponse[ORSet[GameInConstruction]], replyTo: ActorRef[Message])
     extends InternalCommand
 
+  private case class InternalGetResponseForUpdate(rsp: GetResponse[ORSet[GameInConstruction]], game: GameInConstruction, replyTo: ActorRef[Message]) extends InternalCommand
+
   def apply(serverCode: String): Behavior[Message] = Behaviors.setup { ctx =>
     ctx.log.info("Server started")
     ctx.system.receptionist ! Receptionist.register(ServiceKey[Message](serverCode), ctx.self)
 
     DistributedData.withReplicatorMessageAdapter[Message, ORSet[GameInConstruction]] { replicatorAdapter =>
-      
+
       implicit val node: SelfUniqueAddress = DistributedData(ctx.system).selfUniqueAddress
-      
+
       val listOfGames = ORSetKey[GameInConstruction]("listOfGames")
 
       def removeGameFromList(game: GameInConstruction): Unit = {
@@ -38,15 +40,19 @@ object Server:
           InternalRemoveResponse.apply)
       }
 
+      def addGameInList(game: GameInConstruction, ref: ActorRef[Message]): Unit = {
+        replicatorAdapter.askUpdate(
+          askReplyTo => Update(listOfGames, ORSet.empty, writeLocal, askReplyTo)(_ :+ game),
+          rsp => InternalUpdateResponse(rsp, game, ref))
+      }
+
       Behaviors.receiveMessagePartial[Message] {
 
         //Messages received from a player client
 
         case RegisterGame(game, ref) =>
           ctx.log.info(s"Registering game: $game")
-          replicatorAdapter.askUpdate(
-            askReplyTo => Update(listOfGames, ORSet.empty, writeLocal, askReplyTo)(_ :+ game),
-            rsp => InternalUpdateResponse(rsp, game, ref))
+          addGameInList(game, ref)
           Behaviors.same
 
         case StartGame(game, ref) =>
@@ -67,22 +73,30 @@ object Server:
           )
           Behaviors.same
 
+        case UpdateGame(game, ref) =>
+          ctx.log.info(s"Updating game: $game")
+          replicatorAdapter.askGet(
+            askReplyTo => Get(listOfGames, Replicator.ReadLocal, askReplyTo),
+            rsp => InternalGetResponseForUpdate(rsp, game, ref)
+          )
+          Behaviors.same
+
         // Message received from the adapter about the distributed data
 
         case InternalGetResponse(g @ GetSuccess(key, _), ref) =>
           ctx.log.info(s"Found the List Games")
-          val data = g.get(listOfGames)
+          val data = g.get(key)
           ref ! GamesList(data.elements.toSeq)
+          Behaviors.same
+
+        case InternalGetResponse(g @ NotFound(key, _), ref) =>
+          ctx.log.info(s"List of games data deleted")
+          ref ! GamesList(Seq())
           Behaviors.same
 
         //Not necessary, but written for match every possible case
         case InternalGetResponse(g @ GetFailure(key, _), ref) =>
           ctx.log.info(s"Failed to found the list of Games")
-          ref ! GamesList(Seq())
-          Behaviors.same
-
-        case InternalGetResponse(g @ NotFound(key, _), ref) =>
-          ctx.log.info(s"List of games data deleted")
           ref ! GamesList(Seq())
           Behaviors.same
 
@@ -92,10 +106,24 @@ object Server:
           ref ! GameRegistered(game, ctx.self)
           Behaviors.same
 
+        case InternalRemoveResponse(_: UpdateSuccess[_]) =>
+          ctx.log.info(s"Removed game from the list")
+          Behaviors.same
+
+        case InternalGetResponseForUpdate(g@GetSuccess(key, _), gameUpdated, ref) =>
+          ctx.log.info(s"Checking the list for the game to update")
+          val data = g.get(listOfGames)
+          val gameToRemove = data.elements.find(_.code.eq(gameUpdated.code))
+          gameToRemove match
+            case Some(value) =>
+              removeGameFromList(value)
+              addGameInList(gameUpdated, ref)
+            case None => ref ! FailedToUpdate(gameUpdated, ctx.self)
+          Behaviors.same
+
         case _ =>
           ctx.log.debug("Unknown message received")
           Behaviors.same
-
       }
     }
 
