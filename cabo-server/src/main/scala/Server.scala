@@ -86,18 +86,18 @@ object Server:
         case InternalGetResponse(g @ GetSuccess(key, _), ref) =>
           ctx.log.info(s"Found the List Games")
           val data = g.get(key)
-          ref ! GamesList(data.elements.toSeq)
+          ref ! GamesList(data.elements)
           Behaviors.same
 
         case InternalGetResponse(g @ NotFound(key, _), ref) =>
           ctx.log.info(s"List of games data deleted")
-          ref ! GamesList(Seq())
+          ref ! GamesList(Set())
           Behaviors.same
 
         //Not necessary, but written for match every possible case
         case InternalGetResponse(g @ GetFailure(key, _), ref) =>
           ctx.log.info(s"Failed to found the list of Games")
-          ref ! GamesList(Seq())
+          ref ! GamesList(Set())
           Behaviors.same
 
         // Check if the reply to the client can be done in another way, using the "request" parameter inside the Update message

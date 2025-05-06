@@ -5,8 +5,6 @@ object ServerMessages:
   import model.GameInConstruction
   
   trait ServerCommand extends Message
-  
-  type Games = Seq[GameInConstruction]
 
   /**
    * Message used to register a game to the server
@@ -52,7 +50,7 @@ object ServerMessages:
    *
    * @param games - the list of games
    */
-  case class GamesList(games: Games) extends ServerCommand
+  case class GamesList(games: Set[GameInConstruction]) extends ServerCommand
 
   /**
    * Update the information about an already registered game
