@@ -17,12 +17,12 @@ object ServerMessages:
   case class RegisterGame(game: GameInConstruction, replyTo: ActorRef[Message]) extends ServerCommand
 
   /**
-   * Reply message for [[RegisterGame]] to acknowledge the client that his game has been registered
+   * Reply message for [[RegisterGame]] and [[UpdateGame]] to acknowledge the client that his game has been registered
    *
    * @param game - the game that has been registered
-   * @param replyTo - the ActorRef of the server that served the request
+   * @param sender - the ActorRef of the server that served the request
    */
-  case class GameRegistered(game: GameInConstruction, replyTo: ActorRef[Message]) extends ServerCommand
+  case class GameRegistered(game: GameInConstruction, sender: ActorRef[Message]) extends ServerCommand
 
   /**
    * Message to indicate that the game has started so it has to be removed from the list
@@ -57,7 +57,7 @@ object ServerMessages:
   /**
    * Update the information about an already registered game
    *
-   * @param game - game that has to updated, contains the new information
+   * @param game - game that has to be updated, contains the new information
    * @param replyTo - ActorRef of the client that requested the update
    */
   case class UpdateGame(game: GameInConstruction, replyTo: ActorRef[Message]) extends ServerCommand
