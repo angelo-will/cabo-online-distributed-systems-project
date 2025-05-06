@@ -61,3 +61,11 @@ object ServerMessages:
    * @param replyTo - ActorRef of the client that requested the update
    */
   case class UpdateGame(game: GameInConstruction, replyTo: ActorRef[Message]) extends ServerCommand
+
+  /**
+   * Message to indicate a failure when updating the information about an already registered game
+   * 
+   * @param game - game that has to be updated, contains the new information
+   * @param sender - ActorRef of the server that served the request
+   */
+  case class FailedToUpdate(game: GameInConstruction, sender: ActorRef[Message]) extends ServerCommand
