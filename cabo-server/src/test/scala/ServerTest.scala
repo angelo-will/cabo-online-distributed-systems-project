@@ -38,7 +38,7 @@ class ServerTest extends ScalaTestWithActorTestKit
     "send empty games list" when {
       "someone requests games but nobody has registered one of them" in {
         server ! GetGames(testProbe.ref)
-        testProbe.expectMessage(GamesList(Seq()))
+        testProbe.expectMessage(GamesList(Set()))
       }
     }
     "send a GameRegistered message" when {
@@ -61,7 +61,7 @@ class ServerTest extends ScalaTestWithActorTestKit
 
         val message = testProbe.receiveMessages(3, 5.seconds).filter(_.isInstanceOf[GamesList]).head
 
-        message mustBe GamesList(List(game1, game2))
+        message mustBe GamesList(Set(game1, game2))
 
         //Remove the games from the sever because the list is persistent between test
         server ! StartGame(game1, testProbe.ref)
@@ -77,7 +77,7 @@ class ServerTest extends ScalaTestWithActorTestKit
           case GameRegistered(game, ref) =>
             server ! StartGame(game, testProbe.ref)
             server ! GetGames(testProbe.ref)
-            testProbe.expectMessage(GamesList(Seq()))
+            testProbe.expectMessage(GamesList(Set()))
           case _ =>
             fail("Expected GameRegistered message")
         }
@@ -92,7 +92,7 @@ class ServerTest extends ScalaTestWithActorTestKit
           case GameRegistered(game, ref) =>
             server ! AbortGame(game, testProbe.ref)
             server ! GetGames(testProbe.ref)
-            testProbe.expectMessage(GamesList(Seq()))
+            testProbe.expectMessage(GamesList(Set()))
           case _ =>
             fail("Expected GameRegistered message")
         }
@@ -108,7 +108,7 @@ class ServerTest extends ScalaTestWithActorTestKit
 
         server ! GetGames(testProbe.ref)
 
-        testProbe.expectMessage(GamesList(Seq(game)))
+        testProbe.expectMessage(GamesList(Set(game)))
 
         server ! StartGame(game, testProbe.ref)
       }
@@ -129,7 +129,7 @@ class ServerTest extends ScalaTestWithActorTestKit
         testProbe.expectMessage(GameRegistered(gameUpdated, server))
 
         server ! GetGames(testProbe.ref)
-        testProbe.expectMessage(GamesList(Seq(game, gameUpdated)))
+        testProbe.expectMessage(GamesList(Set(game, gameUpdated)))
 
         server ! StartGame(gameToUpdate, testProbe.ref)
         server ! StartGame(game, testProbe.ref)
