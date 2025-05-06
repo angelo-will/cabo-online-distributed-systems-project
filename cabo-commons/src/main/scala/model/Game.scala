@@ -20,7 +20,7 @@ object GameStatus:
 case class GameInConstruction(
                                code: String,
                                gameParameters: IGameParameters,
-                               players: List[PlayerPlaying],
+                               players: List[PlayerInLobby],
                              ) extends WithStatus:
   override def gameStatus: GameStatus = GameStatus.WaitingForPlayers()
 
