@@ -5,10 +5,12 @@ on:
     branches:
       - test-actions
       - feature/add_github_actions
+      - feature/distribuited_data_for_server
   pull_request:
     branches:
       - test-actions
       - feature/add_github_actions
+      - feature/distribuited_data_for_server
 
 jobs:
   build:
