@@ -23,6 +23,14 @@ object ServerMessages:
   case class GameRegistered(game: GameInConstruction, sender: ActorRef[Message]) extends ServerCommand
 
   /**
+   * Message to indicate a failure when adding a game to the list of games
+   *
+   * @param game - game that has not been inserted
+   * @param sender - ActorRef of the server that served the request
+   */
+  case class FailedToRegisterGame(game: GameInConstruction, sender: ActorRef[Message]) extends ServerCommand
+
+  /**
    * Message to indicate that the game has started so it has to be removed from the list
    *
    * @param game - game that has started

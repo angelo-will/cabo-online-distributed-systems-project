@@ -106,11 +106,20 @@ object Server:
           ref ! GameRegistered(game, ctx.self)
           Behaviors.same
 
+        case InternalUpdateResponse(_: UpdateFailure[_], game, ref) =>
+          ctx.log.info(s"Failed to update the list of games")
+          ref ! FailedToRegisterGame(game, ctx.self)
+          Behaviors.same
+
         case InternalRemoveResponse(_: UpdateSuccess[_]) =>
           ctx.log.info(s"Removed game from the list")
           Behaviors.same
 
-        case InternalGetResponseForUpdate(g@GetSuccess(key, _), gameUpdated, ref) =>
+        case InternalRemoveResponse(_: UpdateFailure[_]) =>
+          ctx.log.info(s"Failed to removed game from the list")
+          Behaviors.same
+
+        case InternalGetResponseForUpdate(g @ GetSuccess(key, _), gameUpdated, ref) =>
           ctx.log.info(s"Checking the list for the game to update")
           val data = g.get(listOfGames)
           val gameToRemove = data.elements.find(_.code.eq(gameUpdated.code))
@@ -119,6 +128,16 @@ object Server:
               removeGameFromList(value)
               addGameInList(gameUpdated, ref)
             case None => ref ! FailedToUpdate(gameUpdated, ctx.self)
+          Behaviors.same
+
+        case InternalGetResponseForUpdate(NotFound(key, _), gameUpdate, ref) =>
+          ctx.log.info(s"Updating game: Failed to get the list of Games")
+          ref ! FailedToUpdate(gameUpdate, ctx.self)
+          Behaviors.same
+
+        case InternalGetResponseForUpdate(GetFailure(key,_), gameUpdate, ref) =>
+          ctx.log.info(s"Updating game: Failed to get the list of Games")
+          ref ! FailedToUpdate(gameUpdate, ctx.self)
           Behaviors.same
 
         case _ =>
