@@ -218,6 +218,14 @@ case class Hand private(cards: List[Card]):
 
   def viewFourthCard: Card = cards(Hand.maxCardsNumber - 1)
 
+  /**
+   * Changes the card at the specified index in the hand.
+   *
+   * @param index the index of the card to be changed (0-indexed)
+   * @param card  the new card to be placed at the specified index
+   * @return a new Hand with the updated card
+   * @throws IllegalArgumentException if the index is out of bounds (0 or maxCardsPerHand)
+   */
   def changeNthCard(index: Int, card: Card): Hand =
     if (index < 0 || index >= Hand.maxCardsNumber)
       throw new IllegalArgumentException(s"Index $index is not valid, it must be between 0 and ${Hand.maxCardsNumber - 1}")

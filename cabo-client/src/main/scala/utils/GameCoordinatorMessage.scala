@@ -23,8 +23,16 @@ object GameCoordinatorMessage:
   case class DiscardCardDrawn() extends PlayerCommand
 
   case class DiscardYourNthCard(index: Int) extends PlayerCommand
+  
+  case class NewTurn(game: Game.GameInProgress) extends PlayerCommand
 
   case class ShowYourNthCard(index: Int) extends PlayerCommand
+
+  case class ShowAdversaryNthCard(playerIndex: Int, cardIndex: Int) extends PlayerCommand
+
+  case class ChangeAdversaryCardWithOwnNthCard(adversaryIndex: Int, adversaryCardIndex: Int, ownCardIndex: Int) extends PlayerCommand
+
+  case class StartGame() extends PlayerCommand
 
   case class EndTurn() extends PlayerCommand
 
@@ -40,5 +48,5 @@ object GameCoordinatorMessage:
   case class NewTopCardDiscardStack(card: Card) extends PlayerCommand
 
   case class GameInformation(game: Game.GameInProgress) extends PlayerCommand
-  
+
   case class CardSeen(card: Card) extends PlayerCommand

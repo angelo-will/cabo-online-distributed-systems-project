@@ -7,8 +7,7 @@ import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration.*
-import model.{Card, GameParameters}
-import model.Game
+import model.{Card, Game, GameParameters, Power}
 import utils.GameCoordinatorMessage.{CardDrawn, DiscardYourNthCard, DrawCardFromDeck, NewTopCardDiscardStack}
 import utils.{GameCoordinatorMessage, Message, ServerMessages}
 
@@ -32,7 +31,22 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
     super.beforeEach()
     gameCoordinatorProbe = createTestProbe[Message]()
     gameCoordinatorActor = testKit.spawn(GameCoordinatorActor(gameCoordinatorProbe.ref, playerRank = 0))
+    gameCoordinatorActor ! GameCoordinatorMessage.StartGame()
   }
+
+  private def skipFirstShowPhase(): Unit =
+    showYourNthCard(0)
+    showYourNthCard(0)
+    val _ = gameCoordinatorProbe.receiveMessages(2)
+
+  private def jumpARound(): Unit =
+    drawCardFromDeck()
+    val _ = gameCoordinatorProbe.expectMessageType[CardDrawn]
+    discardCardDrawn()
+    val _ = gameCoordinatorProbe.expectMessageType[NewTopCardDiscardStack]
+    endTurn()
+    val gameInformation = gameCoordinatorProbe.expectMessageType[GameCoordinatorMessage.GameInformation].game
+    newTurn(gameInformation)
 
   private def drawCardFromDeck(): Unit = gameCoordinatorActor ! GameCoordinatorMessage.DrawCardFromDeck()
 
@@ -48,25 +62,55 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
 
   private def endTurn(): Unit = gameCoordinatorActor ! GameCoordinatorMessage.EndTurn()
 
-  "Actor Player" must {
+  private def newTurn(game: Game.GameInProgress): Unit = gameCoordinatorActor ! GameCoordinatorMessage.NewTurn(game)
+
+  "Single Actor Player" must {
+
     "send status of the game" when {
       "receive the command send status" in {
         sendGameStatus()
         gameCoordinatorProbe.expectMessageType[GameCoordinatorMessage.GameInformation]
       }
       "receive the command to end turn" in {
-        sendGameStatus()
-        drawCardFromDeck()
-        discardCardDrawn()
-        endTurn()
-        // TODO: decide if codify this sequence to not have magic numbers 4 and 3
-        val messages = gameCoordinatorProbe.receiveMessages(4)
-        messages(3) mustBe a[GameCoordinatorMessage.GameInformation]
+        println("START TEST: send status of the game when receive the command to end turn")
+        skipFirstShowPhase()
+        val commands: List[() => Unit] = List(
+          drawCardFromDeck,
+          discardCardDrawn,
+          endTurn
+        )
+        commands.foreach(_())
+
+        val messages = gameCoordinatorProbe.receiveMessages(commands.size)
+        messages.last mustBe a[GameCoordinatorMessage.GameInformation]
+        println("END TEST: send status of the game when receive the command to end turn")
       }
     }
+
+    "send own card value" when {
+      "at the start of the game when selected one of own card" in {
+        println("START TEST: send own card value when at the start of the game when selected one of own card")
+        sendGameStatus()
+        val indexOfPlayer = 0
+        val indexOfFirstCardSelected = 0
+        val indexOfSecondCardSelected = 2
+        val hand = gameCoordinatorProbe.expectMessageType[GameCoordinatorMessage.GameInformation].game.players(indexOfPlayer).hand
+        val firstCardSelected = hand.cards(indexOfFirstCardSelected)
+        val secondCardSelected = hand.cards(indexOfSecondCardSelected)
+        showYourNthCard(indexOfFirstCardSelected)
+        val firstCardSeen = gameCoordinatorProbe.expectMessageType[GameCoordinatorMessage.CardSeen].card
+        showYourNthCard(indexOfSecondCardSelected)
+        val secondCardSeen = gameCoordinatorProbe.expectMessageType[GameCoordinatorMessage.CardSeen].card
+        firstCardSeen mustBe firstCardSelected
+        secondCardSeen mustBe secondCardSelected
+        println("END TEST: send own card value when at the start of the game when selected one of own card")
+      }
+    }
+
     // Draw a card when receive draw command and send what he draws
     "send information about the card drawn" when {
       "receive the command to draw a card from deck" in {
+        skipFirstShowPhase()
         sendGameStatus()
         val message = gameCoordinatorProbe.expectMessageType[GameCoordinatorMessage.GameInformation]
         val (firstCardOfDeck, _) = message.game.deckStack.drawFirstCard
@@ -74,6 +118,7 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
         gameCoordinatorProbe.expectMessage(CardDrawn(firstCardOfDeck))
       }
       "receive the command to draw a card from discard stack" in {
+        skipFirstShowPhase()
         sendGameStatus()
         val message = gameCoordinatorProbe.expectMessageType[GameCoordinatorMessage.GameInformation]
         val (firstCardOfDiscardStack, _) = message.game.discardDeckStack.drawFirstCard
@@ -82,9 +127,10 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
       }
     }
 
-    // Discard when receive the command to discard and send it
+    //    // Discard when receive the command to discard and send it
     "send new top card of discard card stack equal to card drawn" when {
       "receive the command to discard the card drawn without exchange any of own" in {
+        skipFirstShowPhase()
         sendGameStatus()
         val game = gameCoordinatorProbe.expectMessageType[GameCoordinatorMessage.GameInformation].game
         println(game)
@@ -103,6 +149,7 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
 
     "send new top card of discard card stack equal to one of own cards" when {
       "receive the command to discard one of own cards" in {
+        skipFirstShowPhase()
         val indexPlayer = 0
         val indexCardToDiscard = 2
         sendGameStatus()
@@ -124,6 +171,9 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
     "send card value" when {
       // at start or power
       "receive the command to see one of own card" in {
+        // TODO:
+        //  È possibile farlo all'inizio del gioco o quando hai una carta potere
+        //  effettuare questo test per la fase iniziale in cui puoi vedere due carte
         val indexPlayer = 0
         val indexCardToSee = 2
         sendGameStatus()
@@ -135,9 +185,41 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
         val cardSeen = gameCoordinatorProbe.expectMessageType[GameCoordinatorMessage.CardSeen].card
         cardSeen mustBe cardToSee
       }
-      // with power
-      "receive the command to see one card of opponents" in {
-        // fail("Not implemented yet")
+//      // with power
+//      "receive the command to see one card of opponents" in {
+////        fail("Not implemented yet")
+//      }
+    }
+
+    // powers implementation
+    "send own card value" when {
+      "drawn card with power to show one of own card" in {
+        skipFirstShowPhase()
+
+        sendGameStatus()
+        var game = gameCoordinatorProbe.expectMessageType[GameCoordinatorMessage.GameInformation].game
+        while game.deckStack.drawFirstCard._1.power != Power.SeeYourCard()do
+          jumpARound()
+          sendGameStatus()
+          game = gameCoordinatorProbe.expectMessageType[GameCoordinatorMessage.GameInformation].game
+
+        drawCardFromDeck()
+        val cardToSee = game.players(0).hand.cards(0)
+        val _ = gameCoordinatorProbe.expectMessageType[CardDrawn].card
+        showYourNthCard(0)
+        val cardSeen = gameCoordinatorProbe.expectMessageType[GameCoordinatorMessage.CardSeen].card
+        cardSeen mustBe cardToSee
       }
     }
+
+//    "send adversary card value" when {
+//      "drawn card with power to see one of adversary card" in {
+////        fail("Not implemented yet")
+//      }
+//    }
+//    "change one of own card with adversary one" when {
+//      "drawn card with power to change one of own card" in {
+////        fail("Not implemented yet")
+//      }
+//    }
   }

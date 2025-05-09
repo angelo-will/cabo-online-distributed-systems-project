@@ -8,6 +8,8 @@ object Game:
   
   // 0-index
   val maxCardsPerGame = 4
+  
+  val cardsInitialVisible = 2
 
   case class GameInConstruction(
                                  code: String,
