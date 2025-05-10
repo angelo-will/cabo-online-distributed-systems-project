@@ -317,10 +317,3 @@ object GameCoordinatorActor:
     player.copy(
       hand = player.hand.changeNthCard(cardIndexToChange, newCard)
     )
-
-import model.*
-
-@main
-def test =
-  val tenHearts = Card(Rank.Ten(), Suit.Hearts())
-  println(tenHearts.power)
