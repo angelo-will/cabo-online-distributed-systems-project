@@ -57,6 +57,15 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
     val gameInformation = gameCoordinatorProbe.expectMessageType[GameCoordinatorMessage.GameInformation].game
     newTurn(gameInformation)
 
+  private def skipRoundUntilThisPowerAppear(power: Power): Game.GameInProgress =
+    sendGameStatus()
+    var game = gameCoordinatorProbe.expectMessageType[GameCoordinatorMessage.GameInformation].game
+    while game.deckStack.drawFirstCard._1.power != power do
+      jumpARound()
+      sendGameStatus()
+      game = gameCoordinatorProbe.expectMessageType[GameCoordinatorMessage.GameInformation].game
+    game
+
   private def drawCardFromDeck(): Unit = gameCoordinatorActor ! GameCoordinatorMessage.DrawCardFromDeck()
 
   private def drawCardFromDiscardStack(): Unit = gameCoordinatorActor ! GameCoordinatorMessage.DrawCardFromDiscardStack()
@@ -206,14 +215,7 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
     "send own card value" when {
       "drawn card with power to show one of own card" in {
         skipFirstShowPhase()
-
-        sendGameStatus()
-        var game = gameCoordinatorProbe.expectMessageType[GameCoordinatorMessage.GameInformation].game
-        while game.deckStack.drawFirstCard._1.power != Power.SeeYourCard()do
-          jumpARound()
-          sendGameStatus()
-          game = gameCoordinatorProbe.expectMessageType[GameCoordinatorMessage.GameInformation].game
-
+        val game = skipRoundUntilThisPowerAppear(Power.SeeYourCard())
         drawCardFromDeck()
         val cardToSee = game.players(0).hand.cards(0)
         val _ = gameCoordinatorProbe.expectMessageType[CardDrawn].card
@@ -226,14 +228,7 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
     "send adversary card value" when {
       "drawn card with power to see one of adversary card" in {
         skipFirstShowPhase()
-
-        sendGameStatus()
-        var game = gameCoordinatorProbe.expectMessageType[GameCoordinatorMessage.GameInformation].game
-        while game.deckStack.drawFirstCard._1.power != Power.SeeYourOpponentCard() do
-          jumpARound()
-          sendGameStatus()
-          game = gameCoordinatorProbe.expectMessageType[GameCoordinatorMessage.GameInformation].game
-
+        val game = skipRoundUntilThisPowerAppear(Power.SeeYourOpponentCard())
         drawCardFromDeck()
         val cardToSeeIndex = 0
         val playerIndex = 1
@@ -244,9 +239,12 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
         cardSeen mustBe cardToSee
       }
     }
-//    "change one of own card with adversary one" when {
-//      "drawn card with power to change one of own card" in {
-////        fail("Not implemented yet")
-//      }
-//    }
+    "change one of own card with adversary one" when {
+      "drawn card with power to change one of own card" in {
+        skipFirstShowPhase()
+
+
+//        fail("Not implemented yet")
+      }
+    }
   }
