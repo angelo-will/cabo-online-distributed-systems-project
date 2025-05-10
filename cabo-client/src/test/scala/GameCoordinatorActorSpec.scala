@@ -1,4 +1,4 @@
-import akka.actor.testkit.typed.scaladsl.{ActorTestKit, ScalaTestWithActorTestKit, TestProbe}
+import akka.actor.testkit.typed.scaladsl.{ScalaTestWithActorTestKit, TestProbe}
 import akka.actor.typed.ActorRef
 import controller.GameCoordinatorActor
 import model.Suit.*
@@ -6,10 +6,9 @@ import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.matchers.should.Matchers
 
-import scala.concurrent.duration.*
-import model.{Card, Game, GameParameters, Power}
+import model.{Card, Game, Power}
 import utils.GameCoordinatorMessage.{CardDrawn, DiscardYourNthCard, DrawCardFromDeck, NewTopCardDiscardStack}
-import utils.{GameCoordinatorMessage, Message, ServerMessages}
+import utils.{GameCoordinatorMessage, Message}
 
 class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
   with AnyWordSpecLike
@@ -48,23 +47,28 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
         discardCardDrawn()
         val _ = gameCoordinatorProbe.receiveMessages(2)
       case Power.SeeYourOpponentCard() =>
-        showAdversaryNthCard(0,0)
+        showAdversaryNthCard(0, 0)
         discardCardDrawn()
         val _ = gameCoordinatorProbe.receiveMessages(2)
-      case Power.NoPower() => discardCardDrawn()
+      case Power.ChangeOneOfYourCardWithOpponent() =>
+        replaceOwnNthCardWithAdversaryNthOne(0, 0, 0)
+      case Power.NoPower() =>
+        discardCardDrawn()
         val _ = gameCoordinatorProbe.expectMessageType[NewTopCardDiscardStack]
     endTurn()
     val gameInformation = gameCoordinatorProbe.expectMessageType[GameCoordinatorMessage.GameInformation].game
     newTurn(gameInformation)
 
-  private def skipRoundUntilThisPowerAppear(power: Power): Game.GameInProgress =
+  private def skipRoundsUntilDrawThisPower(power: Power): (Card, Game.GameInProgress) =
     sendGameStatus()
     var game = gameCoordinatorProbe.expectMessageType[GameCoordinatorMessage.GameInformation].game
     while game.deckStack.drawFirstCard._1.power != power do
       jumpARound()
       sendGameStatus()
       game = gameCoordinatorProbe.expectMessageType[GameCoordinatorMessage.GameInformation].game
-    game
+    drawCardFromDeck()
+    val cardDrawn = gameCoordinatorProbe.expectMessageType[CardDrawn].card
+    (cardDrawn,game)
 
   private def drawCardFromDeck(): Unit = gameCoordinatorActor ! GameCoordinatorMessage.DrawCardFromDeck()
 
@@ -77,6 +81,9 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
   private def showYourNthCard(i: Int): Unit = gameCoordinatorActor ! GameCoordinatorMessage.ShowYourNthCard(i)
 
   private def showAdversaryNthCard(playerIndex: Int, cardIndex: Int): Unit = gameCoordinatorActor ! GameCoordinatorMessage.ShowAdversaryNthCard(playerIndex, cardIndex)
+
+  private def replaceOwnNthCardWithAdversaryNthOne(ownCardIndex: Int, adversaryIndex: Int, adversaryCardIndex: Int): Unit =
+    gameCoordinatorActor ! GameCoordinatorMessage.ReplaceOwnNthCardWithAdversaryNthOne(ownCardIndex, adversaryIndex, adversaryCardIndex)
 
   private def sendGameStatus(): Unit = gameCoordinatorActor ! GameCoordinatorMessage.SendGameStatus(gameCoordinatorProbe.ref)
 
@@ -205,20 +212,18 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
         val cardSeen = gameCoordinatorProbe.expectMessageType[GameCoordinatorMessage.CardSeen].card
         cardSeen mustBe cardToSee
       }
-//      // with power
-//      "receive the command to see one card of opponents" in {
-////        fail("Not implemented yet")
-//      }
+      //      // with power
+      //      "receive the command to see one card of opponents" in {
+      ////        fail("Not implemented yet")
+      //      }
     }
 
     // powers implementation
     "send own card value" when {
       "drawn card with power to show one of own card" in {
         skipFirstShowPhase()
-        val game = skipRoundUntilThisPowerAppear(Power.SeeYourCard())
-        drawCardFromDeck()
+        val (cardDrawn, game) = skipRoundsUntilDrawThisPower(Power.SeeYourCard())
         val cardToSee = game.players(0).hand.cards(0)
-        val _ = gameCoordinatorProbe.expectMessageType[CardDrawn].card
         showYourNthCard(0)
         val cardSeen = gameCoordinatorProbe.expectMessageType[GameCoordinatorMessage.CardSeen].card
         cardSeen mustBe cardToSee
@@ -228,13 +233,11 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
     "send adversary card value" when {
       "drawn card with power to see one of adversary card" in {
         skipFirstShowPhase()
-        val game = skipRoundUntilThisPowerAppear(Power.SeeYourOpponentCard())
-        drawCardFromDeck()
+        val (cardDrawn, game) = skipRoundsUntilDrawThisPower(Power.SeeYourOpponentCard())
         val cardToSeeIndex = 0
         val playerIndex = 1
         val cardToSee = game.players(playerIndex).hand.cards(cardToSeeIndex)
-        val _ = gameCoordinatorProbe.expectMessageType[CardDrawn].card
-        showAdversaryNthCard(playerIndex,cardToSeeIndex)
+        showAdversaryNthCard(playerIndex, cardToSeeIndex)
         val cardSeen = gameCoordinatorProbe.expectMessageType[GameCoordinatorMessage.CardSeen].card
         cardSeen mustBe cardToSee
       }
@@ -242,9 +245,17 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
     "change one of own card with adversary one" when {
       "drawn card with power to change one of own card" in {
         skipFirstShowPhase()
-
-
-//        fail("Not implemented yet")
+        val (cardDrawn, game) = skipRoundsUntilDrawThisPower(Power.ChangeOneOfYourCardWithOpponent())
+        val ownCardToChangeIndex = 0
+        val playerIndex = 1
+        val adversaryCardToChangeIndex = 0
+        val newOwnCardAfterReplace = game.players(playerIndex).hand.cards(adversaryCardToChangeIndex)
+        val newAdversaryCardAfterReplace = game.players(0).hand.cards(ownCardToChangeIndex)
+        replaceOwnNthCardWithAdversaryNthOne(ownCardToChangeIndex, playerIndex, adversaryCardToChangeIndex)
+        sendGameStatus()
+        val gameInformation = gameCoordinatorProbe.expectMessageType[GameCoordinatorMessage.GameInformation].game
+        gameInformation.players(0).hand.cards(ownCardToChangeIndex) mustBe newOwnCardAfterReplace
+        gameInformation.players(1).hand.cards(adversaryCardToChangeIndex) mustBe newAdversaryCardAfterReplace
       }
     }
   }

@@ -273,8 +273,8 @@ object GameCoordinatorActor:
                                                        gameData: GameData,
                                                        nextBehaviors: GameData => Behavior[Message]
                                                      ): PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
-    case (ctx, GameCoordinatorMessage.ChangeAdversaryCardWithOwnNthCard(adversaryIndex, adversaryCardIndex, ownCardIndex)) =>
-      ctx.log.info(s"I change the card with index $adversaryCardIndex of player with index $adversaryIndex with my card with index $ownCardIndex")
+    case (ctx, GameCoordinatorMessage.ReplaceOwnNthCardWithAdversaryNthOne(ownCardIndex, adversaryIndex, adversaryCardIndex)) =>
+      ctx.log.info(s"I change the card with index $ownCardIndex of player with index $adversaryIndex with my card with index $adversaryCardIndex")
 
       val ownOldCard = gameData.getOurHand.cards(ownCardIndex)
       val ownNewCard = gameData.getHandOfNthPlayer(adversaryIndex).cards(adversaryCardIndex)
