@@ -41,9 +41,18 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
 
   private def jumpARound(): Unit =
     drawCardFromDeck()
-    val _ = gameCoordinatorProbe.expectMessageType[CardDrawn]
-    discardCardDrawn()
-    val _ = gameCoordinatorProbe.expectMessageType[NewTopCardDiscardStack]
+    val card = gameCoordinatorProbe.expectMessageType[CardDrawn].card
+    card.power match
+      case Power.SeeYourCard() =>
+        showYourNthCard(0)
+        discardCardDrawn()
+        val _ = gameCoordinatorProbe.receiveMessages(2)
+      case Power.SeeYourOpponentCard() =>
+        showAdversaryNthCard(0,0)
+        discardCardDrawn()
+        val _ = gameCoordinatorProbe.receiveMessages(2)
+      case Power.NoPower() => discardCardDrawn()
+        val _ = gameCoordinatorProbe.expectMessageType[NewTopCardDiscardStack]
     endTurn()
     val gameInformation = gameCoordinatorProbe.expectMessageType[GameCoordinatorMessage.GameInformation].game
     newTurn(gameInformation)
@@ -57,6 +66,8 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
   private def discardNthCard(index: Int): Unit = gameCoordinatorActor ! GameCoordinatorMessage.DiscardYourNthCard(index)
 
   private def showYourNthCard(i: Int): Unit = gameCoordinatorActor ! GameCoordinatorMessage.ShowYourNthCard(i)
+
+  private def showAdversaryNthCard(playerIndex: Int, cardIndex: Int): Unit = gameCoordinatorActor ! GameCoordinatorMessage.ShowAdversaryNthCard(playerIndex, cardIndex)
 
   private def sendGameStatus(): Unit = gameCoordinatorActor ! GameCoordinatorMessage.SendGameStatus(gameCoordinatorProbe.ref)
 
@@ -212,11 +223,27 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
       }
     }
 
-//    "send adversary card value" when {
-//      "drawn card with power to see one of adversary card" in {
-////        fail("Not implemented yet")
-//      }
-//    }
+    "send adversary card value" when {
+      "drawn card with power to see one of adversary card" in {
+        skipFirstShowPhase()
+
+        sendGameStatus()
+        var game = gameCoordinatorProbe.expectMessageType[GameCoordinatorMessage.GameInformation].game
+        while game.deckStack.drawFirstCard._1.power != Power.SeeYourOpponentCard() do
+          jumpARound()
+          sendGameStatus()
+          game = gameCoordinatorProbe.expectMessageType[GameCoordinatorMessage.GameInformation].game
+
+        drawCardFromDeck()
+        val cardToSeeIndex = 0
+        val playerIndex = 1
+        val cardToSee = game.players(playerIndex).hand.cards(cardToSeeIndex)
+        val _ = gameCoordinatorProbe.expectMessageType[CardDrawn].card
+        showAdversaryNthCard(playerIndex,cardToSeeIndex)
+        val cardSeen = gameCoordinatorProbe.expectMessageType[GameCoordinatorMessage.CardSeen].card
+        cardSeen mustBe cardToSee
+      }
+    }
 //    "change one of own card with adversary one" when {
 //      "drawn card with power to change one of own card" in {
 ////        fail("Not implemented yet")
