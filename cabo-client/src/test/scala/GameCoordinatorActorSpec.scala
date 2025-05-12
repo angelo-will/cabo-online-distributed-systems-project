@@ -42,7 +42,6 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
         gameCoordinatorProbe.expectMessageType[GameCoordinatorMessage.GameInformation]
       }
       "receive the command to end turn" in {
-        println("START TEST: send status of the game when receive the command to end turn")
         skipFirstShowPhase()
         val commands: List[() => Unit] = List(
           drawCardFromDeck,
@@ -53,13 +52,11 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
 
         val messages = gameCoordinatorProbe.receiveMessages(commands.size)
         messages.last mustBe a[GameCoordinatorMessage.GameInformation]
-        println("END TEST: send status of the game when receive the command to end turn")
       }
     }
 
     "send own card value" when {
       "at the start of the game when selected one of own card" in {
-        println("START TEST: send own card value when at the start of the game when selected one of own card")
         sendGameInformation()
         val indexOfPlayer = 0
         val indexOfFirstCardSelected = 0
@@ -73,7 +70,6 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
         val secondCardSeen = gameCoordinatorProbe.expectMessageType[GameCoordinatorMessage.CardSeen].card
         firstCardSeen mustBe firstCardSelected
         secondCardSeen mustBe secondCardSelected
-        println("END TEST: send own card value when at the start of the game when selected one of own card")
       }
     }
 
@@ -103,13 +99,11 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
         skipFirstShowPhase()
         sendGameInformation()
         val game = gameCoordinatorProbe.expectMessageType[GameCoordinatorMessage.GameInformation].game
-        println(game)
         val (cardDrawn, newDeck) = game.deckStack.drawFirstCard
         skipDrawCardFromDeckPhase()
         skipDiscardCardDrawnPhase()
         endTurn()
         val newGameState = gameCoordinatorProbe.expectMessageType[GameCoordinatorMessage.GameInformation].game
-        println(newGameState)
         val (topCardDiscardStack, _) = newGameState.discardDeckStack.drawFirstCard
         topCardDiscardStack mustBe cardDrawn
       }
@@ -122,7 +116,6 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
         val indexCardToDiscard = 2
         sendGameInformation()
         val game = gameCoordinatorProbe.expectMessageType[GameCoordinatorMessage.GameInformation].game
-        println(game)
         val (cardDrawn, newDeck) = game.deckStack.drawFirstCard
         skipDrawCardFromDeckPhase()
         val handCards = game.players(indexPlayer).hand.cards
