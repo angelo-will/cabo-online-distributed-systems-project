@@ -5,10 +5,10 @@ import model.Suit.Spades
 object Game:
   // 0-index
   val maxPlayersPerGame = 4
-  
+
   // 0-index
   val maxCardsPerGame = 4
-  
+
   val cardsInitialVisible = 2
 
   case class GameInConstruction(
@@ -34,6 +34,16 @@ object Game:
       "\tdeckStack=" + deckStack + "\n" +
       "\tdiscardDeckStack=" + discardDeckStack + "\n" +
       "\tcurrentRound=" + currentRound + ""
+
+    def getPlayerWithID(userID: String) = PlayerPlaying.getPlayerWithID(userID, this.players)
+
+    def getHandOfPlayerWithID(userID: String) = this.getPlayerWithID(userID).hand
+
+    def replaceHandOfPlayerWithID(userID: String, hand: Hand) =
+      this.copy(players = PlayerPlaying.replaceHandOfPlayerWithID(userID, hand, this.players))
+
+    def replaceNthCardOfPlayerWithID(userID: String, card: Card, index: Int) =
+      this.copy(players = PlayerPlaying.replaceNthCardOfPlayerWithID(userID, card, index, this.players))
 
 abstract class GameStatus(val status: String)
 

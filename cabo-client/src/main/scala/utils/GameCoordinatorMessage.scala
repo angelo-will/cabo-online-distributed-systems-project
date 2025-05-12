@@ -28,9 +28,9 @@ object GameCoordinatorMessage:
 
   case class ShowYourNthCard(index: Int) extends PlayerCommand
 
-  case class ShowAdversaryNthCard(playerIndex: Int, cardIndex: Int) extends PlayerCommand
+  case class ShowAdversaryNthCard(playerID: String, cardIndex: Int) extends PlayerCommand
 
-  case class ReplaceOwnNthCardWithAdversaryNthOne(adversaryIndex: Int, adversaryCardIndex: Int, ownCardIndex: Int) extends PlayerCommand
+  case class ReplaceOwnNthCardWithAdversaryNthOne(ownCardIndex: Int, adversaryID: String, adversaryCardIndex: Int) extends PlayerCommand
 
   case class StartGame() extends PlayerCommand
 

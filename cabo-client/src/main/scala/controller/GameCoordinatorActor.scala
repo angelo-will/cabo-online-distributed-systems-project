@@ -18,14 +18,19 @@ object GameCoordinatorActor:
 
   private case class GameData(
                                whoToSendResponse: ActorRef[Message],
-                               playerRank: Int,
+                               playerOwnRank: Int,
+                               playerOwnUserID: String,
                                game: GameInProgress,
                                temporaryDeck: CardStack,
                                temporaryDiscardDeck: CardStack
                              ):
-    def getOurHand: Hand = getHandOfNthPlayer(playerRank)
+    def getOurHand: Hand = this.getSelfPlayer.hand
 
-    def getHandOfNthPlayer(index: Int): Hand = game.players(index).hand
+    def getHandOPlayerWithID(playerID: String): Hand = this.getPlayerWithID(playerID).hand
+
+    def getSelfPlayer: PlayerPlaying = this.game.getPlayerWithID(this.playerOwnUserID)
+
+    def getPlayerWithID(playerID: String): PlayerPlaying = this.game.getPlayerWithID(playerID)
 
     def syncAllTemporaryDecks: GameData =
       val newGameState = game.copy(deckStack = temporaryDeck, discardDeckStack = temporaryDiscardDeck)
@@ -34,7 +39,7 @@ object GameCoordinatorActor:
     override def toString: String =
       "GameData: \n" +
         "whoToSendResponse=" + whoToSendResponse + "\n" +
-        "playerRank=" + playerRank + "\n" +
+        "playerRank=" + playerOwnRank + "\n" +
         "game=" + game + "\n" +
         "temporaryDeck=" + temporaryDeck + "\n" +
         "temporaryDiscardDeck=" + temporaryDiscardDeck + "\n"
@@ -72,6 +77,7 @@ object GameCoordinatorActor:
     GameData(
       whoToSendResponse,
       playerRank,
+      "player01",
       GameInProgress(
         "gameCode",
         GameParameters(maxTimeRound = 5),
@@ -164,12 +170,10 @@ object GameCoordinatorActor:
 
   private def handleDrawCardFromDeck(
                                       gameData: GameData
-                                      //                                      nextBehaviors: (ActorRef[Message], GameInProgress) => Behavior[Message]
                                     ): PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
     case (ctx, GameCoordinatorMessage.DrawCardFromDeck()) =>
       val (topCard, newDeck) = gameData.game.deckStack.drawFirstCard
       ctx.log.info(s"I draw $topCard from deck")
-
 
       gameData.whoToSendResponse ! GameCoordinatorMessage.CardDrawn(topCard)
       if topCard.power != Power.NoPower() then
@@ -186,7 +190,6 @@ object GameCoordinatorActor:
       val (topCard, newDiscardStack) = gameData.game.discardDeckStack.drawFirstCard
 
       gameData.whoToSendResponse ! GameCoordinatorMessage.CardDrawn(topCard)
-      //      val newGameState = gameData.game.copy(discardDeckStack = newDiscardStack)
       myTurnAfterDrawFromDiscard(gameData.copy(temporaryDiscardDeck = newDiscardStack), topCard)
 
   private def handleDiscardCard(
@@ -212,19 +215,15 @@ object GameCoordinatorActor:
                                   ): PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
     case (ctx, GameCoordinatorMessage.DiscardYourNthCard(index)) =>
       val oldHand = gameData.getOurHand
-
       ctx.log.info(s"I discard the card with index $index")
       ctx.log.info(s"The card is ${oldHand.cards(index)}")
 
-      val newPlayerState = replaceCardNthOfPlayerWithNewCard(cardInHand, index, gameData.game.players(gameData.playerRank))
-      val newPlayers = gameData.game.players.updated(gameData.playerRank, newPlayerState)
-      val newDeck = gameData.temporaryDeck
-      val newDiscardStack = gameData.temporaryDiscardDeck.addTopCard(oldHand.cards(index))
+      val newHand = Hand(oldHand.cards.updated(index, cardInHand))
+      val gameStateAfterReplace = gameData.game.replaceHandOfPlayerWithID(gameData.playerOwnUserID, newHand)
 
-      val newGameState = gameData.game.copy(
-        deckStack = newDeck,
-        discardDeckStack = newDiscardStack,
-        players = newPlayers
+      val newGameState = gameStateAfterReplace.copy(
+        deckStack = gameData.temporaryDeck,
+        discardDeckStack = gameData.temporaryDiscardDeck.addTopCard(oldHand.cards(index)),
       )
       ctx.log.info(s"New game state: $newGameState")
 
@@ -262,7 +261,7 @@ object GameCoordinatorActor:
                                         ): PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
     case (ctx, GameCoordinatorMessage.ShowAdversaryNthCard(playerIndex, cardIndex)) =>
       ctx.log.info(s"I show the card with index $cardIndex of player with index $playerIndex")
-      baseShowCard(gameData, gameData.getHandOfNthPlayer(playerIndex).cards(cardIndex), nextBehaviors(gameData))
+      baseShowCard(gameData, gameData.getHandOPlayerWithID(playerIndex).cards(cardIndex), nextBehaviors(gameData))
 
   private def baseShowCard(gameData: GameData, card: Card, behavior: Behavior[Message]) =
     gameData.whoToSendResponse ! GameCoordinatorMessage.CardSeen(card)
@@ -273,47 +272,21 @@ object GameCoordinatorActor:
                                                        gameData: GameData,
                                                        nextBehaviors: GameData => Behavior[Message]
                                                      ): PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
-    case (ctx, GameCoordinatorMessage.ReplaceOwnNthCardWithAdversaryNthOne(ownCardIndex, adversaryIndex, adversaryCardIndex)) =>
-      ctx.log.info(s"I change the card with index $ownCardIndex of player with index $adversaryIndex with my card with index $adversaryCardIndex")
+    case (ctx, GameCoordinatorMessage.ReplaceOwnNthCardWithAdversaryNthOne(ownCardIndex, adversaryID, adversaryCardIndex)) =>
+      ctx.log.info(s"I change the card with index $ownCardIndex of player with index $adversaryID with my card with index $adversaryCardIndex")
 
       val ownOldCard = gameData.getOurHand.cards(ownCardIndex)
-      val ownNewCard = gameData.getHandOfNthPlayer(adversaryIndex).cards(adversaryCardIndex)
-      val stateAfterFirstChange = replaceCardNthOfNthPlayerWithNewCard(ownNewCard, ownCardIndex, gameData.playerRank, gameData.game.players)
-      val lastChange = replaceCardNthOfNthPlayerWithNewCard(ownOldCard, adversaryCardIndex, adversaryIndex, stateAfterFirstChange)
-      val newGameState = gameData.game.copy(
-        players = lastChange
-      )
+      val ownNewCard = gameData.getHandOPlayerWithID(adversaryID).cards(adversaryCardIndex)
+
+      ctx.log.info(s"ownOldCard $ownOldCard, ownNewCard $ownNewCard")
+
+      val newGameState = gameData.game
+        .replaceNthCardOfPlayerWithID(gameData.playerOwnUserID, ownNewCard, ownCardIndex)
+        .replaceNthCardOfPlayerWithID(adversaryID, ownOldCard, adversaryCardIndex)
 
       ctx.log.info(s"New game state: $newGameState")
 
-      // TODO: inserire aggiornamento dei temporary deck
-      //gameData.whoToSendResponse ! GameCoordinatorMessage
+
       nextBehaviors(gameData.copy(game = newGameState))
 
   // END POWERS implementation
-
-  /**
-   * Changes the card at the specified index in the player's hand with a new card.
-   *
-   * @param newCard           the new card to be placed at the specified index
-   * @param cardToChangeIndex the index of the card to be replaced (0-indexed)
-   * @param playerRank        the rank of the player whose hand is being modified
-   * @param players           the list of players
-   * @return a new list of players with the updated hand for the specified player
-   */
-  private def replaceCardNthOfNthPlayerWithNewCard(newCard: Card, cardToChangeIndex: Int, playerRank: Int, players: List[PlayerPlaying]) =
-    val newPlayer = replaceCardNthOfPlayerWithNewCard(newCard, cardToChangeIndex, players(playerRank))
-    players.updated(playerRank, newPlayer)
-
-  /**
-   * Replaces the card at the specified index in the player's hand with a new card.
-   *
-   * @param newCard           the new card to be placed at the specified index
-   * @param cardIndexToChange the index of the card to be replaced (0-indexed)
-   * @param player            the player whose hand is to be modified
-   * @return a new PlayerPlaying with the updated hand
-   */
-  private def replaceCardNthOfPlayerWithNewCard(newCard: Card, cardIndexToChange: Int, player: PlayerPlaying) =
-    player.copy(
-      hand = player.hand.changeNthCard(cardIndexToChange, newCard)
-    )

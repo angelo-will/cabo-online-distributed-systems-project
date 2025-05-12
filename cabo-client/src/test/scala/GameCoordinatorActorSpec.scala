@@ -131,7 +131,9 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
     "send own card value" when {
       "drawn card with power to show one of own card" in {
         skipFirstShowPhase()
-        val (cardDrawn, game) = skipRoundsUntilDrawThisPower(Power.SeeYourCard())
+        sendGameInformation()
+        val playerID = gameCoordinatorProbe.expectMessageType[GameCoordinatorMessage.GameInformation].game.players.head.userID
+        val (cardDrawn, game) = skipRoundsUntilDrawThisPower(Power.SeeYourCard(), playerID)
         val cardToSee = game.players(0).hand.cards(0)
         showYourNthCard(0)
         val cardSeen = gameCoordinatorProbe.expectMessageType[GameCoordinatorMessage.CardSeen].card
@@ -142,11 +144,12 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
     "send adversary card value" when {
       "drawn card with power to see one of adversary card" in {
         skipFirstShowPhase()
-        val (cardDrawn, game) = skipRoundsUntilDrawThisPower(Power.SeeYourOpponentCard())
+        sendGameInformation()
+        val playerID = gameCoordinatorProbe.expectMessageType[GameCoordinatorMessage.GameInformation].game.players.head.userID
+        val (cardDrawn, game) = skipRoundsUntilDrawThisPower(Power.SeeYourOpponentCard(), playerID)
         val cardToSeeIndex = 0
-        val playerIndex = 1
-        val cardToSee = game.players(playerIndex).hand.cards(cardToSeeIndex)
-        showAdversaryNthCard(playerIndex, cardToSeeIndex)
+        val cardToSee = game.getPlayerWithID(playerID).hand.cards(cardToSeeIndex)
+        showAdversaryNthCard(playerID, cardToSeeIndex)
         val cardSeen = gameCoordinatorProbe.expectMessageType[GameCoordinatorMessage.CardSeen].card
         cardSeen mustBe cardToSee
       }
@@ -154,17 +157,20 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
     "change one of own card with adversary one" when {
       "drawn card with power to change one of own card" in {
         skipFirstShowPhase()
-        val (cardDrawn, game) = skipRoundsUntilDrawThisPower(Power.ChangeOneOfYourCardWithOpponent())
+        sendGameInformation()
+        val players = gameCoordinatorProbe.expectMessageType[GameCoordinatorMessage.GameInformation].game.players
+        val playerID = players.head.userID
+        val adversaryID = players.last.userID
+        val (cardDrawn, game) = skipRoundsUntilDrawThisPower(Power.ChangeOneOfYourCardWithOpponent(), playerID)
         val ownCardToChangeIndex = 0
-        val playerIndex = 1
         val adversaryCardToChangeIndex = 0
-        val newOwnCardAfterReplace = game.players(playerIndex).hand.cards(adversaryCardToChangeIndex)
-        val newAdversaryCardAfterReplace = game.players(0).hand.cards(ownCardToChangeIndex)
-        replaceOwnNthCardWithAdversaryNthOne(ownCardToChangeIndex, playerIndex, adversaryCardToChangeIndex)
+        val newOwnCardAfterReplace = game.getPlayerWithID(adversaryID).hand.cards(adversaryCardToChangeIndex)
+        val newAdversaryCardAfterReplace = game.getPlayerWithID(playerID).hand.cards(ownCardToChangeIndex)
+        replaceOwnNthCardWithAdversaryNthOne(ownCardToChangeIndex, adversaryID, adversaryCardToChangeIndex)
         sendGameInformation()
         val gameInformation = gameCoordinatorProbe.expectMessageType[GameCoordinatorMessage.GameInformation].game
-        gameInformation.players(0).hand.cards(ownCardToChangeIndex) mustBe newOwnCardAfterReplace
-        gameInformation.players(1).hand.cards(adversaryCardToChangeIndex) mustBe newAdversaryCardAfterReplace
+        gameInformation.getPlayerWithID(playerID).hand.cards(ownCardToChangeIndex) mustBe newOwnCardAfterReplace
+        gameInformation.getPlayerWithID(adversaryID).hand.cards(adversaryCardToChangeIndex) mustBe newAdversaryCardAfterReplace
       }
     }
   }
@@ -186,27 +192,30 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
     showYourNthCard(0)
     discardMessages(2)
 
-  private def skipPower(power: Power): Unit =
+  private def skipPower(power: Power, stringToUseToSkipPower: String): Unit =
     power match
       case Power.SeeYourCard() => showYourNthCard(0); discardMessage()
-      case Power.SeeYourOpponentCard() => showAdversaryNthCard(0, 0); discardMessage()
-      case Power.ChangeOneOfYourCardWithOpponent() => replaceOwnNthCardWithAdversaryNthOne(0, 0, 0)
+      // TODO: sostituire la stringa con quella corretta
 
-  private def skipARound(): Unit =
+      case Power.SeeYourOpponentCard() => showAdversaryNthCard(stringToUseToSkipPower, 0); discardMessage()
+      // TODO: sostituire la stringa con quella corretta
+      case Power.ChangeOneOfYourCardWithOpponent() => replaceOwnNthCardWithAdversaryNthOne(0, stringToUseToSkipPower, 0)
+
+  private def skipARound(stringToUseToSkipPower: String): Unit =
     drawCardFromDeck()
     val power = gameCoordinatorProbe.expectMessageType[CardDrawn].card.power
-    if power != Power.NoPower() then skipPower(power)
+    if power != Power.NoPower() then skipPower(power, stringToUseToSkipPower)
     discardCardDrawn()
     discardMessage()
     endTurn()
     val gameInformation = gameCoordinatorProbe.expectMessageType[GameCoordinatorMessage.GameInformation].game
     newTurn(gameInformation)
 
-  private def skipRoundsUntilDrawThisPower(power: Power): (Card, Game.GameInProgress) =
+  private def skipRoundsUntilDrawThisPower(power: Power, stringToUseToSkipPower: String): (Card, Game.GameInProgress) =
     sendGameInformation()
     var game = gameCoordinatorProbe.expectMessageType[GameCoordinatorMessage.GameInformation].game
     while game.deckStack.drawFirstCard._1.power != power do
-      skipARound()
+      skipARound(stringToUseToSkipPower)
       sendGameInformation()
       game = gameCoordinatorProbe.expectMessageType[GameCoordinatorMessage.GameInformation].game
     drawCardFromDeck()
@@ -225,10 +234,10 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
 
   private def showYourNthCard(i: Int): Unit = gameCoordinatorActor ! GameCoordinatorMessage.ShowYourNthCard(i)
 
-  private def showAdversaryNthCard(playerIndex: Int, cardIndex: Int): Unit = gameCoordinatorActor ! GameCoordinatorMessage.ShowAdversaryNthCard(playerIndex, cardIndex)
+  private def showAdversaryNthCard(playerID: String, cardIndex: Int): Unit = gameCoordinatorActor ! GameCoordinatorMessage.ShowAdversaryNthCard(playerID, cardIndex)
 
-  private def replaceOwnNthCardWithAdversaryNthOne(ownCardIndex: Int, adversaryIndex: Int, adversaryCardIndex: Int): Unit =
-    gameCoordinatorActor ! GameCoordinatorMessage.ReplaceOwnNthCardWithAdversaryNthOne(ownCardIndex, adversaryIndex, adversaryCardIndex)
+  private def replaceOwnNthCardWithAdversaryNthOne(ownCardIndex: Int, adversaryID: String, adversaryCardIndex: Int): Unit =
+    gameCoordinatorActor ! GameCoordinatorMessage.ReplaceOwnNthCardWithAdversaryNthOne(ownCardIndex, adversaryID, adversaryCardIndex)
 
   private def endTurn(): Unit = gameCoordinatorActor ! GameCoordinatorMessage.EndTurn()
 
