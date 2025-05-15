@@ -162,8 +162,5 @@ class TurnLogSpec extends AnyWordSpec
 
 
   private def checkTurnLogCorrectSequence(turnLog: TurnLog, events: List[TurnEvent]): Unit =
-    events.foreach(turnLog.addEvent(_))
+    events.foreach(turnLog.addEvent)
     turnLog.events must contain theSameElementsInOrderAs events
-
-
-
