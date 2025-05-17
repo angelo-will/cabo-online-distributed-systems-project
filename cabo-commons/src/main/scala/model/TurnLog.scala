@@ -1,6 +1,25 @@
 package model
 
 import utils.Message
+import model.TurnEvent.*
+import model.TurnPhase.*
+import model.PhaseEvents.*
+
+object TurnPhase:
+  sealed trait TurnPhase extends Message
+
+  case class AwaitingFirstShow() extends TurnPhase
+
+  case class AwaitingSecondShowShow() extends TurnPhase
+
+  case class AwaitDrawCard() extends TurnPhase
+
+  case class AwaitUsePower() extends TurnPhase
+
+  case class AwaitDiscardCard() extends TurnPhase
+
+  case class EndedTurn() extends TurnPhase
+
 
 object TurnEvent:
   sealed trait TurnEvent extends Message
@@ -17,36 +36,24 @@ object TurnEvent:
 
   case class CardDiscarded(card: Card) extends TurnEvent
 
+object PhaseEvents:
+  case class PhaseEvents(phase: TurnPhase, events: List[TurnEvent]) extends Message
+
+trait TurnLog:
+  def addEvent(event: TurnEvent): Unit
+
+  def events: List[TurnEvent]
+
+  def currentPhase: TurnPhase
+
 class InvalidTurnEventException(event: TurnEvent.TurnEvent)
   extends IllegalArgumentException(s"Invalid event '$event' in turn phase.")
 
-class TurnLog(val ofUserID: String) extends Message:
+class DuringGameTurnLog(val ofUserID: String) extends TurnLog with Message:
 
-  import TurnEvent.*
+  private var phaseEvents: PhaseEvents = new PhaseEvents(AwaitDrawCard(), List())
 
-  private case class PhaseEvents(phase: TurnPhase, events: List[TurnEvent])
-
-  /**
-   * Exception thrown when an attempt is made to add an invalid TurnEvent.
-   *
-   * @param phase The current TurnPhase.
-   */
-
-  private sealed trait TurnPhase extends Message
-
-  private case class AwaitDrawCard() extends TurnPhase
-
-  private case class AwaitUsePower() extends TurnPhase
-
-  private case class AwaitDiscardCard() extends TurnPhase
-
-  private case class EndedTurn() extends TurnPhase
-
-
-  private var phaseEvents: PhaseEvents = PhaseEvents(AwaitDrawCard(), List())
-
-
-  def events: List[TurnEvent] = phaseEvents.events
+  override def events: List[TurnEvent] = phaseEvents.copy().events
 
   /**
    * Adds a new TurnEvent to the log, enforcing a specific sequence of events based on the current TurnPhase.
@@ -73,7 +80,7 @@ class TurnLog(val ofUserID: String) extends Message:
    * @param event The TurnEvent to add to the log.
    * @throws InvalidTurnEventException if the provided event is not valid for the current TurnPhase.
    */
-  def addEvent(event: TurnEvent): Unit = (phaseEvents.phase, event) match
+  override def addEvent(event: TurnEvent): Unit = (phaseEvents.phase, event) match
     case (AwaitDrawCard(), DrawCardFromDeck(card)) =>
       if card.power == Power.NoPower() then
         this.passToNewPhaseWithEvent(AwaitDiscardCard(), event)
@@ -92,5 +99,25 @@ class TurnLog(val ofUserID: String) extends Message:
     case _ =>
       throw new InvalidTurnEventException(event)
 
+  override def currentPhase: TurnPhase = this.phaseEvents.phase
+
   private def passToNewPhaseWithEvent(newPhase: TurnPhase, event: TurnEvent): Unit =
-    phaseEvents = PhaseEvents(newPhase, phaseEvents.events :+ event)
+    phaseEvents = new PhaseEvents(newPhase, phaseEvents.events :+ event)
+
+class InitialPhaseTurnLog(userID: String) extends TurnLog with Message:
+  
+  private var phaseEvents: PhaseEvents = new PhaseEvents(AwaitingFirstShow(), List())
+
+  override def events: List[TurnEvent] = phaseEvents.events
+
+  override def addEvent(event: TurnEvent): Unit = (phaseEvents.phase, event) match
+    case (AwaitingFirstShow(), SeeSelfCard(index)) =>
+      phaseEvents = new PhaseEvents(AwaitingSecondShowShow(), phaseEvents.events :+ event)
+    case (AwaitingSecondShowShow(), SeeSelfCard(index)) =>
+      phaseEvents = new PhaseEvents(EndedTurn(), phaseEvents.events :+ event)
+    case _ =>
+      throw new InvalidTurnEventException(event)
+
+  override def currentPhase: TurnPhase = phaseEvents.phase    
+
+

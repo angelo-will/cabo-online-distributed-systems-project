@@ -4,7 +4,7 @@ import org.scalatest.BeforeAndAfterEach
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
-class TurnLogSpec extends AnyWordSpec
+class DuringGameTurnLogSpec extends AnyWordSpec
   with Matchers
   with BeforeAndAfterEach:
 
@@ -12,7 +12,7 @@ class TurnLogSpec extends AnyWordSpec
   import model.Rank.*
   import model.Suit.*
 
-  var turnLog: TurnLog = _
+  var turnLog: DuringGameTurnLog = _
   val genericCard = new Card(Ten(), Spades())
   val cardWithPowerSeeYourCard = new Card(Jack(), Spades())
   val cardWithPowerSeeYourAdversaryCard = new Card(Queen(), Spades())
@@ -20,7 +20,7 @@ class TurnLogSpec extends AnyWordSpec
 
   override def beforeEach(): Unit =
     super.beforeEach()
-    turnLog = new TurnLog("Player01")
+    turnLog = new DuringGameTurnLog("Player01")
 
   "A TurnLog" when {
     "initially created" must {
@@ -140,27 +140,27 @@ class TurnLogSpec extends AnyWordSpec
     }
   }
 
-  private def checkThrowExceptionBeforeDrawPhase(turnLog: TurnLog): Unit =
+  private def checkThrowExceptionBeforeDrawPhase(turnLog: DuringGameTurnLog): Unit =
     an[InvalidTurnEventException] must be thrownBy turnLog.addEvent(SeeSelfCard(0))
     an[InvalidTurnEventException] must be thrownBy turnLog.addEvent(SeeAdversaryCard("player2", 0))
     an[InvalidTurnEventException] must be thrownBy turnLog.addEvent(ReplaceOwnCardWithAdversaryCard(0, "player2", 0))
     an[InvalidTurnEventException] must be thrownBy turnLog.addEvent(CardDiscarded(genericCard))
 
-  private def checkThrowExceptionAfterDrawNoPowerPhase(turnLog: TurnLog): Unit =
+  private def checkThrowExceptionAfterDrawNoPowerPhase(turnLog: DuringGameTurnLog): Unit =
     an[InvalidTurnEventException] must be thrownBy turnLog.addEvent(DrawCardFromDeck(cardWithPowerSeeYourCard))
     an[InvalidTurnEventException] must be thrownBy turnLog.addEvent(DrawCardFromDiscardStack(genericCard))
     an[InvalidTurnEventException] must be thrownBy turnLog.addEvent(SeeSelfCard(0))
     an[InvalidTurnEventException] must be thrownBy turnLog.addEvent(SeeAdversaryCard("player2", 0))
     an[InvalidTurnEventException] must be thrownBy turnLog.addEvent(ReplaceOwnCardWithAdversaryCard(0, "player2", 0))
 
-  private def checkThrowErrorAfterUsePower(turnLog: TurnLog): Unit =
+  private def checkThrowErrorAfterUsePower(turnLog: DuringGameTurnLog): Unit =
     checkThrowExceptionAfterDrawNoPowerPhase(turnLog)
 
-  private def checkThrowErrorAfterCardDiscarded(turnLog: TurnLog): Unit =
+  private def checkThrowErrorAfterCardDiscarded(turnLog: DuringGameTurnLog): Unit =
     checkThrowExceptionAfterDrawNoPowerPhase(turnLog)
     an[InvalidTurnEventException] must be thrownBy turnLog.addEvent(CardDiscarded(genericCard))
 
 
-  private def checkTurnLogCorrectSequence(turnLog: TurnLog, events: List[TurnEvent]): Unit =
+  private def checkTurnLogCorrectSequence(turnLog: DuringGameTurnLog, events: List[TurnEvent]): Unit =
     events.foreach(turnLog.addEvent)
     turnLog.events must contain theSameElementsInOrderAs events

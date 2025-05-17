@@ -3,8 +3,9 @@ package controller
 import akka.actor.typed.Behavior
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import model.Suit.Spades
-import model.{Card, GameParameters, Hand, PlayerPlaying, Power}
+import model.{Card, DuringGameTurnLog, InitialPhaseTurnLog, GameParameters, Hand, PlayerPlaying, Power, TurnEvent, TurnLog}
 import model.Game.GameInProgress
+import model.TurnEvent.CardDiscarded
 
 object GameCoordinatorActor:
 
@@ -21,6 +22,7 @@ object GameCoordinatorActor:
                                playerOwnRank: Int,
                                playerOwnUserID: String,
                                game: GameInProgress,
+                               turnLog: TurnLog,
                                temporaryDeck: CardStack,
                                temporaryDiscardDeck: CardStack
                              ):
@@ -69,6 +71,7 @@ object GameCoordinatorActor:
   private def generateGameData(whoToSendResponse: ActorRef[Message], playerRank: Int) = {
     // debug values, emulate shuffled deck and the use of the first card as firs of discard stack
     //    val fullDeckShuffled = CardStack.buildShuffledFullDeck
+    val ownCode = "player01"
     val fullDeckShuffled = CardStack.buildSortedFullDeck
     val (handPlayer01, remainingDeck01) = fullDeckShuffled.drawNCards(4)
     val (handPlayer02, remainingDeck02) = remainingDeck01.drawNCards(4)
@@ -77,7 +80,7 @@ object GameCoordinatorActor:
     GameData(
       whoToSendResponse,
       playerRank,
-      "player01",
+      ownCode,
       GameInProgress(
         "gameCode",
         GameParameters(maxTimeRound = 5),
@@ -90,6 +93,7 @@ object GameCoordinatorActor:
         discardStack,
         0
       ),
+      new InitialPhaseTurnLog(ownCode),
       deckToStartTheGame,
       discardStack
     )
@@ -99,7 +103,7 @@ object GameCoordinatorActor:
 
   // FIRST PHASE - player watch two of own cards
   private def watchOwnCardsPhase(gameData: GameData, cardSeenRemaining: Int): Behavior[Message] =
-    if cardSeenRemaining <= 0 then myTurnBeforeDraw(gameData)
+    if cardSeenRemaining <= 0 then myTurnBeforeDraw(gameData.copy(turnLog = new DuringGameTurnLog(gameData.playerOwnUserID)))
     else
       Behaviors.receivePartial {
         handleShowOwnNthCard(gameData, watchOwnCardsPhase(_, cardSeenRemaining - 1))
@@ -118,9 +122,9 @@ object GameCoordinatorActor:
   // AFTER DRAW
 
   private def myTurnAfterDrawNoPower(gameData: GameData, cardInHand: Card): Behavior[Message] = Behaviors.receivePartial {
-    handleDiscardCard(gameData, cardInHand)
+    handleDiscardCardDrawn(gameData, cardInHand)
       //.orElse(handleShowOwnNthCard(gameData, myTurnAfterDrawNoPower(_, cardInHand)))
-      .orElse(handleDiscardNthCard(gameData, cardInHand))
+      .orElse(handleDiscardOwnNthCard(gameData, cardInHand))
       .orElse(handleSendGameStatus(gameData, myTurnAfterDrawNoPower(_, cardInHand)))
   }
 
@@ -136,7 +140,7 @@ object GameCoordinatorActor:
     // TODO: siccome una volta che si è presa la carta dalla pila degli scarti bisogna usarla,
     //       allo scadere del tempo una carta a caso verrà sostituita.
     //       Implementare questa cosa.
-    handleDiscardNthCard(gameData, cardInHand)
+    handleDiscardOwnNthCard(gameData, cardInHand)
       .orElse(handleSendGameStatus(gameData, myTurnAfterDrawFromDiscard(_, cardInHand)))
   }
 
@@ -144,7 +148,7 @@ object GameCoordinatorActor:
 
   private def myTurnAfterDiscard(gameData: GameData): Behavior[Message] = Behaviors.receivePartial {
     handleSendGameStatus(gameData, myTurnAfterDiscard)
-      .orElse(handleShowOwnNthCard(gameData, myTurnAfterDiscard))
+      //      .orElse(handleShowOwnNthCard(gameData, myTurnAfterDiscard))
       .orElse({ case (ctx, GameCoordinatorMessage.EndTurn()) =>
         ctx.log.info(s"myTurnAfterDiscard, gameData = $gameData")
         // TODO: send to other players the new status of the game
@@ -174,7 +178,7 @@ object GameCoordinatorActor:
     case (ctx, GameCoordinatorMessage.DrawCardFromDeck()) =>
       val (topCard, newDeck) = gameData.game.deckStack.drawFirstCard
       ctx.log.info(s"I draw $topCard from deck")
-
+      gameData.turnLog.addEvent(TurnEvent.DrawCardFromDeck(topCard))
       gameData.whoToSendResponse ! GameCoordinatorMessage.CardDrawn(topCard)
       if topCard.power != Power.NoPower() then
         myTurnAfterDrawWithPower(gameData.copy(temporaryDeck = newDeck), cardInHand = topCard)
@@ -188,17 +192,17 @@ object GameCoordinatorActor:
       ctx.log.info(s"I draw a card from discard stack")
 
       val (topCard, newDiscardStack) = gameData.game.discardDeckStack.drawFirstCard
-
+      gameData.turnLog.addEvent(TurnEvent.DrawCardFromDiscardStack(topCard))
       gameData.whoToSendResponse ! GameCoordinatorMessage.CardDrawn(topCard)
       myTurnAfterDrawFromDiscard(gameData.copy(temporaryDiscardDeck = newDiscardStack), topCard)
 
-  private def handleDiscardCard(
-                                 gameData: GameData,
-                                 cardInHand: Card
-                               ): PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
+  private def handleDiscardCardDrawn(
+                                      gameData: GameData,
+                                      cardInHand: Card
+                                    ): PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
     case (ctx, GameCoordinatorMessage.DiscardCardDrawn()) =>
       ctx.log.info(s"I discard the card drawn")
-
+      gameData.turnLog.addEvent(TurnEvent.CardDiscarded(cardInHand))
       val newGameState = gameData.game.copy(
         deckStack = gameData.temporaryDeck,
         discardDeckStack = gameData.temporaryDiscardDeck.addTopCard(cardInHand)
@@ -209,15 +213,15 @@ object GameCoordinatorActor:
       gameData.whoToSendResponse ! GameCoordinatorMessage.NewTopCardDiscardStack(cardInHand)
       myTurnAfterDiscard(gameData.copy(game = newGameState, temporaryDiscardDeck = newGameState.discardDeckStack))
 
-  private def handleDiscardNthCard(
-                                    gameData: GameData,
-                                    cardInHand: Card
-                                  ): PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
+  private def handleDiscardOwnNthCard(
+                                       gameData: GameData,
+                                       cardInHand: Card
+                                     ): PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
     case (ctx, GameCoordinatorMessage.DiscardYourNthCard(index)) =>
       val oldHand = gameData.getOurHand
       ctx.log.info(s"I discard the card with index $index")
       ctx.log.info(s"The card is ${oldHand.cards(index)}")
-
+      gameData.turnLog.addEvent(TurnEvent.CardDiscarded(oldHand.cards(index)))
       val newHand = Hand(oldHand.cards.updated(index, cardInHand))
       val gameStateAfterReplace = gameData.game.replaceHandOfPlayerWithID(gameData.playerOwnUserID, newHand)
 
@@ -243,7 +247,7 @@ object GameCoordinatorActor:
     // TODO: implementare l'arrivo delle nuove informazioni e la sequenza dei passaggi fatti in un turno.
     //       Se un giocatore per problemi o altro non gioca non fa andare avanti il mazzo, quindi può arrivarmi un messaggio con niente
     case (ctx, GameCoordinatorMessage.NewTurn(game)) =>
-      myTurnBeforeDraw(gameData.copy(game = game))
+      myTurnBeforeDraw(gameData.copy(game = game, turnLog = new DuringGameTurnLog(gameData.playerOwnUserID)))
 
   // POWERS implementation
 
@@ -253,15 +257,17 @@ object GameCoordinatorActor:
                                   ): PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
     case (ctx, GameCoordinatorMessage.ShowYourNthCard(index)) =>
       ctx.log.info(s"I show the card with index $index")
+      gameData.turnLog.addEvent(TurnEvent.SeeSelfCard(index))
       baseShowCard(gameData, gameData.getOurHand.cards(index), nextBehaviors(gameData))
 
   private def handleShowAdversaryNthCard(
                                           gameData: GameData,
                                           nextBehaviors: GameData => Behavior[Message]
                                         ): PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
-    case (ctx, GameCoordinatorMessage.ShowAdversaryNthCard(playerIndex, cardIndex)) =>
-      ctx.log.info(s"I show the card with index $cardIndex of player with index $playerIndex")
-      baseShowCard(gameData, gameData.getHandOPlayerWithID(playerIndex).cards(cardIndex), nextBehaviors(gameData))
+    case (ctx, GameCoordinatorMessage.ShowAdversaryNthCard(playerID, cardIndex)) =>
+      ctx.log.info(s"I show the card with index $cardIndex of player with index $playerID")
+      gameData.turnLog.addEvent(TurnEvent.SeeAdversaryCard(playerID, cardIndex))
+      baseShowCard(gameData, gameData.getHandOPlayerWithID(playerID).cards(cardIndex), nextBehaviors(gameData))
 
   private def baseShowCard(gameData: GameData, card: Card, behavior: Behavior[Message]) =
     gameData.whoToSendResponse ! GameCoordinatorMessage.CardSeen(card)
@@ -274,7 +280,7 @@ object GameCoordinatorActor:
                                                      ): PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
     case (ctx, GameCoordinatorMessage.ReplaceOwnNthCardWithAdversaryNthOne(ownCardIndex, adversaryID, adversaryCardIndex)) =>
       ctx.log.info(s"I change the card with index $ownCardIndex of player with index $adversaryID with my card with index $adversaryCardIndex")
-
+      gameData.turnLog.addEvent(TurnEvent.ReplaceOwnCardWithAdversaryCard(ownCardIndex, adversaryID, adversaryCardIndex))
       val ownOldCard = gameData.getOurHand.cards(ownCardIndex)
       val ownNewCard = gameData.getHandOPlayerWithID(adversaryID).cards(adversaryCardIndex)
 
@@ -289,4 +295,4 @@ object GameCoordinatorActor:
 
       nextBehaviors(gameData.copy(game = newGameState))
 
-  // END POWERS implementation
+// END POWERS implementation
