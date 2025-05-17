@@ -15,7 +15,8 @@ object Suit:
 
   case class Hearts() extends Suit("Hearts", "♥")
 
-  def all: List[Suit] = List(Clubs(), Spades(), Diamonds(), Hearts())
+  // italian suits order
+  def all: List[Suit] = List(Hearts(), Diamonds(), Clubs(), Spades())
 
   implicit def string2suit(s: String): Suit = s match
     case "♣" => Clubs()
@@ -109,12 +110,13 @@ case class Card(rank: Rank, suit: Suit):
     case Rank.Jack() => Power.SeeYourCard()
     case Rank.Queen() => Power.SeeYourOpponentCard()
     case Rank.King() => Power.ChangeOneOfYourCardWithOpponent()
+    case _ => Power.NoPower()
 
   def canFish(other: Card): Boolean =
     if (rank == Rank.Jack()) true
     else this == other
 
-  override def toString: String = shortName
+  override def toString: String = name
 
 object CardStack:
   /**
@@ -162,12 +164,14 @@ case class CardStack(cards: List[Card]):
   def removeCards(cards: Seq[Card]): CardStack = cards.foldLeft(this)((stack, card) => stack.removeCard(card))
 
   /**
-   * Adds a card to the stack.
+   * Adds a card at the end of the stack.
    *
    * @param card the card to be added
    * @return a new CardStack with the specified card added
    */
-  def addCard(card: Card): CardStack = CardStack(cards :+ card)
+  def addEndCard(card: Card): CardStack = CardStack(cards :+ card)
+
+  def addTopCard(card: Card): CardStack = CardStack(card :: cards)
 
   /**
    * Draws the first card from the stack and returns it along with the new CardStack.
@@ -176,9 +180,11 @@ case class CardStack(cards: List[Card]):
    */
   def drawFirstCard: (Card, CardStack) = (cards.head, CardStack(cards.tail))
 
+  def drawNCards(cardsQuantity: Int): (List[Card], CardStack) = (cards.take(cardsQuantity), CardStack(cards.drop(cardsQuantity)))
+
   def isEmpty: Boolean = cards.isEmpty
 
-  override def toString: String = cards.mkString(", ")
+  override def toString: String = "CardStack(" + cards.mkString(", ") + ")"
 
 object Hand:
   private val maxCardsNumber = 4
@@ -211,6 +217,20 @@ case class Hand private (cards: List[Card]):
   def viewThirdCard: Card = cards(2)
 
   def viewFourthCard: Card = cards(Hand.maxCardsNumber - 1)
+
+  /**
+   * Changes the card at the specified index in the hand.
+   *
+   * @param index the index of the card to be changed (0-indexed)
+   * @param card  the new card to be placed at the specified index
+   * @return a new Hand with the updated card
+   * @throws IllegalArgumentException if the index is out of bounds (0 or maxCardsPerHand)
+   */
+  def changeNthCard(index: Int, card: Card): Hand =
+    if (index < 0 || index >= Hand.maxCardsNumber)
+      throw new IllegalArgumentException(s"Index $index is not valid, it must be between 0 and ${Hand.maxCardsNumber - 1}")
+    else
+      Hand(cards.updated(index, card))
 
   def changeFirstCard(card: Card): Hand = Hand(cards.updated(0, card))
 

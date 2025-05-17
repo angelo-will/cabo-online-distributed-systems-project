@@ -73,7 +73,7 @@ class CardSpec extends AnyWordSpecLike
       "a card is added to the deck" in {
         val deck = CardStack.buildEmptyDeck
         val card = Card("5", Suit.Spades())
-        val newDeck = deck.addCard(card)
+        val newDeck = deck.addTopCard(card)
         newDeck.cards must contain(card)
       }
     }

@@ -4,12 +4,11 @@ on:
   push:
     branches:
       - develop
-      - feature/creation_player_actors
+      - feature/implementation_game_coordinator_actor
   pull_request:
     branches:
       - develop
-      - feature/creation_player_actors
-
+      - feature/implementation_game_coordinator_actor
 jobs:
   build:
     runs-on: ubuntu-latest

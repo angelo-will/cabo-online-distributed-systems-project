@@ -6,7 +6,8 @@ import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration.*
-import model.{GameInConstruction, GameParameters, PlayerInLobby}
+import model.Game.GameInConstruction
+import model.{GameParameters, PlayerInLobby}
 import utils.{Message, ServerMessages}
 import utils.*
 import utils.ServerMessages.*

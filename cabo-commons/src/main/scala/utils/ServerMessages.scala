@@ -2,7 +2,7 @@ package utils
 
 object ServerMessages:
   import akka.actor.typed.ActorRef
-  import model.GameInConstruction
+  import model.Game.GameInConstruction
   
   trait ServerCommand extends Message
 

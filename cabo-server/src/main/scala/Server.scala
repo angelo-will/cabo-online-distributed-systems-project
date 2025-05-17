@@ -12,6 +12,7 @@ object Server:
   import akka.actor.typed.scaladsl.Behaviors
 
   import model.*
+  import model.Game.GameInConstruction
   import utils.ServerMessages.*
   import utils.Message
 
