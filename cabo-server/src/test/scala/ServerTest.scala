@@ -124,7 +124,7 @@ class ServerTest extends ScalaTestWithActorTestKit
         server ! RegisterGame(game, testProbe.ref)
         testProbe.expectMessage(GameRegistered(game, server))
 
-        val gameUpdated = gameToUpdate.copy(players = List(PlayerInLobby("id1", "Io", "qui")))
+        val gameUpdated = gameToUpdate.copy(players = List(PlayerInLobby("id1", "Io", testProbe.ref)))
 
         server ! UpdateGame(gameUpdated, testProbe.ref)
         testProbe.expectMessage(GameRegistered(gameUpdated, server))

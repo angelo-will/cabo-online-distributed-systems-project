@@ -18,7 +18,7 @@ object Game:
                                ):
     def gameStatus: GameStatus = GameStatus.WaitingForPlayers()
 
-    def playersAddress: List[String] = players.map(_.address)
+    def playersAddress: List[String] = players.map(_.address.path.toString)
 
   case class GameInProgress(
                              code: String,

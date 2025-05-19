@@ -1,12 +1,12 @@
 package model
 
-trait AddressableInLobby:
-  def address: String
+import akka.actor.typed.ActorRef
+import utils.Message
 
-trait WithHand extends AddressableInLobby:
+trait WithHand:
   def hand: Hand
 
-case class PlayerInLobby(userID: String, name: String, address: String) extends AddressableInLobby with User:
+case class PlayerInLobby(userID: String, name: String, address: ActorRef[Message]) extends User:
   override def userId: String = userID
 
   override def nome: String = name
@@ -70,7 +70,7 @@ object PlayerPlaying:
     players.map(p => if p.userID == userID then p.copy(hand = Hand(p.hand.cards.updated(index, card))) else p)
 
 
-case class PlayerPlaying(userID: String, name: String, address: String, hand: Hand) extends WithHand with User:
+case class PlayerPlaying(userID: String, name: String, hand: Hand) extends WithHand with User:
   override def userId: String = userID
 
   override def nome: String = name

@@ -86,8 +86,8 @@ object GameCoordinatorActor:
         GameParameters(maxTimeRound = 5),
         GameStatus.InProgress(),
         List(
-          PlayerPlaying("player01", "name01", "not-valid-address", Hand(handPlayer01)),
-          PlayerPlaying("player02", "name02", "not-valid-address", Hand(handPlayer02)),
+          PlayerPlaying("player01", "name01", Hand(handPlayer01)),
+          PlayerPlaying("player02", "name02", Hand(handPlayer02)),
         ),
         deckToStartTheGame,
         discardStack,
