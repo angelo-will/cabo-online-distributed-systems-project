@@ -18,6 +18,13 @@ object ViewMessages {
   case class CreateNewGame(makePublic: Boolean, maxTimeRound: Int, maxNumRound: Int, maxPlayers: Int) extends ViewCommand
 
   /**
+   * Message sent by the client to the view if it's not possible to share the game with the server
+   *
+   * @param game
+   */
+  case class FailedToPublishToServer() extends ViewCommand
+
+  /**
    * Answer to the previous message
    * @param game
    */
