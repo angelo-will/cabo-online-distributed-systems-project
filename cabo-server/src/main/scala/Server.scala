@@ -2,6 +2,7 @@ import akka.cluster.ddata.Replicator.*
 import akka.cluster.ddata.{ORSet, ORSetKey, SelfUniqueAddress}
 import akka.cluster.ddata.typed.scaladsl.{DistributedData, Replicator}
 import akka.cluster.ddata.typed.scaladsl.Replicator.{Get, Update}
+import utils.ServerMessages
 
 
 object Server:
@@ -25,9 +26,9 @@ object Server:
 
   private case class InternalGetResponseForUpdate(rsp: GetResponse[ORSet[GameInConstruction]], game: GameInConstruction, replyTo: ActorRef[Message]) extends InternalCommand
 
-  def apply(serverCode: String): Behavior[Message] = Behaviors.setup { ctx =>
+  def apply(): Behavior[Message] = Behaviors.setup { ctx =>
     ctx.log.info("Server started")
-    ctx.system.receptionist ! Receptionist.register(ServiceKey[Message](serverCode), ctx.self)
+    ctx.system.receptionist ! Receptionist.register(ServerMessages.ServerKey, ctx.self)
 
     DistributedData.withReplicatorMessageAdapter[Message, ORSet[GameInConstruction]] { replicatorAdapter =>
 

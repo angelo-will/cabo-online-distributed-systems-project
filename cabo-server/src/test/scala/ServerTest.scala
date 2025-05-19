@@ -29,7 +29,7 @@ class ServerTest extends ScalaTestWithActorTestKit
     cluster.manager.tell(Join.create(cluster.selfMember.address))
 
   override def beforeEach(): Unit =
-    server = testKit.spawn(Server(serverCode))
+    server = testKit.spawn(Server())
     testProbe = testKit.createTestProbe[Message]()
 
   override def afterAll(): Unit =
@@ -101,7 +101,7 @@ class ServerTest extends ScalaTestWithActorTestKit
     }
     "send a GameList message with games not started" when {
       "even if they were add in other server instance" in {
-        val server2 = testKit.spawn(Server("server2"))
+        val server2 = testKit.spawn(Server())
         val game = GameInConstruction("codeGame", GameParameters(maxTimeRound = 10), List.empty)
         server2 ! RegisterGame(game, testProbe.ref)
 

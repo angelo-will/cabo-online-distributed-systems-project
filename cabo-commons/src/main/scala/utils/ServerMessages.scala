@@ -1,8 +1,14 @@
 package utils
 
+import akka.actor.typed.receptionist.ServiceKey
+
 object ServerMessages:
   import akka.actor.typed.ActorRef
   import model.Game.GameInConstruction
+  
+  private val ServerCode = "Server"
+  
+  val ServerKey: ServiceKey[Message] = akka.actor.typed.receptionist.ServiceKey[Message](ServerCode)
   
   trait ServerCommand extends Message
 
