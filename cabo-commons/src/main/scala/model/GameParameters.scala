@@ -1,5 +1,7 @@
 package model
 
+import model.GameVisibility.{Private, Public}
+
 abstract class GameVisibility(val name: String)
 
 object GameVisibility:
@@ -21,9 +23,23 @@ trait IGameParameters:
   def roundLimitation: RoundLimitationParameter
   def maxPlayers: Int
 
-case class GameParameters(
-                           gameVisibility: GameVisibility = GameVisibility.Private(),
+// companion object with constructor for GameParameters
+object GameParameters:
+  def apply(
+             makePrivate: Boolean = false,
+             maxTimeRound: Int = 10,
+             roundLimitation: Int = 0,
+             maxPlayers: Int = 5
+           ): GameParameters =
+    new GameParameters(
+      if makePrivate then Private() else Public(), 
+      maxTimeRound, 
+      if roundLimitation > 0 then RoundLimitation(roundLimitation) else NoRoundLimitation(), 
+      maxPlayers)
+
+case class GameParameters private (
+                           gameVisibility: GameVisibility,
                            maxTimeRound: Int,
-                           roundLimitation: RoundLimitationParameter = NoRoundLimitation(),
-                           maxPlayers: Int = 5
+                           roundLimitation: RoundLimitationParameter,
+                           maxPlayers: Int
                          ) extends IGameParameters
