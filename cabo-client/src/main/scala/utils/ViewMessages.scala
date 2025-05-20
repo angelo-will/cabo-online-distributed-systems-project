@@ -62,6 +62,14 @@ object ViewMessages {
   case class GameJoinedFailed(game: GameInConstruction) extends ViewCommand
 
   /**
+   * Message sent by the client to the view when the information about the game has changed, 
+   * for example, a new player has joined
+   *
+   * @param game
+   */
+  case class GameInfoUpdate(game: GameInConstruction) extends ViewCommand
+
+  /**
    * Message sent by the view to the client to start the game
    *
    * @param game
