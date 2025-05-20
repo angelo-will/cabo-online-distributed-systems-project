@@ -122,7 +122,7 @@ private case class Client(userId: String, name: String, viewActorRef: ActorRef[M
 
           gameUpdate.players.foreach(_.address ! GameInfoUpdate(gameUpdate))
 
-          //todo - inform the view about the new player
+          viewActorRef ! GameInfoUpdate(gameUpdate)
 
           waitingStart(gameUpdate)
         } else {
