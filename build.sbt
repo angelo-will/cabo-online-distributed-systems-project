@@ -13,6 +13,7 @@ lazy val deps = Seq(
   "com.typesafe.akka" %% "akka-serialization-jackson" % akkaVersion,
   "com.typesafe.akka" %% "akka-actor-testkit-typed" % akkaVersion % Test,
   "org.scalatest" %% "scalatest" % "3.2.19" % Test,
+  "org.scala-lang.modules" %% "scala-swing" % "3.0.0",
   "ch.qos.logback" % "logback-classic" % "1.2.3"
 )
 
