@@ -1,13 +1,5 @@
 package model
 
-import model.GameVisibility.{Private, Public}
-
-abstract class GameVisibility(val name: String)
-
-object GameVisibility:
-  case class Public() extends GameVisibility("Public")
-  case class Private() extends GameVisibility("Private")
-
 abstract class RoundLimitationParameter():
   def isRoundsEnded: Boolean
 
@@ -18,7 +10,7 @@ case class RoundLimitation(maxRound: Int) extends RoundLimitationParameter:
   override def isRoundsEnded: Boolean = maxRound <= 0
 
 trait IGameParameters:
-  def gameVisibility: GameVisibility
+  def isPrivate: Boolean
   def maxTimeRound: Int
   def roundLimitation: RoundLimitationParameter
   def maxPlayers: Int
@@ -32,14 +24,14 @@ object GameParameters:
              maxPlayers: Int = 5
            ): GameParameters =
     new GameParameters(
-      if makePrivate then Private() else Public(), 
+      makePrivate,
       maxTimeRound, 
       if roundLimitation > 0 then RoundLimitation(roundLimitation) else NoRoundLimitation(), 
       maxPlayers)
 
 case class GameParameters private (
-                           gameVisibility: GameVisibility,
-                           maxTimeRound: Int,
-                           roundLimitation: RoundLimitationParameter,
-                           maxPlayers: Int
+                                    isPrivate: Boolean,
+                                    maxTimeRound: Int,
+                                    roundLimitation: RoundLimitationParameter,
+                                    maxPlayers: Int
                          ) extends IGameParameters
