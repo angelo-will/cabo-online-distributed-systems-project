@@ -4,24 +4,24 @@ import akka.actor.typed.{ActorRef, Behavior}
 import akka.actor.typed.receptionist.Receptionist
 import akka.actor.typed.scaladsl.Behaviors
 import model.Game.GameInConstruction
-import model.{GameParameters, GameVisibility, PlayerInLobby}
+import model.{GameParameters, PlayerInLobby}
 import utils.ServerMessages.ServerCommand
 import utils.ViewMessages.*
 import utils.{Message, ServerMessages}
 
 object Client:
 
-  case class IWantToPlay(newPlayer: PlayerInLobby, reply: ActorRef[Message]) extends Message
+  private case class IWantToPlay(newPlayer: PlayerInLobby, reply: ActorRef[Message]) extends Message
 
-  case class YouJoinedTheGame(game: GameInConstruction) extends Message
+  private case class YouJoinedTheGame(game: GameInConstruction) extends Message
 
-  case class YouCanNotJoinTheGame() extends Message
+  private case class YouCanNotJoinTheGame() extends Message
 
-  case class GameInfoUpdate(game: GameInConstruction) extends Message
+  private case class GameInfoUpdate(game: GameInConstruction) extends Message
   
-  case class GameHasStarted() extends Message
+  private case class GameHasStarted() extends Message
 
-  private case class ListingResponselisting(listing: Receptionist.Listing) extends Message
+  private case class ListingResponse(listing: Receptionist.Listing) extends Message
 
   def apply(userId: String = "Player", name: String = "defaultCoolName"): Behavior[Message] = Behaviors.setup { ctx =>
     
@@ -35,7 +35,7 @@ private case class Client(userId: String, name: String, viewActorRef: ActorRef[M
 
   import controller.Client.*
 
-  case class ListingResponse(listing: Receptionist.Listing) extends Message
+  private case class ListingResponse(listing: Receptionist.Listing) extends Message
 
   //TODO: decide if add a failed message to send to caller
   private def contactServerAndAsk(whatToSay: ActorRef[ServerCommand] => Unit): Behavior[Message] = {
@@ -183,7 +183,7 @@ private case class Client(userId: String, name: String, viewActorRef: ActorRef[M
           val gameUpdate = game.copy(players = game.players :+ newPlayer)
 
           //todo - modify the gameParameters public as a Boolean
-          if gameUpdate.gameParameters.gameVisibility == GameVisibility.Public then
+          if !gameUpdate.gameParameters.isPrivate then
             //Update the game on the server
             ctx.spawnAnonymous(contactServerAndAsk(_ ! ServerMessages.UpdateGame(gameUpdate, ctx.self)))
 
