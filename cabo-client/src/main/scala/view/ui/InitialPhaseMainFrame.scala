@@ -14,10 +14,10 @@ import scala.swing.event.*
 import scala.util.Try
 
 trait ScreenNavigator:
-  def showScreen(screenName: String): Unit
+  def showScreen(panelName: InitialPhaseNamesEnum): Unit
 
   def exitApplication(): Unit
-  
+
 class InitialPhaseMainFrame extends MainFrame with ScreenNavigator:
   title = "Cabo Online"
   preferredSize = new Dimension(500, 400)
@@ -28,7 +28,11 @@ class InitialPhaseMainFrame extends MainFrame with ScreenNavigator:
     override def createGame(makePublic: Boolean, maxTimeRound: Int, maxNumRound: Int, maxPlayers: Int): Unit =
       println(s"Create game with these parameters: makePublic: $makePublic, maxTimeRound: $maxTimeRound, maxNumRound: $maxNumRound, maxPlayers: $maxPlayers")
 
-    override def joinAGame(address: String): Unit = println(s"JoinButton pressed to request to join game with address: $address")
+    override def requestGames(): Unit = println("Requesting games from server...")
+
+    override def joinGame(game: Game.GameInConstruction): Unit = println(s"Joining game with code: ${game.code}")
+
+    override def joinWithAddress(address: String): Unit = println(s"JoinButton pressed to request to join game with address: $address")
   }
 
   private val cardLayout = new CardLayout()
@@ -41,40 +45,47 @@ class InitialPhaseMainFrame extends MainFrame with ScreenNavigator:
   private val joinGameScreen = new GameListPanel(this, viewListener)
   private val joinGameWithLinkScreen = new JoinGameWithLinkPanel(this, viewListener)
 
-  cardPanelPeer.add(welcomeScreen.peer, InitialPhaseNamesEnum.WelcomePanel.name)
-  cardPanelPeer.add(createGameScreen.peer, InitialPhaseNamesEnum.CreateGamePanel.name)
-  cardPanelPeer.add(joinGameScreen.peer, InitialPhaseNamesEnum.JoinGamePanel.name)
-  cardPanelPeer.add(joinGameWithLinkScreen.peer, InitialPhaseNamesEnum.JoinGameWithLinkPanel.name)
+  private val screenMap: Map[InitialPhaseNamesEnum, String] = Map(
+    InitialPhaseNamesEnum.WelcomePanel -> "WelcomePanelCard", // Assegna una stringa unica per CardLayout
+    InitialPhaseNamesEnum.CreateGamePanel -> "CreateGamePanelCard",
+    InitialPhaseNamesEnum.JoinGamePanel -> "JoinGamePanelCard",
+    InitialPhaseNamesEnum.JoinGameWithLinkPanel -> "JoinGameWithLinkPanelCard"
+  )
+
+  cardPanelPeer.add(welcomeScreen.peer, screenMap(InitialPhaseNamesEnum.WelcomePanel))
+  cardPanelPeer.add(createGameScreen.peer, screenMap(InitialPhaseNamesEnum.CreateGamePanel))
+  cardPanelPeer.add(joinGameScreen.peer, screenMap(InitialPhaseNamesEnum.JoinGamePanel))
+  cardPanelPeer.add(joinGameWithLinkScreen.peer, screenMap(InitialPhaseNamesEnum.JoinGameWithLinkPanel))
 
   contents = mainContentPanel
 
-  showScreen(InitialPhaseNamesEnum.WelcomePanel.name)
+  showScreen(InitialPhaseNamesEnum.WelcomePanel)
 
   // TODO: Remove this, used to emulate the arriving of data from server
   scala.concurrent.ExecutionContext.global.execute(() => {
-    Thread.sleep(10000)
+    Thread.sleep(5000)
     joinGameScreen.updateGameList(gamesInConstruction)
   })
 
-  override def showScreen(screenName: String): Unit = {
-    SwingUtilities.invokeLater(() => {
-      cardLayout.show(cardPanelPeer, screenName)
-      println(s"Mostrato schermo: $screenName")
-    })
-  }
+  override def showScreen(screenName: InitialPhaseNamesEnum): Unit =
+    println(s"Mostrato schermo: $screenName")
+    SwingUtilities.invokeLater(() =>
+      screenMap.get(screenName) match
+        case Some(panelName) => cardLayout.show(cardPanelPeer, panelName)
+        case None => throw new NoSuchElementException(s"Invalid screen name provided: $screenName")
+    )
 
-  override def exitApplication(): Unit = {
-    SwingUtilities.invokeLater(() => {
+  override def exitApplication(): Unit =
+    SwingUtilities.invokeLater(() =>
       System.exit(0)
-    })
-  }
-  
+    )
+
   ///////////////////// START PER TEST /////////////////////////////
   implicit val system: ActorSystem[Nothing] = akka.actor.typed.ActorSystem(akka.actor.typed.scaladsl.Behaviors.empty, "TestSystem")
   private val dummyProbe1 = TestProbe[Message]()
   private val dummyProbe2 = TestProbe[Message]()
   private val dummyProbe3 = TestProbe[Message]()
-  private val dummyProbe4 = TestProbe[Message]() 
+  private val dummyProbe4 = TestProbe[Message]()
   private val dummyProbe5 = TestProbe[Message]()
   private val dummyProbe6 = TestProbe[Message]()
 
@@ -157,8 +168,8 @@ class InitialPhaseMainFrame extends MainFrame with ScreenNavigator:
       )
     )
   )
-  
-  ///////////////////// FINE  PER TEST /////////////////////////////
+
+///////////////////// FINE  PER TEST /////////////////////////////
 
 object AppMultiplePanel extends SimpleSwingApplication:
   def top: MainFrame = new InitialPhaseMainFrame()

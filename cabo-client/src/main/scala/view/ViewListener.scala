@@ -1,18 +1,16 @@
 package view
 
 import akka.actor.typed.ActorRef
+import model.Game.GameInConstruction
 import utils.Message
 import utils.ViewMessages
 
 trait IViewListener:
   def createGame(makePublic: Boolean, maxTimeRound: Int, maxNumRound: Int, maxPlayers: Int): Unit
 
-  def joinAGame(address: String): Unit
+  def requestGames(): Unit
+  
+  def joinGame(game: GameInConstruction): Unit
 
-object ViewListener:
+  def joinWithAddress(address: String): Unit
 
-  case class CreateGameButtonListener(ref: ActorRef[Message]) extends IViewListener:
-    override def createGame(makePublic: Boolean, maxTimeRound: Int, maxNumRound: Int, maxPlayers: Int): Unit =
-      ref ! ViewMessages.CreateNewGame(makePublic, maxTimeRound, maxNumRound, maxPlayers)
-
-    override def joinAGame(address:String): Unit = ref ! ViewMessages.JoinAGameWithAddress(address)

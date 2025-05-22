@@ -40,11 +40,11 @@ class WelcomePanel(navigator: ScreenNavigator, viewListener: IViewListener) exte
     case ButtonClicked(b) =>
       if b == createGameButton then
         println("WelcomePanel: Cliccato 'Crea nuova partita'. Chiedo al navigatore di mostrare 'createGameScreen'.")
-        navigator.showScreen(InitialPhaseNamesEnum.CreateGamePanel.name)
+        navigator.showScreen(InitialPhaseNamesEnum.CreateGamePanel)
       else if b == askToServerGameButton then
         println("WelcomePanel: Cliccato 'Unisciti ad una partita'.")
-        navigator.showScreen(InitialPhaseNamesEnum.JoinGamePanel.name)
+        navigator.showScreen(InitialPhaseNamesEnum.JoinGamePanel)
       else if b == joinAGameWithLinkButton then
         println("WelcomePanel: Cliccato 'Unisciti mediante link'.")
-        navigator.showScreen(InitialPhaseNamesEnum.JoinGameWithLinkPanel.name)
+        navigator.showScreen(InitialPhaseNamesEnum.JoinGameWithLinkPanel)
   }

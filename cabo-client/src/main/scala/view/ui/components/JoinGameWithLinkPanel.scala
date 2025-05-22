@@ -39,8 +39,9 @@ class JoinGameWithLinkPanel(navigator: ScreenNavigator, viewListener: IViewListe
     case ButtonClicked(b) =>
       if b == joinButton then
         println(s"Premuto bottone unisciti alla partita con codice: ${gameCodeField.text}")
-        viewListener.joinAGame(gameCodeField.text)
+        // TODO: delete remove this than -AAA- sostituire con il metodo corretto
+        viewListener.joinWithAddress(gameCodeField.text)
       else if b == backButton then
         println("JoinGamePanel: Cliccato 'Indietro'. Chiedo al navigatore di mostrare 'welcomeScreen'.")
-        navigator.showScreen(InitialPhaseNamesEnum.WelcomePanel.name) 
+        navigator.showScreen(InitialPhaseNamesEnum.WelcomePanel) 
   }

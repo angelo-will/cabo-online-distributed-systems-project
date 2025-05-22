@@ -80,7 +80,7 @@ class CreateGamePanel(navigator: ScreenNavigator, viewListener: IViewListener) e
         )
       else if b == backButton then
         println("CreateGamePanel: Cliccato 'Indietro'. Chiedo al navigatore di mostrare 'welcomeScreen'.")
-        navigator.showScreen(InitialPhaseNamesEnum.WelcomePanel.name) // Torna alla schermata precedente
+        navigator.showScreen(InitialPhaseNamesEnum.WelcomePanel) // Torna alla schermata precedente
     case EditDone(`durationField`) =>
       println(s"Text field value changed: ${durationField.text}")
       validateAndSetDuration()
