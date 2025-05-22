@@ -4,7 +4,8 @@ import akka.actor.typed.{ActorRef, Behavior}
 import akka.actor.typed.receptionist.Receptionist
 import akka.actor.typed.scaladsl.Behaviors
 import model.Game.GameInConstruction
-import model.{GameParameters, PlayerInLobby}
+import model.{GameParameters, GameVisibility, PlayerInLobby}
+import utils.ServerMessages.ServerCommand
 import utils.ViewMessages.*
 import utils.{Message, ServerMessages}
 
@@ -36,6 +37,28 @@ private case class Client(userId: String, name: String, viewActorRef: ActorRef[M
 
   case class ListingResponse(listing: Receptionist.Listing) extends Message
 
+  //TODO: decide if add a failed message to send to caller
+  private def contactServerAndAsk(whatToSay: ActorRef[ServerCommand] => Unit): Behavior[Message] = {
+    Behaviors.setup { ctx =>
+      val listingResponseAdapter = ctx.messageAdapter[Receptionist.Listing](ListingResponse.apply)
+
+      ctx.system.receptionist ! Receptionist.find(ServerMessages.ServerKey, listingResponseAdapter)
+
+      Behaviors.receiveMessagePartial {
+        case ListingResponse(ServerMessages.ServerKey.Listing(listing)) =>
+          if (listing.nonEmpty) {
+            val server = listing.head
+            whatToSay(server)
+          } else {
+            ctx.log.error("Server not found")
+            //Send an error message to user
+            viewActorRef ! FailedToPublishToServer()
+          }
+          Behaviors.empty
+      }
+    }
+  }
+
   private def start: Behavior[Message] = Behaviors.setup { ctx =>
 
     Behaviors.receiveMessagePartial[Message] {
@@ -48,33 +71,77 @@ private case class Client(userId: String, name: String, viewActorRef: ActorRef[M
 
         if makePublic then {
 
-          val parent = ctx.self
+          ctx.spawnAnonymous(contactServerAndAsk(_ ! ServerMessages.RegisterGame(game, ctx.self)))
 
-          ctx.spawnAnonymous(Behaviors.setup { ctx =>
-
-            val listingResponseAdapter = ctx.messageAdapter[Receptionist.Listing](ListingResponse.apply)
-
-            ctx.system.receptionist ! Receptionist.find(ServerMessages.ServerKey, listingResponseAdapter)
-
-            Behaviors.receiveMessagePartial {
-              case ListingResponse(ServerMessages.ServerKey.Listing(listing)) =>
-                if listing.nonEmpty then
-                  val server = listing.head
-                  server ! ServerMessages.RegisterGame(game, parent)
-                else
-                  ctx.log.error("Server not found")
-                  //Send an error message to user
-                  viewActorRef ! FailedToPublishToServer()
-
-                Behaviors.empty
-            }
-
-          })
+//          ctx.spawnAnonymous(Behaviors.setup { ctx =>
+//
+//            val listingResponseAdapter = ctx.messageAdapter[Receptionist.Listing](ListingResponse.apply)
+//
+//            ctx.system.receptionist ! Receptionist.find(ServerMessages.ServerKey, listingResponseAdapter)
+//
+//            Behaviors.receiveMessagePartial {
+//              case ListingResponse(ServerMessages.ServerKey.Listing(listing)) =>
+//                if listing.nonEmpty then
+//                  val server = listing.head
+//                  server ! ServerMessages.RegisterGame(game, parent)
+//                else
+//                  ctx.log.error("Server not found")
+//                  //Send an error message to user
+//                  viewActorRef ! FailedToPublishToServer()
+//
+//                Behaviors.empty
+//            }
+//
+//          })
         }
+
+        viewActorRef ! GameCreated(game)
 
         waitingStart(game)
 
       case JoinAGame() =>
+
+        ctx.spawnAnonymous(contactServerAndAsk(_ ! ServerMessages.GetGames(ctx.self)))
+
+        Behaviors.receiveMessagePartial {
+          case ServerMessages.GamesList(games) =>
+            if games.nonEmpty then {
+              ctx.log.info(s"Games found: $games")
+              viewActorRef ! GameList(games.toList)
+            } else {
+              ctx.log.warn("No games found")
+              viewActorRef ! GameList(List())
+            }
+            Behaviors.same
+
+          case JoinGame(game) =>
+            ctx.log.info(s"Trying to join game: $game")
+            game.players.head.address ! IWantToPlay(PlayerInLobby(userId, name, ctx.self), ctx.self)
+            Behaviors.receiveMessagePartial {
+              case YouJoinedTheGame(game) =>
+                ctx.log.info(s"Joined game: $game")
+                viewActorRef ! GameJoined(game)
+                //Joined a game
+                Behaviors.receiveMessagePartial {
+                  case GameInfoUpdate(game) =>
+                    ctx.log.info(s"Game info update: $game")
+                    viewActorRef ! GameInfoUpdate(game)
+                    Behaviors.same
+
+                  case GameHasStarted() =>
+                    ctx.log.info(s"Game has started: $game")
+                    //todo - Go into game
+                    Behaviors.empty
+                }
+
+              case YouCanNotJoinTheGame() =>
+                ctx.log.warn("Could not join game")
+                viewActorRef ! GameJoinedFailed(game)
+                //Failed to join, waiting for other commands from the user
+                Behaviors.same
+            }
+        }
+
         joinGame()
     }
   }
@@ -94,18 +161,18 @@ private case class Client(userId: String, name: String, viewActorRef: ActorRef[M
         //Go into lobby
         Behaviors.same
 
-      case (ctx, ListingResponse(ServerMessages.ServerKey.Listing(listing))) =>
-        if (listing.nonEmpty) {
-          //The server has been found
-          ctx.log.info(s"Server found: $listing")
-          listing.head ! ServerMessages.UpdateGame(game, ctx.self)
-        } else {
-          //The server has not been found
-          ctx.log.warn("Server not found")
-          //Send an error message to user
-          viewActorRef ! FailedToPublishToServer()
-        }
-        Behaviors.same
+//      case (ctx, ListingResponse(ServerMessages.ServerKey.Listing(listing))) =>
+//        if (listing.nonEmpty) {
+//          //The server has been found
+//          ctx.log.info(s"Server found: $listing")
+//          listing.head ! ServerMessages.UpdateGame(game, ctx.self)
+//        } else {
+//          //The server has not been found
+//          ctx.log.warn("Server not found")
+//          //Send an error message to user
+//          viewActorRef ! FailedToPublishToServer()
+//        }
+//        Behaviors.same
 
       case (ctx, IWantToPlay(newPlayer: PlayerInLobby, replyTo: ActorRef[Message])) =>
         //The player wants to play
@@ -115,8 +182,10 @@ private case class Client(userId: String, name: String, viewActorRef: ActorRef[M
           ctx.log.info(s"Player: $newPlayer can join the game: $game")
           val gameUpdate = game.copy(players = game.players :+ newPlayer)
 
-          //Update the game on the server
-          ctx.system.receptionist ! Receptionist.find(ServerMessages.ServerKey, ctx.messageAdapter[Receptionist.Listing](ListingResponse.apply))
+          //todo - modify the gameParameters public as a Boolean
+          if gameUpdate.gameParameters.gameVisibility == GameVisibility.Public then
+            //Update the game on the server
+            ctx.spawnAnonymous(contactServerAndAsk(_ ! ServerMessages.UpdateGame(gameUpdate, ctx.self)))
 
           replyTo ! YouJoinedTheGame(gameUpdate)
 
