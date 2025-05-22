@@ -19,8 +19,10 @@ lazy val deps = Seq(
 lazy val root = (project in file("."))
   .settings(
     name := "project-cabo-online",
+    libraryDependencies ++= deps
   )
   .aggregate(client, server)
+  .dependsOn(client, server)
 
 lazy val commons = (project in file("cabo-commons"))
   .settings(
