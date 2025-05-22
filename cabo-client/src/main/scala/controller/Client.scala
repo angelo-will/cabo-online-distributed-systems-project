@@ -21,7 +21,7 @@ object Client:
   
   private case class GameHasStarted() extends Message
 
-  private case class ListingResponse(listing: Receptionist.Listing) extends Message
+  private case class ListingResponseListing(listing: Receptionist.Listing) extends Message
 
   def apply(userId: String = "Player", name: String = "defaultCoolName"): Behavior[Message] = Behaviors.setup { ctx =>
     
