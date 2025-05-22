@@ -1,0 +1,3 @@
+package view
+
+//View placeholder

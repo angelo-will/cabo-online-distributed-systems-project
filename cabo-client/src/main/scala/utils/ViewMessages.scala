@@ -34,6 +34,9 @@ object ViewMessages {
    * Message sent by the view if the player wants to join a game
    */
   case class JoinAGame() extends ViewCommand
+  
+  //TODO: remove this, temporally here as message to send to specific user to join his game 
+  case class JoinAGameWithAddress(address: String) extends ViewCommand
 
   /**
    * Message sent to the view containing the list of games

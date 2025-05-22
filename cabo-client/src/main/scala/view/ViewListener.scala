@@ -7,7 +7,7 @@ import utils.ViewMessages
 trait IViewListener:
   def createGame(makePublic: Boolean, maxTimeRound: Int, maxNumRound: Int, maxPlayers: Int): Unit
 
-  def joinAGame(): Unit
+  def joinAGame(address: String): Unit
 
 object ViewListener:
 
@@ -15,5 +15,4 @@ object ViewListener:
     override def createGame(makePublic: Boolean, maxTimeRound: Int, maxNumRound: Int, maxPlayers: Int): Unit =
       ref ! ViewMessages.CreateNewGame(makePublic, maxTimeRound, maxNumRound, maxPlayers)
 
-    override def joinAGame(): Unit =
-      ref ! ViewMessages.JoinAGame()
+    override def joinAGame(address:String): Unit = ref ! ViewMessages.JoinAGameWithAddress(address)
