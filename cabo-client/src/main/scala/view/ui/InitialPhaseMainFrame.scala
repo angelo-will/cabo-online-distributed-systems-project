@@ -18,22 +18,11 @@ trait ScreenNavigator:
 
   def exitApplication(): Unit
 
-class InitialPhaseMainFrame extends MainFrame with ScreenNavigator:
+class InitialPhaseMainFrame(viewListener : IViewListener) extends MainFrame with ScreenNavigator:
   title = "Cabo Online"
   preferredSize = new Dimension(500, 400)
   centerOnScreen()
   peer.setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE)
-
-  private val viewListener = new IViewListener {
-    override def createGame(makePublic: Boolean, maxTimeRound: Int, maxNumRound: Int, maxPlayers: Int): Unit =
-      println(s"Create game with these parameters: makePublic: $makePublic, maxTimeRound: $maxTimeRound, maxNumRound: $maxNumRound, maxPlayers: $maxPlayers")
-
-    override def requestGames(): Unit = println("Requesting games from server...")
-
-    override def joinGame(game: Game.GameInConstruction): Unit = println(s"Joining game with code: ${game.code}")
-
-    override def joinWithAddress(address: String): Unit = println(s"JoinButton pressed to request to join game with address: $address")
-  }
 
   private val cardLayout = new CardLayout()
   private val cardPanelPeer = new javax.swing.JPanel(cardLayout)
@@ -171,5 +160,26 @@ class InitialPhaseMainFrame extends MainFrame with ScreenNavigator:
 
 ///////////////////// FINE  PER TEST /////////////////////////////
 
+object ViewApplication:
+  def startView(viewListener: IViewListener, afterCreation: (frame:InitialPhaseMainFrame) => Unit): Unit =
+    var mainFrame: InitialPhaseMainFrame = null
+    SwingUtilities.invokeLater(()=>
+      mainFrame = new InitialPhaseMainFrame(viewListener)
+      mainFrame.open()
+      mainFrame.visible = true
+      afterCreation(mainFrame)
+    )
+    
+
+
 object AppMultiplePanel extends SimpleSwingApplication:
-  def top: MainFrame = new InitialPhaseMainFrame()
+  def top: MainFrame = new InitialPhaseMainFrame(new IViewListener {
+      override def createGame(makePublic: Boolean, maxTimeRound: Int, maxNumRound: Int, maxPlayers: Int): Unit =
+        println(s"Create game with these parameters: makePublic: $makePublic, maxTimeRound: $maxTimeRound, maxNumRound: $maxNumRound, maxPlayers: $maxPlayers")
+
+      override def requestGames(): Unit = println("Requesting games from server...")
+
+      override def joinGame(game: Game.GameInConstruction): Unit = println(s"Joining game with code: ${game.code}")
+
+      override def joinWithAddress(address: String): Unit = println(s"JoinButton pressed to request to join game with address: $address")
+    })

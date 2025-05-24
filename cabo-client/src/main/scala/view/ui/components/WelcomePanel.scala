@@ -44,6 +44,7 @@ class WelcomePanel(navigator: ScreenNavigator, viewListener: IViewListener) exte
       else if b == askToServerGameButton then
         println("WelcomePanel: Cliccato 'Unisciti ad una partita'.")
         navigator.showScreen(InitialPhaseNamesEnum.JoinGamePanel)
+        viewListener.requestGames()
       else if b == joinAGameWithLinkButton then
         println("WelcomePanel: Cliccato 'Unisciti mediante link'.")
         navigator.showScreen(InitialPhaseNamesEnum.JoinGameWithLinkPanel)
