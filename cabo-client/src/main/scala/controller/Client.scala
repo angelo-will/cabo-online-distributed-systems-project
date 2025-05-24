@@ -101,6 +101,8 @@ private case class Client(userId: String, name: String, viewActorRef: ActorRef[M
 
       case JoinAGame() =>
 
+        ctx.log.info("Preparing to join a game")
+
         ctx.spawnAnonymous(contactServerAndAsk(_ ! ServerMessages.GetGames(ctx.self)))
 
         Behaviors.receiveMessagePartial {
@@ -151,7 +153,7 @@ private case class Client(userId: String, name: String, viewActorRef: ActorRef[M
     Behaviors.receivePartial {
       case (ctx, ServerMessages.GameRegistered(game, server)) =>
         //The server has registered the game
-        ctx.log.info(s"Game: $game has been updated by server: $server")
+        ctx.log.info(s"Game update: ${game.code} by server: $server")
         Behaviors.same
 
       case (ctx, ServerMessages.FailedToRegisterGame(game, server)) =>
@@ -204,6 +206,7 @@ private case class Client(userId: String, name: String, viewActorRef: ActorRef[M
       case (ctx, StartTheGame()) =>
         //The game has started
         ctx.log.info(s"Game: $game has started")
+        ctx.log.info(s"Starting game: ${game.code}")
 
         game.players.foreach(_.address ! GameHasStarted())
 
