@@ -18,7 +18,7 @@ trait ScreenNavigator:
 
   def exitApplication(): Unit
 
-class InitialPhaseMainFrame(viewListener : IViewListener) extends MainFrame with ScreenNavigator:
+class InitialPhaseMainFrame(viewListener: IViewListener) extends MainFrame with ScreenNavigator:
   title = "Cabo Online"
   preferredSize = new Dimension(500, 400)
   centerOnScreen()
@@ -68,6 +68,58 @@ class InitialPhaseMainFrame(viewListener : IViewListener) extends MainFrame with
     SwingUtilities.invokeLater(() =>
       System.exit(0)
     )
+
+  /**
+   * Displays an error message when the game creation fails.
+   */
+  def failedToPublishToServer(): Unit =
+    SwingUtilities.invokeLater(() =>
+      Dialog.showMessage(
+        parent = createGameScreen,
+        message = "Error: Impossible publish game on server.\n" +
+          "Other players can join only with your link and not using the server.",
+        title = "Error creation game",
+        messageType = Dialog.Message.Error
+      )
+    )
+
+  /**
+   * Updates the game list joinable.
+   *
+   * @param games List of games in wich user can enter.
+   */
+  def updateGameList(games: List[Game.GameInConstruction]): Unit =
+    SwingUtilities.invokeLater(() =>
+      joinGameScreen.updateGameList(games)
+    )
+
+  def userIsEnteredInTheGame(game: Game.GameInConstruction): Unit =
+    SwingUtilities.invokeLater(() =>
+      // TODO: create frame/panel do display that
+      throw new NotImplementedError("Game started functionality not implemented yet.")
+    )
+
+  def userFailedToEnterInTheGame(game: Game.GameInConstruction): Unit =
+    SwingUtilities.invokeLater(() =>
+      // TODO: AAA adjust it
+      Dialog.showMessage(
+        parent = this,
+        message = s"Error: Impossible to enter in the game with code ${game.code}.",
+        title = "Error entering game",
+        messageType = Dialog.Message.Error
+      )
+    )
+
+  def updateGame(game: Game.GameInConstruction): Unit =
+    SwingUtilities.invokeLater(() => {
+      // TODO: implement after creation of lobby panel
+      throw new NotImplementedError("Game started functionality not implemented yet.")
+    })
+
+  def gameStarted(): Unit =
+    SwingUtilities.invokeLater(() => {
+      throw new NotImplementedError("Game started functionality not implemented yet.")
+    })
 
   ///////////////////// START PER TEST /////////////////////////////
   implicit val system: ActorSystem[Nothing] = akka.actor.typed.ActorSystem(akka.actor.typed.scaladsl.Behaviors.empty, "TestSystem")
@@ -161,25 +213,24 @@ class InitialPhaseMainFrame(viewListener : IViewListener) extends MainFrame with
 ///////////////////// FINE  PER TEST /////////////////////////////
 
 object ViewApplication:
-  def startView(viewListener: IViewListener, afterCreation: (frame:InitialPhaseMainFrame) => Unit): Unit =
+  def startView(viewListener: IViewListener, afterCreation: (frame: InitialPhaseMainFrame) => Unit): Unit =
     var mainFrame: InitialPhaseMainFrame = null
-    SwingUtilities.invokeLater(()=>
+    SwingUtilities.invokeLater(() =>
       mainFrame = new InitialPhaseMainFrame(viewListener)
       mainFrame.open()
       mainFrame.visible = true
       afterCreation(mainFrame)
     )
-    
 
 
 object AppMultiplePanel extends SimpleSwingApplication:
   def top: MainFrame = new InitialPhaseMainFrame(new IViewListener {
-      override def createGame(makePublic: Boolean, maxTimeRound: Int, maxNumRound: Int, maxPlayers: Int): Unit =
-        println(s"Create game with these parameters: makePublic: $makePublic, maxTimeRound: $maxTimeRound, maxNumRound: $maxNumRound, maxPlayers: $maxPlayers")
+    override def createGame(makePublic: Boolean, maxTimeRound: Int, maxNumRound: Int, maxPlayers: Int): Unit =
+      println(s"Create game with these parameters: makePublic: $makePublic, maxTimeRound: $maxTimeRound, maxNumRound: $maxNumRound, maxPlayers: $maxPlayers")
 
-      override def requestGames(): Unit = println("Requesting games from server...")
+    override def requestGames(): Unit = println("Requesting games from server...")
 
-      override def joinGame(game: Game.GameInConstruction): Unit = println(s"Joining game with code: ${game.code}")
+    override def joinGame(game: Game.GameInConstruction): Unit = println(s"Joining game with code: ${game.code}")
 
-      override def joinWithAddress(address: String): Unit = println(s"JoinButton pressed to request to join game with address: $address")
-    })
+    override def joinWithAddress(address: String): Unit = println(s"JoinButton pressed to request to join game with address: $address")
+  })
