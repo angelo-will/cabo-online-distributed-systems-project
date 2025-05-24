@@ -10,8 +10,8 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import utils.Message
-import utils.ServerMessages.{RegisterGame, ServerKey}
-import utils.ViewMessages.CreateNewGame
+import utils.ServerMessages.{GamesList, GetGames, RegisterGame, ServerKey, StartGame}
+import utils.ViewMessages.*
 
 import scala.concurrent.duration.DurationInt
 
@@ -28,7 +28,6 @@ class SystemTest extends ScalaTestWithActorTestKit
     val cluster = Cluster.get(testKit.system)
     cluster.manager.tell(Join.create(cluster.selfMember.address))
 
-  override def beforeEach(): Unit = {
     probeServer = testKit.createTestProbe[Message]()
     server = testKit.spawn(Behaviors.monitor(probeServer.ref, Server()))
 
@@ -38,7 +37,6 @@ class SystemTest extends ScalaTestWithActorTestKit
       val listing = probe.receiveMessage()
       assert(listing.serviceInstances(ServerKey).contains(server))
     }
-  }
 
   override def afterAll(): Unit = testKit.shutdownTestKit()
 
@@ -55,8 +53,17 @@ class SystemTest extends ScalaTestWithActorTestKit
 
       clientHost ! CreateNewGame(makePublic = true, maxTimeRound = 10, maxNumRound = 5, maxPlayers = 4)
 
-      probeServer.expectMessage(10.seconds, RegisterGame(
-        GameInConstruction(hostUserID + "game", GameParameters(true, 10, 5, 4), List(PlayerInLobby(hostUserID, defaultName, clientHost))),
-        clientHost))
+      val gameInConstruction = GameInConstruction(hostUserID + "game", GameParameters(true, 10, 5, 4), List(PlayerInLobby(hostUserID, defaultName, clientHost)))
+
+      probeServer.expectMessage(RegisterGame(gameInConstruction, clientHost))
+
+      clientHost ! StartTheGame()
+
+      val probe = testKit.createTestProbe[Message]()
+
+      eventually(timeout(3.seconds), interval(100.millis)) {
+        server ! GetGames(probe.ref)
+        probe.expectMessage(GamesList(Set()))
+      }
     }
   }
