@@ -11,17 +11,17 @@ import utils.{Message, ServerMessages}
 
 object Client:
 
-  private case class IWantToPlay(newPlayer: PlayerInLobby, reply: ActorRef[Message]) extends Message
+  case class IWantToPlay(newPlayer: PlayerInLobby, reply: ActorRef[Message]) extends Message
 
-  private case class YouJoinedTheGame(game: GameInConstruction) extends Message
+  case class YouJoinedTheGame(game: GameInConstruction) extends Message
 
-  private case class YouCanNotJoinTheGame() extends Message
+  case class YouCanNotJoinTheGame() extends Message
 
-  private case class GameInfoUpdate(game: GameInConstruction) extends Message
+  case class GameInfoUpdate(game: GameInConstruction) extends Message
   
-  private case class GameHasStarted() extends Message
+  case class GameHasStarted() extends Message
 
-  private case class ListingResponseListing(listing: Receptionist.Listing) extends Message
+  case class ListingResponseListing(listing: Receptionist.Listing) extends Message
 
   def apply(userId: String = "Player", name: String = "defaultCoolName"): Behavior[Message] = Behaviors.setup { ctx =>
     
@@ -54,7 +54,7 @@ private case class Client(userId: String, name: String, viewActorRef: ActorRef[M
             //Send an error message to user
             viewActorRef ! FailedToPublishToServer()
           }
-          Behaviors.empty
+          Behaviors.stopped
       }
     }
   }
@@ -143,8 +143,6 @@ private case class Client(userId: String, name: String, viewActorRef: ActorRef[M
                 Behaviors.same
             }
         }
-
-        joinGame()
     }
   }
   
@@ -205,13 +203,15 @@ private case class Client(userId: String, name: String, viewActorRef: ActorRef[M
 
       case (ctx, StartTheGame()) =>
         //The game has started
-        ctx.log.info(s"Game: $game has started")
         ctx.log.info(s"Starting game: ${game.code}")
+
+        if game.gameParameters.isPrivate then
+          ctx.spawnAnonymous(contactServerAndAsk(_ ! ServerMessages.StartGame(game, ctx.self)))
 
         game.players.foreach(_.address ! GameHasStarted())
 
         //Go into game
-        Behaviors.empty
+        Behaviors.same
     }
   }
   
