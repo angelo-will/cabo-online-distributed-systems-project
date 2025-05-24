@@ -180,20 +180,19 @@ private case class Client(userId: String, name: String, viewActorRef: ActorRef[M
         if (game.players.size < game.gameParameters.maxPlayers) {
           //The player can join the game
           ctx.log.info(s"Player: $newPlayer can join the game: $game")
-          val gameUpdate = game.copy(players = game.players :+ newPlayer)
-
-          //todo - modify the gameParameters public as a Boolean
-          if !gameUpdate.gameParameters.isPrivate then
+          val gameUpdated = game.copy(players = game.players :+ newPlayer)
+          
+          if !gameUpdated.gameParameters.isPrivate then
             //Update the game on the server
-            ctx.spawnAnonymous(contactServerAndAsk(_ ! ServerMessages.UpdateGame(gameUpdate, ctx.self)))
+            ctx.spawnAnonymous(contactServerAndAsk(_ ! ServerMessages.UpdateGame(gameUpdated, ctx.self)))
 
-          replyTo ! YouJoinedTheGame(gameUpdate)
+          replyTo ! YouJoinedTheGame(gameUpdated)
 
-          gameUpdate.players.foreach(_.address ! GameInfoUpdate(gameUpdate))
+          gameUpdated.players.foreach(_.address ! GameInfoUpdate(gameUpdated))
 
-          viewActorRef ! GameInfoUpdate(gameUpdate)
+//          viewActorRef ! GameInfoUpdate(gameUpdated)
 
-          waitingStart(gameUpdate)
+          waitingStart(gameUpdated)
         } else {
           //The player cannot join the game
           ctx.log.info(s"Player: $newPlayer cannot join the game: $game")
