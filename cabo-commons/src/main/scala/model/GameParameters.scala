@@ -10,7 +10,7 @@ case class RoundLimitation(maxRound: Int) extends RoundLimitationParameter:
   override def isRoundsEnded: Boolean = maxRound <= 0
 
 trait IGameParameters:
-  def isPrivate: Boolean
+  def isPublic: Boolean
   def maxTimeRound: Int
   def roundLimitation: RoundLimitationParameter
   def maxPlayers: Int
@@ -33,7 +33,7 @@ object GameParameters:
       })
 
 case class GameParameters private (
-                                    isPrivate: Boolean,
+                                    isPublic: Boolean,
                                     maxTimeRound: Int,
                                     roundLimitation: RoundLimitationParameter,
                                     maxPlayers: Int
