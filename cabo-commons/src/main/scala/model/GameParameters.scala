@@ -18,16 +18,19 @@ trait IGameParameters:
 // companion object with constructor for GameParameters
 object GameParameters:
   def apply(
-             makePrivate: Boolean = false,
+             isPublic: Boolean = false,
              maxTimeRound: Int = 10,
              roundLimitation: Int = 0,
              maxPlayers: Int = 5
            ): GameParameters =
     new GameParameters(
-      makePrivate,
-      maxTimeRound, 
+      isPublic,
+      maxTimeRound,
       if roundLimitation > 0 then RoundLimitation(roundLimitation) else NoRoundLimitation(), 
-      maxPlayers)
+      maxPlayers match {
+        case p if p < 2 => 2 // minimum players
+        case p => p
+      })
 
 case class GameParameters private (
                                     isPrivate: Boolean,
