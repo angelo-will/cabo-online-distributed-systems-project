@@ -26,7 +26,11 @@ object Client:
   def apply(userId: String = "Player", name: String = "defaultCoolName"): Behavior[Message] = Behaviors.setup { ctx =>
     
     //todo - create a view actor
-    val viewActorRef = ctx.spawn(Behaviors.empty, "ViewActor")
+    val viewActorRef = ctx.spawn(Behaviors.setup(ctx => Behaviors.receiveMessagePartial{
+      case _ =>
+        ctx.log.info("View actor received a message, but it is not implemented yet.")
+        Behaviors.same
+    }), "ViewActor")
     
     new Client(userId, name, viewActorRef).start
   }
