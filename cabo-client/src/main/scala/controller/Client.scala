@@ -151,7 +151,7 @@ private case class Client(userId: String, name: String, viewActorRef: ActorRef[M
           ctx.log.info(s"Player: ${newPlayer.userID} can join the game: ${game.code}")
           val gameUpdated = game.copy(players = game.players :+ newPlayer)
 
-          if gameUpdated.gameParameters.isPrivate then
+          if gameUpdated.gameParameters.isPublic then
             //Update the game on the server
             ctx.spawnAnonymous(contactServerAndAsk(_ ! ServerMessages.UpdateGame(gameUpdated, ctx.self)))
 
@@ -173,7 +173,7 @@ private case class Client(userId: String, name: String, viewActorRef: ActorRef[M
         //The game has started
         ctx.log.info(s"Starting game: ${game.code}")
 
-        if game.gameParameters.isPrivate then
+        if game.gameParameters.isPublic then
           ctx.spawnAnonymous(contactServerAndAsk(_ ! ServerMessages.StartGame(game, ctx.self)))
 
         game.players.foreach(_.address ! GameHasStarted())
