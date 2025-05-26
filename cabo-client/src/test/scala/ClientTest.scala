@@ -2,7 +2,7 @@ import akka.actor.testkit.typed.scaladsl.{ScalaTestWithActorTestKit, TestProbe}
 import akka.actor.typed.Behavior
 import akka.actor.typed.scaladsl.Behaviors
 import controller.Client
-import controller.Client.{IWantToPlay, YouJoinedTheGame}
+import controller.Client.{IWantToPlay, YouCanNotJoinTheGame, YouJoinedTheGame}
 import model.Game.GameInConstruction
 import model.{GameParameters, PlayerInLobby}
 import org.scalatest.matchers.should.Matchers
@@ -79,5 +79,42 @@ class ClientTest extends ScalaTestWithActorTestKit
       probeClientHost.expectMessage(IWantToPlay(PlayerInLobby("Player02", defaultName+"2", clientJoiner), clientJoiner))
 
       probeClientJoiner.expectMessage(YouJoinedTheGame(gameInConstruction.copy(players = gameInConstruction.players :+ PlayerInLobby("Player02", defaultName+"2", clientJoiner))))
+    }
+
+    "not be able to join a game that is already full" in {
+      val defaultName = "defaultCoolName"
+      val hostUserID = "Player01"
+      val probeClientHost = testKit.createTestProbe[Message]()
+      val clientHost = testKit.spawn(Behaviors.monitor(probeClientHost.ref, Client(hostUserID, defaultName)))
+
+      val probeClientJoiner = testKit.createTestProbe[Message]()
+      val clientJoiner = testKit.spawn(Behaviors.monitor(probeClientJoiner.ref, Client("Player02", defaultName+"2")))
+
+      val probeClientTooJoiner = testKit.createTestProbe[Message]()
+      val clientTooJoiner = testKit.spawn(Behaviors.monitor(probeClientTooJoiner.ref, Client("Player03", defaultName + "3")))
+
+      val gameInConstruction = GameInConstruction(hostUserID + "game", GameParameters(false, 10, 5, 2), List(PlayerInLobby(hostUserID, defaultName, clientHost)))
+
+      clientHost ! CreateNewGame(makePublic = false, maxTimeRound = 10, maxNumRound = 5, maxPlayers = 2)
+      probeClientHost.expectMessage(CreateNewGame(makePublic = false, maxTimeRound = 10, maxNumRound = 5, maxPlayers = 2))
+
+      clientJoiner ! JoinAGame()
+      probeClientJoiner.expectMessage(JoinAGame())
+
+      clientJoiner ! JoinGame(gameInConstruction)
+      probeClientJoiner.expectMessage(JoinGame(gameInConstruction))
+
+      probeClientHost.expectMessage(IWantToPlay(PlayerInLobby("Player02", defaultName+"2", clientJoiner), clientJoiner))
+
+      probeClientJoiner.expectMessage(YouJoinedTheGame(gameInConstruction.copy(players = gameInConstruction.players :+ PlayerInLobby("Player02", defaultName+"2", clientJoiner))))
+
+      // Simulate the game being full
+      clientTooJoiner ! JoinAGame()
+      probeClientTooJoiner.expectMessage(JoinAGame())
+
+      clientTooJoiner ! JoinGame(gameInConstruction)
+      probeClientTooJoiner.expectMessage(JoinGame(gameInConstruction))
+
+      probeClientTooJoiner.expectMessage(YouCanNotJoinTheGame())
     }
   }

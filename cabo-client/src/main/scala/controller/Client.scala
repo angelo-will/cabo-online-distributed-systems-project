@@ -70,29 +70,7 @@ private case class Client(userId: String, name: String, viewActorRef: ActorRef[M
         val game: GameInConstruction = GameInConstruction(userId+"game", GameParameters(makePublic, maxTimeRound, maxNumRound, maxPlayers), List(player))
 
         if makePublic then {
-
           ctx.spawnAnonymous(contactServerAndAsk(_ ! ServerMessages.RegisterGame(game, ctx.self)))
-
-//          ctx.spawnAnonymous(Behaviors.setup { ctx =>
-//
-//            val listingResponseAdapter = ctx.messageAdapter[Receptionist.Listing](ListingResponse.apply)
-//
-//            ctx.system.receptionist ! Receptionist.find(ServerMessages.ServerKey, listingResponseAdapter)
-//
-//            Behaviors.receiveMessagePartial {
-//              case ListingResponse(ServerMessages.ServerKey.Listing(listing)) =>
-//                if listing.nonEmpty then
-//                  val server = listing.head
-//                  server ! ServerMessages.RegisterGame(game, parent)
-//                else
-//                  ctx.log.error("Server not found")
-//                  //Send an error message to user
-//                  viewActorRef ! FailedToPublishToServer()
-//
-//                Behaviors.empty
-//            }
-//
-//          })
         }
 
         viewActorRef ! GameCreated(game)
@@ -117,7 +95,7 @@ private case class Client(userId: String, name: String, viewActorRef: ActorRef[M
             Behaviors.same
 
           case JoinGame(game) =>
-            ctx.log.info(s"Trying to join game: $game")
+            ctx.log.info(s"Trying to join game: ${game.code}")
             game.players.head.address ! IWantToPlay(PlayerInLobby(userId, name, ctx.self), ctx.self)
             Behaviors.receiveMessagePartial {
               case YouJoinedTheGame(game) =>
@@ -126,12 +104,12 @@ private case class Client(userId: String, name: String, viewActorRef: ActorRef[M
                 //Joined a game
                 Behaviors.receiveMessagePartial {
                   case GameInfoUpdate(game) =>
-                    ctx.log.info(s"Game info update: $game")
+                    ctx.log.info(s"Game info update: ${game.code}")
                     viewActorRef ! GameInfoUpdate(game)
                     Behaviors.same
 
                   case GameHasStarted() =>
-                    ctx.log.info(s"Game has started: $game")
+                    ctx.log.info(s"Game has started: ${game.code}")
                     //todo - Go into game
                     Behaviors.empty
                 }
@@ -156,33 +134,20 @@ private case class Client(userId: String, name: String, viewActorRef: ActorRef[M
 
       case (ctx, ServerMessages.FailedToRegisterGame(game, server)) =>
         //The server has failed to register the game
-        ctx.log.error(s"Failed to register game: $game")
+        ctx.log.error(s"Failed to register game: ${game.code}")
         viewActorRef ! FailedToPublishToServer()
         //Go into lobby
         Behaviors.same
 
-//      case (ctx, ListingResponse(ServerMessages.ServerKey.Listing(listing))) =>
-//        if (listing.nonEmpty) {
-//          //The server has been found
-//          ctx.log.info(s"Server found: $listing")
-//          listing.head ! ServerMessages.UpdateGame(game, ctx.self)
-//        } else {
-//          //The server has not been found
-//          ctx.log.warn("Server not found")
-//          //Send an error message to user
-//          viewActorRef ! FailedToPublishToServer()
-//        }
-//        Behaviors.same
-
       case (ctx, IWantToPlay(newPlayer: PlayerInLobby, replyTo: ActorRef[Message])) =>
         //The player wants to play
-        ctx.log.info(s"Player: $newPlayer wants to play")
+        ctx.log.info(s"Player: ${newPlayer.userID} wants to play")
         if (game.players.size < game.gameParameters.maxPlayers) {
           //The player can join the game
-          ctx.log.info(s"Player: $newPlayer can join the game: $game")
+          ctx.log.info(s"Player: ${newPlayer.userID} can join the game: ${game.code}")
           val gameUpdated = game.copy(players = game.players :+ newPlayer)
-          
-          if !gameUpdated.gameParameters.isPrivate then
+
+          if gameUpdated.gameParameters.isPrivate then
             //Update the game on the server
             ctx.spawnAnonymous(contactServerAndAsk(_ ! ServerMessages.UpdateGame(gameUpdated, ctx.self)))
 
@@ -190,15 +155,15 @@ private case class Client(userId: String, name: String, viewActorRef: ActorRef[M
 
           gameUpdated.players.foreach(_.address ! GameInfoUpdate(gameUpdated))
 
-//          viewActorRef ! GameInfoUpdate(gameUpdated)
+          viewActorRef ! GameInfoUpdate(gameUpdated)
 
           waitingStart(gameUpdated)
         } else {
           //The player cannot join the game
           ctx.log.info(s"Player: $newPlayer cannot join the game: $game")
           replyTo ! YouCanNotJoinTheGame()
+          Behaviors.same
         }
-        Behaviors.same
 
       case (ctx, StartTheGame()) =>
         //The game has started
