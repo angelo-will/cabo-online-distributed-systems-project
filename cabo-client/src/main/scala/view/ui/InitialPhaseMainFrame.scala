@@ -5,7 +5,7 @@ import akka.actor.typed.{ActorRef, ActorSystem}
 import model.{Game, GameParameters, PlayerInLobby}
 import utils.Message
 import view.*
-import view.ui.components.{CreateGamePanel, GameListPanel, JoinGameWithLinkPanel, WelcomePanel}
+import view.ui.components.{CreateGamePanel, GameListPanel, ICreateGameListener, JoinGameWithLinkPanel, WaitingLobbyPanel, WelcomePanel}
 
 import java.awt.{CardLayout, Color, Font}
 import javax.swing.{JLabel, SwingConstants, SwingUtilities}
@@ -18,7 +18,7 @@ trait ScreenNavigator:
 
   def exitApplication(): Unit
 
-class InitialPhaseMainFrame(viewListener: IViewListener) extends MainFrame with ScreenNavigator:
+class InitialPhaseMainFrame(viewListener: IViewListener) extends MainFrame:
   title = "Cabo Online"
   preferredSize = new Dimension(500, 400)
   centerOnScreen()
@@ -28,11 +28,7 @@ class InitialPhaseMainFrame(viewListener: IViewListener) extends MainFrame with 
   private val cardPanelPeer = new javax.swing.JPanel(cardLayout)
   private val mainContentPanel = Component.wrap(cardPanelPeer)
 
-
-  private val welcomeScreen = new WelcomePanel(this, viewListener)
-  private val createGameScreen = new CreateGamePanel(this, viewListener)
-  private val joinGameScreen = new GameListPanel(this, viewListener)
-  private val joinGameWithLinkScreen = new JoinGameWithLinkPanel(this, viewListener)
+  private var waitingLobbyPanelOption: Option[(Boolean, WaitingLobbyPanel)] = None
 
   private val screenMap: Map[InitialPhaseNamesEnum, String] = Map(
     InitialPhaseNamesEnum.WelcomePanel -> "WelcomePanelCard", // Assegna una stringa unica per CardLayout
@@ -41,6 +37,40 @@ class InitialPhaseMainFrame(viewListener: IViewListener) extends MainFrame with 
     InitialPhaseNamesEnum.JoinGameWithLinkPanel -> "JoinGameWithLinkPanelCard"
   )
 
+  private val screenNavigator = new ScreenNavigator {
+    override def showScreen(screenName: InitialPhaseNamesEnum): Unit =
+      println(s"Mostrato schermo: $screenName")
+      SwingUtilities.invokeLater(() =>
+        screenMap.get(screenName) match
+          case Some(panelName) => cardLayout.show(cardPanelPeer, panelName)
+          case None => throw new NoSuchElementException(s"Invalid screen name provided: $screenName")
+      )
+
+    override def exitApplication(): Unit =
+      SwingUtilities.invokeLater(() =>
+        System.exit(0)
+      )
+  }
+
+  private val welcomeScreen = new WelcomePanel(screenNavigator, viewListener)
+
+  private val createGameScreen = new CreateGamePanel(screenNavigator,
+    (makePublic: Boolean, maxTimeRound: Int, maxNumRound: Int, maxPlayers: Int) =>
+      viewListener.createGame(makePublic, maxTimeRound, maxNumRound, maxPlayers)
+      //createWaitingLobbyPanel(screenNavigator, viewListener, List(), true)
+  )
+
+  private def createWaitingLobbyPanel(screenNavigator: ScreenNavigator, viewListener: IViewListener, playersList: List[PlayerInLobby], isHost: Boolean): Unit = {
+    val waitingLobbyPanel = new WaitingLobbyPanel(screenNavigator, viewListener, List.empty, isHost)
+    waitingLobbyPanelOption = Some(isHost, waitingLobbyPanel)
+    cardPanelPeer.add(waitingLobbyPanel.peer, screenMap(InitialPhaseNamesEnum.WaitingLobbyPanel))
+    cardLayout.show(cardPanelPeer, screenMap(InitialPhaseNamesEnum.WaitingLobbyPanel))
+  }
+
+  private val joinGameScreen = new GameListPanel(screenNavigator, viewListener)
+  private val joinGameWithLinkScreen = new JoinGameWithLinkPanel(screenNavigator, viewListener)
+
+
   cardPanelPeer.add(welcomeScreen.peer, screenMap(InitialPhaseNamesEnum.WelcomePanel))
   cardPanelPeer.add(createGameScreen.peer, screenMap(InitialPhaseNamesEnum.CreateGamePanel))
   cardPanelPeer.add(joinGameScreen.peer, screenMap(InitialPhaseNamesEnum.JoinGamePanel))
@@ -48,7 +78,7 @@ class InitialPhaseMainFrame(viewListener: IViewListener) extends MainFrame with 
 
   contents = mainContentPanel
 
-  showScreen(InitialPhaseNamesEnum.WelcomePanel)
+  cardLayout.show(cardPanelPeer, screenMap(InitialPhaseNamesEnum.WelcomePanel))
 
   // TODO: Remove this, used to emulate the arriving of data from server
   scala.concurrent.ExecutionContext.global.execute(() => {
@@ -56,18 +86,10 @@ class InitialPhaseMainFrame(viewListener: IViewListener) extends MainFrame with 
     joinGameScreen.updateGameList(gamesInConstruction)
   })
 
-  override def showScreen(screenName: InitialPhaseNamesEnum): Unit =
-    println(s"Mostrato schermo: $screenName")
-    SwingUtilities.invokeLater(() =>
-      screenMap.get(screenName) match
-        case Some(panelName) => cardLayout.show(cardPanelPeer, panelName)
-        case None => throw new NoSuchElementException(s"Invalid screen name provided: $screenName")
-    )
-
-  override def exitApplication(): Unit =
-    SwingUtilities.invokeLater(() =>
-      System.exit(0)
-    )
+  def gameCreated(game: Game.GameInConstruction): Unit =
+    SwingUtilities.invokeLater(() => {
+      throw new NotImplementedError("Game creation functionality not implemented yet.")
+    })
 
   /**
    * Displays an error message when the game creation fails.
@@ -94,9 +116,10 @@ class InitialPhaseMainFrame(viewListener: IViewListener) extends MainFrame with 
     )
 
   def userIsEnteredInTheGame(game: Game.GameInConstruction): Unit =
-    SwingUtilities.invokeLater(() =>
+    SwingUtilities.invokeLater(() => {}
+      // createWaitingLobbyPanel(screenNavigator, viewListener, game.players, false)
       // TODO: create frame/panel do display that
-      throw new NotImplementedError("Game started functionality not implemented yet.")
+      // throw new NotImplementedError("Game started functionality not implemented yet.")
     )
 
   def userFailedToEnterInTheGame(game: Game.GameInConstruction): Unit =

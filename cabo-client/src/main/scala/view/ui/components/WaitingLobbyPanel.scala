@@ -6,7 +6,14 @@ import view.ui.{InitialPhaseNamesEnum, ScreenNavigator}
 
 import scala.swing.{Alignment, BoxPanel, Button, Dimension, Font, Label, MainFrame, Orientation, ScrollPane, Swing}
 
-class WaitingLobbyPanel(navigator: ScreenNavigator, listener: IViewListener, players: List[PlayerInLobby]) extends BoxPanel(Orientation.Vertical):
+//private case class WaitingLobbyInfo(
+//                                     isHost: Boolean,
+//                                     navigator: ScreenNavigator,
+//                                     listener: IViewListener,
+//                                     players: List[PlayerInLobby],
+//                                   )
+
+class WaitingLobbyPanel(navigator: ScreenNavigator, listener: IViewListener, players: List[PlayerInLobby], isHost: Boolean) extends BoxPanel(Orientation.Vertical):
   border = Swing.EmptyBorder(30, 30, 30, 30) // Margine interno
 
   private val waitingMessage = new Label("Waiting host to start the game.") {
@@ -19,7 +26,8 @@ class WaitingLobbyPanel(navigator: ScreenNavigator, listener: IViewListener, pla
     horizontalAlignment = Alignment.Center
   }
 
-  val playersListContainer = new WaitingLobbyPlayersContainer(listener, players)
+
+  val playersListContainer = new WaitingLobbyPlayersContainer(listener, players, isHost)
 
   contents += waitingMessage
   contents += Swing.VGlue
@@ -34,18 +42,18 @@ class WaitingLobbyPanel(navigator: ScreenNavigator, listener: IViewListener, pla
 
 
 // Aggiungi eventuali altri componenti o logica se necessario
-class WaitingLobbyPlayersContainer(listener: IViewListener, players: List[PlayerInLobby]) extends ScrollPane:
+class WaitingLobbyPlayersContainer(listener: IViewListener, players: List[PlayerInLobby], canKickOut: Boolean) extends ScrollPane:
   private val playerListContainer = new BoxPanel(Orientation.Vertical) {
     border = Swing.EmptyBorder(10, 10, 10, 10)
-    players.foreach(p => contents += new PlayerRowPanel(p))
+    players.foreach(p => contents += new PlayerRowPanel(p, canKickOut))
   }
   contents = playerListContainer
 
   def updatePlayersList(newPlayers: List[PlayerInLobby]): Unit =
     playerListContainer.contents.clear()
-    newPlayers.foreach(p => playerListContainer.contents += new PlayerRowPanel(p))
+    newPlayers.foreach(p => playerListContainer.contents += new PlayerRowPanel(p, canKickOut))
 
-class PlayerRowPanel(player: PlayerInLobby) extends BoxPanel(Orientation.Horizontal):
+class PlayerRowPanel(player: PlayerInLobby, canBeKickOut: Boolean) extends BoxPanel(Orientation.Horizontal):
   private val playerNameLabel = new Label(player.name) {
     font = new Font("Arial", java.awt.Font.PLAIN, 16)
     horizontalAlignment = Alignment.Left
@@ -91,7 +99,7 @@ class PlayerRowPanel(player: PlayerInLobby) extends BoxPanel(Orientation.Horizon
     PlayerInLobby("id5", "Eve", null)
   )
 
-  val waitingLobbyPanel = new WaitingLobbyPanel(dummyNavigator, dummyListener, dummyPlayers)
+  val waitingLobbyPanel = new WaitingLobbyPanel(dummyNavigator, dummyListener, dummyPlayers, true)
 
   val mainFrame: MainFrame = new MainFrame {
     title = "Waiting Lobby Panel Test (No Akka)"

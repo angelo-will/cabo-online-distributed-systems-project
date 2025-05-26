@@ -4,11 +4,14 @@ import view.IViewListener
 import view.ui.{InitialPhaseNamesEnum, ScreenNavigator}
 
 import java.awt.Font
-import scala.swing.{Alignment, BoxPanel, Button, ButtonGroup, ComboBox, Dialog, Label, Orientation, RadioButton, Swing, TextField}
+import scala.swing.{Alignment, BoxPanel, Button, ButtonGroup, ComboBox, Dialog, Dimension, Label, MainFrame, Orientation, RadioButton, Swing, TextField}
 import scala.swing.event.{ButtonClicked, EditDone}
 import scala.util.Try
 
-class CreateGamePanel(navigator: ScreenNavigator, viewListener: IViewListener) extends BoxPanel(Orientation.Vertical):
+trait ICreateGameListener:
+  def createGame(makePublic: Boolean, maxTimeRound: Int, maxNumRound: Int, maxPlayers: Int): Unit
+
+class CreateGamePanel(navigator: ScreenNavigator, viewListener: ICreateGameListener) extends BoxPanel(Orientation.Vertical):
   border = Swing.EmptyBorder(30, 30, 30, 30)
 
   private val MIN_TIME_TURN_DURATION = 20
@@ -42,6 +45,8 @@ class CreateGamePanel(navigator: ScreenNavigator, viewListener: IViewListener) e
 
   private val createGameButton = new Button("Crea Partita")
   private val backButton = new Button("Indietro")
+  
+  private var waitingLobbyPanel: Option[WaitingLobbyPanel] = None
 
   contents += titleLabel
   contents += Swing.VStrut(20)

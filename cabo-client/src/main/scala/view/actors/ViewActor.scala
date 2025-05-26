@@ -41,6 +41,13 @@ object ViewActor:
         .orElse(handleGameStarted(infoInIdle))
     }
 
+  private def handleGameCreated(info: ViewActorInfo):
+  PartialFunction[(ActorContext[Message],Message),Behavior[Message]] =
+    case (ctx, ViewMessages.GameCreated(game)) =>
+      ctx.log.info("Game created successfully")
+      info.frame.gameCreated(game)
+      // TODO: insert correct behavior after creation
+      info.nextBehavior
   private def handleFailedToPublishToServer(info: ViewActorInfo):
   PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
     case (ctx, ViewMessages.FailedToPublishToServer()) =>
