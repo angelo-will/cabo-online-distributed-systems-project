@@ -1,8 +1,7 @@
-package view.ui.components
+package view.lobbyphase.components
 
 import model.{Game, PlayerInLobby}
-import view.IViewListener
-import view.ui.{InitialPhaseNamesEnum, ScreenNavigator}
+import view.lobbyphase.{IViewListener, InitialPhaseNamesEnum, ScreenNavigator}
 
 import scala.swing.{Alignment, BoxPanel, Button, Dimension, Font, Label, MainFrame, Orientation, ScrollPane, Swing}
 

@@ -1,7 +1,6 @@
-package view.ui.components
+package view.lobbyphase.components
 
-import view.IViewListener
-import view.ui.{InitialPhaseNamesEnum, ScreenNavigator}
+import view.lobbyphase.{IViewListener, InitialPhaseNamesEnum, ScreenNavigator}
 
 import java.awt.Font
 import scala.swing.{Alignment, BoxPanel, Button, Label, Orientation, Swing, TextField}

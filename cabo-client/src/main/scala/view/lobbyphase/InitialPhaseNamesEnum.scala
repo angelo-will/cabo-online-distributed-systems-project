@@ -1,4 +1,4 @@
-package view.ui
+package view.lobbyphase
 
 enum InitialPhaseNamesEnum:
   case WelcomePanel extends InitialPhaseNamesEnum

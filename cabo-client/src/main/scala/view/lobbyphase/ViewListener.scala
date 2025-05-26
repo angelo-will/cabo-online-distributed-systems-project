@@ -1,9 +1,8 @@
-package view
+package view.lobbyphase
 
 import akka.actor.typed.ActorRef
 import model.Game.GameInConstruction
-import utils.Message
-import utils.ViewMessages
+import utils.{Message, ViewMessages}
 
 trait IViewListener:
   def createGame(makePublic: Boolean, maxTimeRound: Int, maxNumRound: Int, maxPlayers: Int): Unit

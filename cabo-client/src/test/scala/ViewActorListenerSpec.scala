@@ -4,18 +4,17 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.BeforeAndAfterEach
 import utils.{Message, ViewMessages}
-import view.actors.*
-import view.ui.ViewApplication
+import view.lobbyphase.ViewApplication
+import view.lobbyphase.actors.ViewActorListener
 
-import scala.concurrent.duration.{FiniteDuration, SECONDS}
 
 class ViewActorListenerSpec extends ScalaTestWithActorTestKit
   with AnyWordSpecLike
   with BeforeAndAfterEach
   with Matchers:
-
-  import org.scalatest.matchers.must.Matchers.mustBe
-
+  
+  import scala.concurrent.duration.{FiniteDuration, SECONDS}
+  
   //////////////////////////////////////////////////////////////
   // This test uses user interface, so to pass it there must be
   // a user that interacts with the view.

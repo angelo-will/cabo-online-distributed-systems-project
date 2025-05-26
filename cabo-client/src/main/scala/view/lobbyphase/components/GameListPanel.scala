@@ -1,8 +1,7 @@
-package view.ui.components
+package view.lobbyphase.components
 
 import model.Game.GameInConstruction
-import view.IViewListener
-import view.ui.ScreenNavigator
+import view.lobbyphase.{IViewListener, InitialPhaseNamesEnum, ScreenNavigator}
 
 import java.awt.{Color, Font}
 import javax.swing.SwingUtilities
@@ -43,7 +42,7 @@ class GameListPanel(navigator: ScreenNavigator, listener: IViewListener) extends
     case ButtonClicked(b) =>
       if b == backButton then
         println("GameListPanel: Cliccato 'Indietro'.")
-        navigator.showScreen(view.ui.InitialPhaseNamesEnum.WelcomePanel)
+        navigator.showScreen(InitialPhaseNamesEnum.WelcomePanel)
       else if b == refreshGamesButton then
         println("GameListPanel: Cliccato 'Aggiorna'.")
         // TODO: delete remove this than -AAA- togliere quando si prenderanno i dati dal server

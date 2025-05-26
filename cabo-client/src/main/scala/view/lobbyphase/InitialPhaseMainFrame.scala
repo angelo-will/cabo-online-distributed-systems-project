@@ -1,11 +1,12 @@
-package view.ui
+package view.lobbyphase
 
 import akka.actor.testkit.typed.scaladsl.TestProbe
 import akka.actor.typed.{ActorRef, ActorSystem}
 import model.{Game, GameParameters, PlayerInLobby}
 import utils.Message
 import view.*
-import view.ui.components.{CreateGamePanel, GameListPanel, ICreateGameListener, JoinGameWithLinkPanel, WaitingLobbyPanel, WelcomePanel}
+import view.lobbyphase.components.{CreateGamePanel, GameListPanel, JoinGameWithLinkPanel, WaitingLobbyPanel, WelcomePanel}
+import view.lobbyphase.components.*
 
 import java.awt.{CardLayout, Color, Font}
 import javax.swing.{JLabel, SwingConstants, SwingUtilities}

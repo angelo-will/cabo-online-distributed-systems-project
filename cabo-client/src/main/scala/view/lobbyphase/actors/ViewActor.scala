@@ -1,4 +1,4 @@
-package view.actors
+package view.lobbyphase.actors
 
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
@@ -6,7 +6,8 @@ import com.typesafe.config.ConfigFactory
 import model.Game
 import utils.{Message, ViewMessages}
 import view.*
-import view.ui.*
+import view.lobbyphase.{InitialPhaseMainFrame, ViewApplication}
+import view.*
 
 
 object ViewActor:
