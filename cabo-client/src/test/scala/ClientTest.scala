@@ -2,7 +2,7 @@ import akka.actor.testkit.typed.scaladsl.{ScalaTestWithActorTestKit, TestProbe}
 import akka.actor.typed.Behavior
 import akka.actor.typed.scaladsl.Behaviors
 import controller.Client
-import controller.Client.{IWantToPlay, YouCanNotJoinTheGame, YouJoinedTheGame}
+import controller.Client.{IWantToPlay, UpdateAboutGame, YouCanNotJoinTheGame, YouJoinedTheGame}
 import model.Game.GameInConstruction
 import model.{GameParameters, PlayerInLobby}
 import org.scalatest.matchers.should.Matchers
@@ -116,5 +116,51 @@ class ClientTest extends ScalaTestWithActorTestKit
       probeClientTooJoiner.expectMessage(JoinGame(gameInConstruction))
 
       probeClientTooJoiner.expectMessage(YouCanNotJoinTheGame())
+    }
+
+    "receive a notification when another player joins the game" in {
+      val defaultName = "defaultCoolName"
+      val hostUserID = "Player01"
+      val probeClientHost = testKit.createTestProbe[Message]()
+      val clientHost = testKit.spawn(Behaviors.monitor(probeClientHost.ref, Client(hostUserID, defaultName)))
+
+      val probeClientJoiner = testKit.createTestProbe[Message]()
+      val clientJoiner = testKit.spawn(Behaviors.monitor(probeClientJoiner.ref, Client("Player02", defaultName + "2")))
+
+      val gameInConstruction = GameInConstruction(hostUserID + "game", GameParameters(false, 10, 5, 4), List(PlayerInLobby(hostUserID, defaultName, clientHost)))
+
+      clientHost ! CreateNewGame(makePublic = false, maxTimeRound = 10, maxNumRound = 5, maxPlayers = 4)
+      probeClientHost.expectMessage(CreateNewGame(makePublic = false, maxTimeRound = 10, maxNumRound = 5, maxPlayers = 4))
+
+      clientJoiner ! JoinAGame()
+      probeClientJoiner.expectMessage(JoinAGame())
+
+      clientJoiner ! JoinGame(gameInConstruction)
+      probeClientJoiner.expectMessage(JoinGame(gameInConstruction))
+
+      probeClientHost.expectMessage(IWantToPlay(PlayerInLobby("Player02", defaultName + "2", clientJoiner), clientJoiner))
+
+      val twoPlayers = gameInConstruction.players :+ PlayerInLobby("Player02", defaultName + "2", clientJoiner)
+      probeClientJoiner.expectMessage(YouJoinedTheGame(gameInConstruction.copy(players = twoPlayers)))
+
+      val probeClientTooJoiner = testKit.createTestProbe[Message]()
+      val clientTooJoiner = testKit.spawn(Behaviors.monitor(probeClientTooJoiner.ref, Client("Player03", defaultName + "3")))
+
+      clientTooJoiner ! JoinAGame()
+      probeClientTooJoiner.expectMessage(JoinAGame())
+
+      clientTooJoiner ! JoinGame(gameInConstruction)
+      probeClientTooJoiner.expectMessage(JoinGame(gameInConstruction))
+
+      probeClientHost.expectMessage(IWantToPlay(PlayerInLobby("Player03", defaultName + "3", clientTooJoiner), clientTooJoiner))
+
+      val threePlayers = twoPlayers :+ PlayerInLobby("Player03", defaultName + "3", clientTooJoiner)
+      probeClientTooJoiner.expectMessage(YouJoinedTheGame(gameInConstruction.copy(players = threePlayers)))
+
+      probeClientJoiner.expectMessage(UpdateAboutGame(gameInConstruction.copy(players = threePlayers)))
+      
+      probeClientHost.expectNoMessage()
+      probeClientTooJoiner.expectNoMessage()
+
     }
   }

@@ -17,7 +17,7 @@ object Client:
 
   case class YouCanNotJoinTheGame() extends Message
 
-  case class GameInfoUpdate(game: GameInConstruction) extends Message
+  case class UpdateAboutGame(game: GameInConstruction) extends Message
   
   case class GameHasStarted() extends Message
 
@@ -107,9 +107,9 @@ private case class Client(userId: String, name: String, viewActorRef: ActorRef[M
                 viewActorRef ! GameJoined(game)
                 //Joined a game
                 Behaviors.receiveMessagePartial {
-                  case GameInfoUpdate(game) =>
+                  case UpdateAboutGame(game) =>
                     ctx.log.info(s"Game info update: ${game.code}")
-                    viewActorRef ! GameInfoUpdate(game)
+                    viewActorRef ! UpdateAboutGame(game)
                     Behaviors.same
 
                   case GameHasStarted() =>
@@ -127,7 +127,7 @@ private case class Client(userId: String, name: String, viewActorRef: ActorRef[M
         }
     }
   }
-  
+
   //DECIDERE SE USARE PLAYER.ID INVECE DI PLAYER NELLA MAPPA
   private def waitingStart(game: GameInConstruction): Behavior[Message] = {
     Behaviors.receivePartial {
@@ -157,9 +157,11 @@ private case class Client(userId: String, name: String, viewActorRef: ActorRef[M
 
           replyTo ! YouJoinedTheGame(gameUpdated)
 
-          gameUpdated.players.foreach(_.address ! GameInfoUpdate(gameUpdated))
+          gameUpdated.players.filter(p => !p.address.equals(ctx.self) & !p.address.equals(newPlayer.address)).foreach(_.address ! UpdateAboutGame(gameUpdated))
 
-          viewActorRef ! GameInfoUpdate(gameUpdated)
+//          gameUpdated.players.foreach(_.address ! GameInfoUpdate(gameUpdated))
+
+          viewActorRef ! UpdateAboutGame(gameUpdated)
 
           waitingStart(gameUpdated)
         } else {
