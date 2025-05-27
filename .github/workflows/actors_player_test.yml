@@ -5,6 +5,7 @@ on:
     branches:
       - develop
       - feature/implementation_game_coordinator_actor
+      - feature/initial_client
   pull_request:
     branches:
       - develop
