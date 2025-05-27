@@ -2,13 +2,14 @@ import akka.actor.testkit.typed.scaladsl.{ScalaTestWithActorTestKit, TestProbe}
 import akka.actor.typed.Behavior
 import akka.actor.typed.scaladsl.Behaviors
 import controller.Client
-import controller.Client.{IWantToPlay, UpdateAboutGame, YouCanNotJoinTheGame, YouJoinedTheGame}
+import controller.Client.{GameCancelled, IWantToLeaveTheGame, IWantToPlay, UpdateAboutGame, YouCanNotJoinTheGame, YouJoinedTheGame}
 import model.Game.GameInConstruction
 import model.{GameParameters, PlayerInLobby}
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatest.wordspec.AnyWordSpecLike
-import utils.ClientMessages.{CreateNewGame, JoinAGame, JoinGame}
+import utils.ClientMessages.{CreateNewGame, JoinAGame, JoinGame, LeaveTheGame}
 import utils.Message
 import utils.ViewMessages.*
 
@@ -162,6 +163,116 @@ class ClientTest extends ScalaTestWithActorTestKit
       
       probeClientHost.expectNoMessage()
       probeClientTooJoiner.expectNoMessage()
+    }
 
+    "be able to leave a joined game" in {
+      val defaultName = "defaultCoolName"
+      val hostUserID = "Player01"
+      val probeClientHost = testKit.createTestProbe[Message]()
+      val clientHost = testKit.spawn(Behaviors.monitor(probeClientHost.ref, Client(hostUserID, defaultName)))
+
+      val probeClientJoiner = testKit.createTestProbe[Message]()
+      val clientJoiner = testKit.spawn(Behaviors.monitor(probeClientJoiner.ref, Client("Player02", defaultName + "2")))
+
+      val gameInConstruction = GameInConstruction(hostUserID + "game", GameParameters(false, 10, 5, 4), List(PlayerInLobby(hostUserID, defaultName, clientHost)))
+
+      clientHost ! CreateNewGame(makePublic = false, maxTimeRound = 10, maxNumRound = 5, maxPlayers = 4)
+      probeClientHost.expectMessage(CreateNewGame(makePublic = false, maxTimeRound = 10, maxNumRound = 5, maxPlayers = 4))
+
+      clientJoiner ! JoinAGame()
+      probeClientJoiner.expectMessage(JoinAGame())
+
+      clientJoiner ! JoinGame(gameInConstruction)
+      probeClientJoiner.expectMessage(JoinGame(gameInConstruction))
+
+      probeClientHost.expectMessage(IWantToPlay(PlayerInLobby("Player02", defaultName + "2", clientJoiner), clientJoiner))
+
+      probeClientJoiner.expectMessage(YouJoinedTheGame(gameInConstruction.copy(players = gameInConstruction.players :+ PlayerInLobby("Player02", defaultName + "2", clientJoiner))))
+
+      // Now the player leaves the game
+      clientJoiner ! LeaveTheGame()
+      probeClientJoiner.expectMessage(LeaveTheGame())
+
+      // The host should receive a notification about the player leaving
+      probeClientHost.expectMessage(IWantToLeaveTheGame(PlayerInLobby("Player02", defaultName + "2", clientJoiner)))
+    }
+
+    "be notified if someone leave the game" in {
+      val defaultName = "defaultCoolName"
+      val hostUserID = "Player01"
+      val probeClientHost = testKit.createTestProbe[Message]()
+      val clientHost = testKit.spawn(Behaviors.monitor(probeClientHost.ref, Client(hostUserID, defaultName)))
+
+      val probeClientJoiner = testKit.createTestProbe[Message]()
+      val clientJoiner = testKit.spawn(Behaviors.monitor(probeClientJoiner.ref, Client("Player02", defaultName + "2")))
+
+      val probeClientTooJoiner = testKit.createTestProbe[Message]()
+      val clientTooJoiner = testKit.spawn(Behaviors.monitor(probeClientTooJoiner.ref, Client("Player03", defaultName + "3")))
+
+      val gameInConstruction = GameInConstruction(hostUserID + "game", GameParameters(false, 10, 5, 4), List(PlayerInLobby(hostUserID, defaultName, clientHost)))
+
+      clientHost ! CreateNewGame(makePublic = false, maxTimeRound = 10, maxNumRound = 5, maxPlayers = 4)
+      probeClientHost.expectMessage(CreateNewGame(makePublic = false, maxTimeRound = 10, maxNumRound = 5, maxPlayers = 4))
+
+      clientJoiner ! JoinAGame()
+      probeClientJoiner.expectMessage(JoinAGame())
+
+      clientJoiner ! JoinGame(gameInConstruction)
+      probeClientJoiner.expectMessage(JoinGame(gameInConstruction))
+
+      clientTooJoiner ! JoinAGame()
+      probeClientTooJoiner.expectMessage(JoinAGame())
+
+      eventually(timeout(3.seconds), interval(100.millis)) {
+        probeClientJoiner.receiveMessage() // Player02 expects confirmation of joining from the host, so we know he is the first to join
+      }
+
+      clientTooJoiner ! JoinGame(gameInConstruction)
+      probeClientTooJoiner.expectMessage(JoinGame(gameInConstruction))
+
+      probeClientHost.receiveMessages(2) // Expecting two messages: one for each player joining
+
+      probeClientJoiner.receiveMessage() // Player02 expects the join message for Player03
+      probeClientTooJoiner.receiveMessage() // Expecting the join message for Player03
+      
+      val gameToExpect = gameInConstruction.copy(players = gameInConstruction.players :+ PlayerInLobby("Player02", defaultName + "2", clientJoiner) :+ PlayerInLobby("Player03", defaultName + "3", clientTooJoiner))
+
+      // Now the player leaves the game
+      clientJoiner ! LeaveTheGame()
+      probeClientJoiner.expectMessage(LeaveTheGame())
+
+      probeClientTooJoiner.expectMessage(UpdateAboutGame(gameInConstruction.copy(players = gameToExpect.players.filterNot(_.userID == "Player02"))))
+    }
+
+    "should receive an abort notification if the host leaves the game" in {
+      val defaultName = "defaultCoolName"
+      val hostUserID = "Player01"
+      val probeClientHost = testKit.createTestProbe[Message]()
+      val clientHost = testKit.spawn(Behaviors.monitor(probeClientHost.ref, Client(hostUserID, defaultName)))
+
+      val probeClientJoiner = testKit.createTestProbe[Message]()
+      val clientJoiner = testKit.spawn(Behaviors.monitor(probeClientJoiner.ref, Client("Player02", defaultName + "2")))
+
+      val gameInConstruction = GameInConstruction(hostUserID + "game", GameParameters(false, 10, 5, 4), List(PlayerInLobby(hostUserID, defaultName, clientHost)))
+
+      clientHost ! CreateNewGame(makePublic = false, maxTimeRound = 10, maxNumRound = 5, maxPlayers = 4)
+      probeClientHost.expectMessage(CreateNewGame(makePublic = false, maxTimeRound = 10, maxNumRound = 5, maxPlayers = 4))
+
+      clientJoiner ! JoinAGame()
+      probeClientJoiner.expectMessage(JoinAGame())
+
+      clientJoiner ! JoinGame(gameInConstruction)
+      probeClientJoiner.expectMessage(JoinGame(gameInConstruction))
+
+      probeClientHost.expectMessage(IWantToPlay(PlayerInLobby("Player02", defaultName + "2", clientJoiner), clientJoiner))
+
+      probeClientJoiner.expectMessage(YouJoinedTheGame(gameInConstruction.copy(players = gameInConstruction.players :+ PlayerInLobby("Player02", defaultName + "2", clientJoiner))))
+
+      // Now the host leaves the game
+      clientHost ! LeaveTheGame()
+      probeClientHost.expectMessage(LeaveTheGame())
+
+      // The joiner should receive an abort notification
+      probeClientJoiner.expectMessage(GameCancelled())
     }
   }

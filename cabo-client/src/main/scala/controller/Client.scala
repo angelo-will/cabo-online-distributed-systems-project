@@ -2,11 +2,11 @@ package controller
 
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.actor.typed.receptionist.Receptionist
-import akka.actor.typed.scaladsl.Behaviors
+import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import model.Game.GameInConstruction
 import model.{GameParameters, PlayerInLobby}
-import utils.ClientMessages.{CreateNewGame, JoinAGame, JoinGame, StartTheGame}
-import utils.ServerMessages.ServerCommand
+import utils.ClientMessages.{CreateNewGame, JoinAGame, JoinAddress, JoinGame, LeaveTheGame, StartTheGame}
+import utils.ServerMessages.{AbortGame, ServerCommand}
 import utils.{Message, ServerMessages, ViewMessages}
 
 object Client:
@@ -18,7 +18,11 @@ object Client:
   case class YouCanNotJoinTheGame() extends Message
 
   case class UpdateAboutGame(game: GameInConstruction) extends Message
-  
+
+  case class IWantToLeaveTheGame(player: PlayerInLobby) extends Message
+
+  case class GameCancelled() extends Message
+
   case class GameHasStarted() extends Message
 
   case class ListingResponseListing(listing: Receptionist.Listing) extends Message
@@ -79,57 +83,17 @@ private case class Client(userId: String, name: String, viewActorRef: ActorRef[M
 
         viewActorRef ! ViewMessages.GameCreated(game)
 
-        waitingStart(game)
+        hostBehavior(game)
 
       case JoinAGame() =>
-
         ctx.log.info("Preparing to join a game")
-
         ctx.spawnAnonymous(contactServerAndAsk(_ ! ServerMessages.GetGames(ctx.self)))
-
-        Behaviors.receiveMessagePartial {
-          case ServerMessages.GamesList(games) =>
-            if games.nonEmpty then {
-              ctx.log.info(s"Games found: $games")
-              viewActorRef ! ViewMessages.GameList(games.toList)
-            } else {
-              ctx.log.warn("No games found")
-              viewActorRef ! ViewMessages.GameList(List())
-            }
-            Behaviors.same
-
-          case JoinGame(game) =>
-            ctx.log.info(s"Trying to join game: ${game.code}")
-            game.players.head.address ! IWantToPlay(PlayerInLobby(userId, name, ctx.self), ctx.self)
-            Behaviors.receiveMessagePartial {
-              case YouJoinedTheGame(game) =>
-                ctx.log.info(s"Joined game: $game")
-                viewActorRef ! ViewMessages.GameJoined(game)
-                //Joined a game
-                Behaviors.receiveMessagePartial {
-                  case UpdateAboutGame(game) =>
-                    ctx.log.info(s"Game info update: ${game.code}")
-                    viewActorRef ! ViewMessages.GameInfoUpdate(game)
-                    Behaviors.same
-
-                  case GameHasStarted() =>
-                    ctx.log.info(s"Game has started: ${game.code}")
-                    //todo - Go into game
-                    Behaviors.empty
-                }
-
-              case YouCanNotJoinTheGame() =>
-                ctx.log.warn("Could not join game")
-                viewActorRef ! ViewMessages.GameJoinedFailed(game)
-                //Failed to join, waiting for other commands from the user
-                Behaviors.same
-            }
-        }
+        joiningAGame
     }
   }
 
   //DECIDERE SE USARE PLAYER.ID INVECE DI PLAYER NELLA MAPPA
-  private def waitingStart(game: GameInConstruction): Behavior[Message] = {
+  private def hostBehavior(game: GameInConstruction): Behavior[Message] = {
     Behaviors.receivePartial {
       case (ctx, ServerMessages.GameRegistered(game, server)) =>
         //The server has registered the game
@@ -159,17 +123,40 @@ private case class Client(userId: String, name: String, viewActorRef: ActorRef[M
 
           gameUpdated.players.filter(p => !p.address.equals(ctx.self) & !p.address.equals(newPlayer.address)).foreach(_.address ! UpdateAboutGame(gameUpdated))
 
-//          gameUpdated.players.foreach(_.address ! GameInfoUpdate(gameUpdated))
-
           viewActorRef ! ViewMessages.GameInfoUpdate(gameUpdated)
 
-          waitingStart(gameUpdated)
+          hostBehavior(gameUpdated)
         } else {
           //The player cannot join the game
           ctx.log.info(s"Player: $newPlayer cannot join the game: $game")
           replyTo ! YouCanNotJoinTheGame()
           Behaviors.same
         }
+
+      case (ctx, IWantToLeaveTheGame(player)) =>
+        //A player wants to leave the game
+        ctx.log.info(s"Player: ${player.userID} wants to leave the game: ${game.code}")
+        //The player can leave the game
+        val gameUpdated = game.copy(players = game.players.filterNot(_.userID == player.userID))
+
+        if gameUpdated.gameParameters.isPublic then
+          //Update the game on the server
+          ctx.spawnAnonymous(contactServerAndAsk(_ ! ServerMessages.UpdateGame(gameUpdated, ctx.self)))
+
+        gameUpdated.players.filter(!_.address.equals(ctx.self)).foreach(_.address ! UpdateAboutGame(gameUpdated))
+
+        viewActorRef ! ViewMessages.GameInfoUpdate(gameUpdated)
+
+        hostBehavior(gameUpdated)
+
+      case (ctx, LeaveTheGame()) =>
+        //The user wants to leave the game
+        ctx.log.info(s"Leaving ${game.code}, aborting game")
+        if game.gameParameters.isPublic then
+          ctx.spawnAnonymous(contactServerAndAsk(_ ! ServerMessages.AbortGame(game, ctx.self)))
+        game.players.filter(!_.address.equals(ctx.self)).foreach(_.address ! GameCancelled())
+        viewActorRef ! ViewMessages.GameAborted()
+        start
 
       case (ctx, StartTheGame()) =>
         //The game has started
@@ -184,5 +171,63 @@ private case class Client(userId: String, name: String, viewActorRef: ActorRef[M
         Behaviors.same
     }
   }
-  
-  private def joinGame(): Behavior[Message] = Behaviors.empty
+
+  private def joiningAGame: Behavior[Message] = {
+    Behaviors.receivePartial {
+      case (ctx, ServerMessages.GamesList(games)) =>
+        if games.nonEmpty then {
+          ctx.log.info(s"Games found: $games")
+          viewActorRef ! ViewMessages.GameList(games.toList)
+        } else {
+          ctx.log.warn("No games found")
+          viewActorRef ! ViewMessages.GameList(List())
+        }
+        Behaviors.same
+
+      case (ctx, JoinAddress(address)) => 
+        //todo - decide how to join a game by "address"
+        Behaviors.same
+
+      case (ctx, JoinGame(game)) =>
+        ctx.log.info(s"Trying to join game: ${game.code}")
+        game.players.head.address ! IWantToPlay(PlayerInLobby(userId, name, ctx.self), ctx.self)
+        Behaviors.receiveMessagePartial {
+          case YouJoinedTheGame(game) =>
+            ctx.log.info(s"Joined game: $game")
+            viewActorRef ! ViewMessages.GameJoined(game)
+            //Joined a game
+            gameJoined(game)
+
+          case YouCanNotJoinTheGame() =>
+            ctx.log.warn("Could not join game")
+            viewActorRef ! ViewMessages.GameJoinedFailed(game)
+            //Failed to join, waiting for other commands from the user
+            joiningAGame
+        }
+    }
+  }
+
+  private def gameJoined(game: GameInConstruction): Behavior[Message] = {
+    Behaviors.receivePartial {
+      case (ctx, UpdateAboutGame(game)) =>
+        ctx.log.info(s"Game info update: ${game.code}")
+        viewActorRef ! ViewMessages.GameInfoUpdate(game)
+        gameJoined(game)
+
+      case (ctx, LeaveTheGame()) =>
+        ctx.log.info(s"Leaving game: ${game.code}")
+        game.players.head.address ! IWantToLeaveTheGame(PlayerInLobby(userId, name, ctx.self))
+        // todo - decide if waiting for a response or not
+        start
+
+      case (ctx, GameCancelled()) =>
+        ctx.log.info(s"Game: ${game.code} has been aborted")
+        viewActorRef ! ViewMessages.GameAborted()
+        start
+
+      case (ctx, GameHasStarted()) =>
+        ctx.log.info(s"Game has started: ${game.code}")
+        //todo - Go into game
+        Behaviors.empty
+    }
+  }
