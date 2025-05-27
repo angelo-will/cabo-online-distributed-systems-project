@@ -5,9 +5,9 @@ import akka.actor.typed.receptionist.Receptionist
 import akka.actor.typed.scaladsl.Behaviors
 import model.Game.GameInConstruction
 import model.{GameParameters, PlayerInLobby}
+import utils.ClientMessages.{CreateNewGame, JoinAGame, JoinGame, StartTheGame}
 import utils.ServerMessages.ServerCommand
-import utils.ViewMessages.*
-import utils.{Message, ServerMessages}
+import utils.{Message, ServerMessages, ViewMessages}
 
 object Client:
 
@@ -56,7 +56,7 @@ private case class Client(userId: String, name: String, viewActorRef: ActorRef[M
           } else {
             ctx.log.error("Server not found")
             //Send an error message to user
-            viewActorRef ! FailedToPublishToServer()
+            viewActorRef ! ViewMessages.FailedToPublishToServer()
           }
           Behaviors.stopped
       }
@@ -77,7 +77,7 @@ private case class Client(userId: String, name: String, viewActorRef: ActorRef[M
           ctx.spawnAnonymous(contactServerAndAsk(_ ! ServerMessages.RegisterGame(game, ctx.self)))
         }
 
-        viewActorRef ! GameCreated(game)
+        viewActorRef ! ViewMessages.GameCreated(game)
 
         waitingStart(game)
 
@@ -91,10 +91,10 @@ private case class Client(userId: String, name: String, viewActorRef: ActorRef[M
           case ServerMessages.GamesList(games) =>
             if games.nonEmpty then {
               ctx.log.info(s"Games found: $games")
-              viewActorRef ! GameList(games.toList)
+              viewActorRef ! ViewMessages.GameList(games.toList)
             } else {
               ctx.log.warn("No games found")
-              viewActorRef ! GameList(List())
+              viewActorRef ! ViewMessages.GameList(List())
             }
             Behaviors.same
 
@@ -104,12 +104,12 @@ private case class Client(userId: String, name: String, viewActorRef: ActorRef[M
             Behaviors.receiveMessagePartial {
               case YouJoinedTheGame(game) =>
                 ctx.log.info(s"Joined game: $game")
-                viewActorRef ! GameJoined(game)
+                viewActorRef ! ViewMessages.GameJoined(game)
                 //Joined a game
                 Behaviors.receiveMessagePartial {
                   case UpdateAboutGame(game) =>
                     ctx.log.info(s"Game info update: ${game.code}")
-                    viewActorRef ! UpdateAboutGame(game)
+                    viewActorRef ! ViewMessages.GameInfoUpdate(game)
                     Behaviors.same
 
                   case GameHasStarted() =>
@@ -120,7 +120,7 @@ private case class Client(userId: String, name: String, viewActorRef: ActorRef[M
 
               case YouCanNotJoinTheGame() =>
                 ctx.log.warn("Could not join game")
-                viewActorRef ! GameJoinedFailed(game)
+                viewActorRef ! ViewMessages.GameJoinedFailed(game)
                 //Failed to join, waiting for other commands from the user
                 Behaviors.same
             }
@@ -139,7 +139,7 @@ private case class Client(userId: String, name: String, viewActorRef: ActorRef[M
       case (ctx, ServerMessages.FailedToRegisterGame(game, server)) =>
         //The server has failed to register the game
         ctx.log.error(s"Failed to register game: ${game.code}")
-        viewActorRef ! FailedToPublishToServer()
+        viewActorRef ! ViewMessages.FailedToPublishToServer()
         //Go into lobby
         Behaviors.same
 
@@ -161,7 +161,7 @@ private case class Client(userId: String, name: String, viewActorRef: ActorRef[M
 
 //          gameUpdated.players.foreach(_.address ! GameInfoUpdate(gameUpdated))
 
-          viewActorRef ! UpdateAboutGame(gameUpdated)
+          viewActorRef ! ViewMessages.GameInfoUpdate(gameUpdated)
 
           waitingStart(gameUpdated)
         } else {

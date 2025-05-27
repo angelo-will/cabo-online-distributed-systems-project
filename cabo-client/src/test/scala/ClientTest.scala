@@ -8,6 +8,7 @@ import model.{GameParameters, PlayerInLobby}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatest.wordspec.AnyWordSpecLike
+import utils.ClientMessages.{CreateNewGame, JoinAGame, JoinGame}
 import utils.Message
 import utils.ViewMessages.*
 
