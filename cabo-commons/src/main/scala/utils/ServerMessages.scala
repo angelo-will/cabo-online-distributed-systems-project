@@ -81,3 +81,17 @@ object ServerMessages:
    * @param sender - ActorRef of the server that served the request
    */
   case class FailedToUpdate(game: GameInConstruction, sender: ActorRef[Message]) extends ServerCommand
+
+  /**
+   * Message to clear the list of games on the server (for testing purposes)
+   * 
+   * @param replyTo - ActorRef of the client that requested the clearing of the games
+   */
+  case class ClearGames(replyTo: ActorRef[Message]) extends ServerCommand
+  
+  /**
+   * Reply message for [[ClearGames]]
+   *
+   * @param sender - ActorRef of the server that served the request
+   */
+  case class GamesCleared(sender: ActorRef[Message]) extends ServerCommand
