@@ -25,6 +25,7 @@ object Server:
     extends InternalCommand
 
   private case class InternalGetResponseForUpdate(rsp: GetResponse[ORSet[GameInConstruction]], game: GameInConstruction, replyTo: ActorRef[Message]) extends InternalCommand
+  private case class InternalUpdateResponseForClear(rsp: UpdateResponse[ORSet[GameInConstruction]], replyTo: ActorRef[Message]) extends InternalCommand
 
   def apply(): Behavior[Message] = Behaviors.setup { ctx =>
     ctx.log.info("Server started")
@@ -46,6 +47,12 @@ object Server:
         replicatorAdapter.askUpdate(
           askReplyTo => Update(listOfGames, ORSet.empty, writeLocal, askReplyTo)(_ :+ game),
           rsp => InternalUpdateResponse(rsp, game, ref))
+      }
+
+      def clearGamesList(ref: ActorRef[Message]): Unit = {
+        replicatorAdapter.askUpdate(
+          askReplyTo => Update(listOfGames, ORSet.empty, writeLocal, askReplyTo)(_.clear(node)),
+          rsp => InternalUpdateResponseForClear(rsp, ref))
       }
 
       Behaviors.receiveMessagePartial[Message] {
@@ -83,6 +90,11 @@ object Server:
           )
           Behaviors.same
 
+        case ClearGames(ref) =>
+          ctx.log.info(s"Clearing games list")
+          clearGamesList(ref)
+          Behaviors.same
+
         // Message received from the adapter about the distributed data
 
         case InternalGetResponse(g @ GetSuccess(key, _), ref) =>
@@ -111,6 +123,11 @@ object Server:
         case InternalUpdateResponse(_: UpdateFailure[_], game, ref) =>
           ctx.log.info(s"Failed to update the list of games")
           ref ! FailedToRegisterGame(game, ctx.self)
+          Behaviors.same
+
+        case InternalUpdateResponseForClear(_: UpdateSuccess[_], ref) =>
+          ctx.log.info(s"List of games cleared")
+          ref ! GamesCleared(ctx.self)
           Behaviors.same
 
         case InternalRemoveResponse(_: UpdateSuccess[_]) =>
