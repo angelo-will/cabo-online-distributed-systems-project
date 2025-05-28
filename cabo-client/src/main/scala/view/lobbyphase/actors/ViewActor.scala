@@ -6,8 +6,9 @@ import com.typesafe.config.ConfigFactory
 import model.Game
 import utils.{Message, ViewMessages}
 import view.*
-import view.lobbyphase.{InitialPhaseMainFrame, ViewApplication}
+import view.lobbyphase.{IViewListener, InitialPhaseMainFrame, ViewApplication}
 import view.*
+import view.lobbyphase.components.WaitingFrame
 
 
 object ViewActor:
@@ -16,83 +17,175 @@ object ViewActor:
 
   private case class ViewEndCreation(mainFrame: InitialPhaseMainFrame) extends Message
 
-  private case class ViewActorInfo(frame: InitialPhaseMainFrame, whoToSendResponse: ActorRef[Message], nextBehavior: Behavior[Message]) extends Message
+  //  private sealed trait ViewActorInfo extends Message
+  //
+  //  private case class ViewActorInfoInitPhase(frame: InitialPhaseMainFrame, whoToSendResponse: ActorRef[Message]) extends ViewActorInfo
+  //
+  //  private case class ViewActorInfoWaitingRoom(frame: WaitingFrame, whoToSendResponse: ActorRef[Message]) extends ViewActorInfo
 
-  def apply(whoToSendResponse: ActorRef[Message]): Behavior[Message] = Behaviors.setup { ctx =>
-    // TODO: delete remove this than -AAA- decide if wait a message to create view or create it directly
-    ViewApplication.startView(ViewActorListener(whoToSendResponse), afterCreation = frame => {
-      ctx.self ! ViewEndCreation(frame)
-    })
-    Behaviors.receivePartial {
-      case (ctx, ViewEndCreation(frame)) =>
-        ctx.log.info("Inside handleViewEndCreation")
-        whoToSendResponse ! ViewCreated()
-        idle(ViewActorInfo(frame, whoToSendResponse, Behaviors.same))
 
+  def apply(whoToSendResponse: ActorRef[Message]): Behavior[Message] =
+
+    Behaviors.setup { ctx =>
+
+      //      val myViewListener = new IViewListener {
+      //        override def createGame(makePublic: Boolean, maxTimeRound: Int, maxNumRound: Int, maxPlayers: Int): Unit =
+      //          ctx.self ! ViewMessages.CreateNewGame(makePublic, maxTimeRound, maxNumRound, maxPlayers)
+      //
+      //        override def requestGames(): Unit =
+      //          whoToSendResponse ! ViewMessages.JoinAGame()
+      //
+      //        override def joinGame(game: Game.GameInConstruction): Unit =
+      //          ctx.self ! ViewMessages.JoinGame(game)
+      //
+      //        override def joinWithAddress(address: String): Unit =
+      //          ctx.self ! ViewMessages.JoinAGameWithAddress(address)
+      //      }
+
+      // TODO: delete remove this than -AAA- decide if wait a message to create view or create it directly
+      ViewApplication.startView(ViewActorListener(whoToSendResponse), afterCreation = frame => {
+        //      ViewApplication.startView(myViewListener, afterCreation = frame => {
+        ctx.self ! ViewEndCreation(frame)
+      })
+      Behaviors.receivePartial {
+        case (ctx, ViewEndCreation(frame)) =>
+          ctx.log.info("Inside handleViewEndCreation")
+          whoToSendResponse ! ViewCreated()
+          //          idle(ViewActorInfoInitPhase(frame, whoToSendResponse))
+          idle(
+            frame,
+            whoToSendResponse,
+          )
+
+      }
     }
-  }
 
-  private def idle(info: ViewActorInfo): Behavior[Message] =
-    val infoInIdle = info.copy(nextBehavior = idle(info))
+  private def idle(
+                    frame: InitialPhaseMainFrame,
+                    whoToSendResponse: ActorRef[Message],
+                  ): Behavior[Message] =
     Behaviors.receivePartial {
-      handleFailedToPublishToServer(infoInIdle)
-        .orElse(handleGameListFromServer(infoInIdle))
-        .orElse(handleGameJoinedAnswer(infoInIdle))
-        .orElse(handleGameUpdate(infoInIdle))
-        .orElse(handleGameStarted(infoInIdle))
+      handleGameCreated(frame, whoToSendResponse, lobbyWaitingRoom)
+        //        .orElse(handleFailedToPublishToServer(infoInIdle))
+        .orElse(handleGameListFromServer(frame, whoToSendResponse, idle))
+        //              .orElse(handlePositiveGameJoinedAnswer(infoInIdle, lobbyWaitingRoom))
+        .orElse(handleNegativeGameJoinedAnswer(frame, whoToSendResponse, idle))
+      //        .orElse(handleGameUpdate(infoInIdle))
+      //        .orElse(handleGameStarted(infoInIdle))
     }
 
-  private def handleGameCreated(info: ViewActorInfo):
-  PartialFunction[(ActorContext[Message],Message),Behavior[Message]] =
+  private def lobbyWaitingRoom(frame: WaitingFrame, whoToSendResponse: ActorRef[Message]): Behavior[Message] =
+    Behaviors.receivePartial {
+      case _ => Behaviors.same
+      //      handleGameCreated(infoInLobby)
+      //        .orElse(handleFailedToPublishToServer(infoInLobby))
+      //        .orElse(handleGameListFromServer(infoInLobby))
+      //        .orElse(handlePositiveGameJoinedAnswer(infoInLobby))
+      //        .orElse(handleGameUpdate(infoInLobby))
+      //        .orElse(handleGameStarted(infoInLobby))
+    }
+  // handlers for messages from View
+
+  //  private def handleNewGame(
+  //                             // da chiudere
+  //                             initialPhaseMainFrame:InitialPhaseMainFrame,
+  //                             whoToSendResponse: ActorRef[Message],
+  //                             nextBehavior: (WaitingFrame, ActorRef[Message]) => Behavior[Message]):
+  //  PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
+  //    case (ctx, ViewMessages.CreateNewGame(makePublic, maxTimeRound, maxNumRound, maxPlayers)) =>
+  //      whoToSendResponse ! ViewMessages.CreateNewGame(makePublic, maxTimeRound, maxNumRound, maxPlayers)
+  //      initialPhaseMainFrame.close()
+
+
+  // TODO: il JoinAGame aspetta una risposta positiva?
+  //  private def handleJoinAGame(
+  //                               info: ViewActorInfoInitPhase,
+  //                               nextBehavior: ViewActorInfo => Behavior[Message]
+  //                             ):
+  //  PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
+  //    case (ctx, ViewMessages.JoinGame(game)) =>
+  //      info.whoToSendResponse ! ViewMessages.JoinGame(game)
+  //      nextBehavior(info)
+
+  // Handlers for messages from Client  
+
+  private def handleGameCreated(
+                                 initialPhaseMainFrame: InitialPhaseMainFrame,
+                                 whoToSendResponse: ActorRef[Message],
+                                 nextBehavior: (WaitingFrame, ActorRef[Message]) => Behavior[Message]
+                               ):
+  PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
     case (ctx, ViewMessages.GameCreated(game)) =>
       ctx.log.info("Game created successfully")
-      info.frame.gameCreated(game)
-      // TODO: insert correct behavior after creation
-      info.nextBehavior
-  private def handleFailedToPublishToServer(info: ViewActorInfo):
-  PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
-    case (ctx, ViewMessages.FailedToPublishToServer()) =>
-      ctx.log.error(s"Failed to publish to server the game created")
-      info.frame.failedToPublishToServer()
-      info.nextBehavior
+      initialPhaseMainFrame.close()
+      //      whoToSendResponse ! ViewMessages.GameCreated(game)
+      val waitingFrame = new WaitingFrame(
+        initialPhaseMainFrame.viewListener,
+        List.empty, // TODO: pass the list of players
+        true // TODO: select base on host
+      )
+      // TODO: create waiting frame
+      nextBehavior(waitingFrame, whoToSendResponse)
 
-  private def handleGameListFromServer(info: ViewActorInfo):
+  //  private def handleFailedToPublishToServer(info: ViewActorInfoWaitingRoom):
+  //  PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
+  //    case (ctx, ViewMessages.FailedToPublishToServer()) =>
+  //      ctx.log.error(s"Failed to publish to server the game created")
+  //      info.frame.failedToPublishToServer()
+  //      info.nextBehavior(info)
+  //
+  private def handleGameListFromServer(
+                                        initialPhaseMainFrame: InitialPhaseMainFrame,
+                                        whoToSendResponse: ActorRef[Message],
+                                        nextBehavior: (InitialPhaseMainFrame, ActorRef[Message]) => Behavior[Message]
+                                      ):
   PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
     case (ctx, ViewMessages.GameList(games)) =>
+      initialPhaseMainFrame.updateGameList(games)
       ctx.log.info(s"Received game list from server: $games")
-      info.frame.updateGameList(games)
-      info.nextBehavior
+      nextBehavior(initialPhaseMainFrame, whoToSendResponse)
 
-  private def handleGameJoinedAnswer(info: ViewActorInfo):
+  //  private def handlePositiveGameJoinedAnswer(
+  //                                              initialPhaseMainFrame: InitialPhaseMainFrame,
+  //                                              whoToSendResponse: ActorRef[Message],
+  //                                              nextBehavior: (WaitingFrame, ActorRef[Message]) => Behavior[Message]
+  //                                            ):
+  //  PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
+  //    case (ctx, ViewMessages.GameJoined(game)) =>
+  //      ctx.log.info(s"Successfully joined game: $game")
+  //      info.frame.userIsEnteredInTheGame(game)
+  //      // TODO: change ending behavior
+  //      // waiting start game
+  //      nextBehavior(info)
+
+  private def handleNegativeGameJoinedAnswer(
+                                              initialPhaseMainFrame: InitialPhaseMainFrame,
+                                              whoToSendResponse: ActorRef[Message],
+                                              nextBehavior: (InitialPhaseMainFrame, ActorRef[Message]) => Behavior[Message]
+                                            ):
   PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
-    case (ctx, ViewMessages.GameJoined(game)) =>
-      ctx.log.info(s"Successfully joined game: $game")
-      info.frame.userIsEnteredInTheGame(game)
-      // TODO: change ending behavior
-      // waiting start game
-      Behaviors.same
     case (ctx, ViewMessages.GameJoinedFailed(game)) =>
       ctx.log.info(s"Unsuccessfully joined game: $game")
-      info.frame.userFailedToEnterInTheGame(game)
+      // initialPhaseMainFrame.userFailedToEnterInTheGame(game)
       // TODO: inform the view
       // TODO: change ending behavior
-      Behaviors.same
-
-  private def handleGameUpdate(info: ViewActorInfo):
-  PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
-    case (ctx, ViewMessages.GameInfoUpdate(game)) =>
-      ctx.log.info(s"Arrived new info about the game: $game")
-      // TODO: inform the view
-      // TODO: change ending behavior
-      Behaviors.same
-
-  private def handleGameStarted(info: ViewActorInfo):
-  PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
-    case (ctx, ViewMessages.GameStarted()) =>
-      ctx.log.info(s"Received message to start the game: GameStarted")
-      // TODO: inform the view to start the game
-      // TODO: change ending behavior
-      Behaviors.same
+      nextBehavior(initialPhaseMainFrame, whoToSendResponse)
+//
+//  private def handleGameUpdate(info: ViewActorInfoWaitingRoom):
+//  PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
+//    case (ctx, ViewMessages.GameInfoUpdate(game)) =>
+//      ctx.log.info(s"Arrived new info about the game: $game")
+//      // TODO: inform the view
+//      // TODO: change ending behavior
+//      Behaviors.same
+//
+//  private def handleGameStarted(info: ViewActorInfoWaitingRoom):
+//  PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
+//    case (ctx, ViewMessages.GameStarted()) =>
+//      ctx.log.info(s"Received message to start the game: GameStarted")
+//      // TODO: inform the view to start the game
+//      // TODO: change ending behavior
+//      Behaviors.same
 
 
 // TODO: delete remove this than -AAA- remove this in deploy phase

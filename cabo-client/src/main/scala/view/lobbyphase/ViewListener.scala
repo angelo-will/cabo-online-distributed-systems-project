@@ -1,8 +1,6 @@
 package view.lobbyphase
 
-import akka.actor.typed.ActorRef
 import model.Game.GameInConstruction
-import utils.{Message, ViewMessages}
 
 trait IViewListener:
   def createGame(makePublic: Boolean, maxTimeRound: Int, maxNumRound: Int, maxPlayers: Int): Unit
@@ -12,4 +10,6 @@ trait IViewListener:
   def joinGame(game: GameInConstruction): Unit
 
   def joinWithAddress(address: String): Unit
+  
+  def startGame(): Unit
 

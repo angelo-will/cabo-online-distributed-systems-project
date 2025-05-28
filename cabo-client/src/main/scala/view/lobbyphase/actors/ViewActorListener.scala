@@ -17,3 +17,6 @@ case class ViewActorListener(ref: ActorRef[Message]) extends IViewListener:
 
   override def joinWithAddress(address: String): Unit =
     ref ! ViewMessages.JoinAGameWithAddress(address)
+
+  override def startGame(): Unit =
+    ref ! ViewMessages.StartTheGame()

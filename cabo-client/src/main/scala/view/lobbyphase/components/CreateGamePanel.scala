@@ -45,7 +45,7 @@ class CreateGamePanel(navigator: ScreenNavigator, viewListener: ICreateGameListe
   private val createGameButton = new Button("Crea Partita")
   private val backButton = new Button("Indietro")
   
-  private var waitingLobbyPanel: Option[WaitingLobbyPanel] = None
+//  private var waitingLobbyPanel: Option[WaitingLobbyPanel] = None
 
   contents += titleLabel
   contents += Swing.VStrut(20)
@@ -84,7 +84,7 @@ class CreateGamePanel(navigator: ScreenNavigator, viewListener: ICreateGameListe
         )
       else if b == backButton then
         println("CreateGamePanel: Cliccato 'Indietro'. Chiedo al navigatore di mostrare 'welcomeScreen'.")
-        navigator.showScreen(InitialPhaseNamesEnum.WelcomePanel) // Torna alla schermata precedente
+        navigator.goToPreviousPanel() // Torna alla schermata precedente
     case EditDone(`durationField`) =>
       println(s"Text field value changed: ${durationField.text}")
       validateAndSetDuration()

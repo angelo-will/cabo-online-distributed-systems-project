@@ -6,7 +6,14 @@ import java.awt.Font
 import scala.swing.{Alignment, BoxPanel, Button, Label, Orientation, Swing}
 import scala.swing.event.ButtonClicked
 
-class WelcomePanel(navigator: ScreenNavigator, viewListener: IViewListener) extends BoxPanel(Orientation.Vertical):
+trait IShowPanels:
+  def showCreateGame(): Unit
+
+  def showListGamesFromServer(): Unit
+
+  def showJoinGameWithLink(): Unit
+
+class WelcomePanel(showPanels: IShowPanels) extends BoxPanel(Orientation.Vertical):
   border = Swing.EmptyBorder(30, 30, 30, 30) // Margine interno
 
   private val welcomeMessage = new Label("Benvenuto in Cabo Online!") {
@@ -39,12 +46,11 @@ class WelcomePanel(navigator: ScreenNavigator, viewListener: IViewListener) exte
     case ButtonClicked(b) =>
       if b == createGameButton then
         println("WelcomePanel: Cliccato 'Crea nuova partita'. Chiedo al navigatore di mostrare 'createGameScreen'.")
-        navigator.showScreen(InitialPhaseNamesEnum.CreateGamePanel)
+        showPanels.showCreateGame()
       else if b == askToServerGameButton then
         println("WelcomePanel: Cliccato 'Unisciti ad una partita'.")
-        navigator.showScreen(InitialPhaseNamesEnum.JoinGamePanel)
-        viewListener.requestGames()
+        showPanels.showListGamesFromServer()
       else if b == joinAGameWithLinkButton then
         println("WelcomePanel: Cliccato 'Unisciti mediante link'.")
-        navigator.showScreen(InitialPhaseNamesEnum.JoinGameWithLinkPanel)
+        showPanels.showJoinGameWithLink()
   }
