@@ -22,50 +22,50 @@ class ViewActorListenerSpec extends ScalaTestWithActorTestKit
   ///////////////////////////////////////////////////////////////
 
 
-//    private var probe: TestProbe[Message] = _
-//
-//    override def beforeEach(): Unit =
-//      super.beforeEach()
-//      probe = testKit.createTestProbe[Message]()
-//      ViewApplication.startView(ViewActorListener(probe.ref), _ => {})
-//
-//    "View Listener" must {
-//      "send create game message" when {
-//        "create game button is pressed in view" in {
-//          // User must create the game in ui
-//          // Then
-//          // User must insert data of game and send the request
-//          val msg = probe.expectMessageType[ViewMessages.CreateNewGame](FiniteDuration(20, SECONDS))
-//          println(s"Received message: $msg")
-//        }
-//      }
-//
-//      "send the request to see list of games which are in construction" when {
-//        "join game button is pressed in view" in {
-//          // User must press the button to see the list of games
-//          val msg = probe.expectMessageType[ViewMessages.JoinAGame](FiniteDuration(20, SECONDS))
-//          println(s"Received message: $msg")
-//        }
-//      }
-//
-//      "sent the request to join a game of with know entire game" when {
-//        "join game button in game list view is pressed" in {
-//          // User must press the button to see the list of games
-//          // Then
-//          // User must select the game to join and send request
-//          val _ = probe.expectMessageType[ViewMessages.JoinAGame](FiniteDuration(5, SECONDS))
-//          val msg = probe.expectMessageType[ViewMessages.JoinGame](FiniteDuration(20, SECONDS))
-//          println(s"Received message: $msg")
-//        }
-//      }
-//
-//      "send the link of player with which he wants to play" when {
-//        "join game with link button is pressed in view" in {
-//          // User must press the button to join a game with link
-//          // Then
-//          // User must enter the link a send the request
-//          val msg = probe.expectMessageType[ViewMessages.JoinAGameWithAddress](FiniteDuration(20, SECONDS))
-//          println(s"Received message: $msg")
-//        }
-//      }
-//    }
+    private var probe: TestProbe[Message] = _
+
+    override def beforeEach(): Unit =
+      super.beforeEach()
+      probe = testKit.createTestProbe[Message]()
+      ViewApplication.startView(ViewActorListener(probe.ref), _ => {})
+
+    "View Listener" must {
+      "send create game message" when {
+        "create game button is pressed in view" in {
+          // User must create the game in ui
+          // Then
+          // User must insert data of game and send the request
+          val msg = probe.expectMessageType[ViewMessages.CreateNewGame](FiniteDuration(20, SECONDS))
+          println(s"Received message: $msg")
+        }
+      }
+
+      "send the request to see list of games which are in construction" when {
+        "join game button is pressed in view" in {
+          // User must press the button to see the list of games
+          val msg = probe.expectMessageType[ViewMessages.JoinAGame](FiniteDuration(20, SECONDS))
+          println(s"Received message: $msg")
+        }
+      }
+
+      "sent the request to join a game of with know entire game" when {
+        "join game button in game list view is pressed" in {
+          // User must press the button to see the list of games
+          // Then
+          // User must select the game to join and send request
+          val _ = probe.expectMessageType[ViewMessages.JoinAGame](FiniteDuration(5, SECONDS))
+          val msg = probe.expectMessageType[ViewMessages.JoinGame](FiniteDuration(20, SECONDS))
+          println(s"Received message: $msg")
+        }
+      }
+
+      "send the link of player with which he wants to play" when {
+        "join game with link button is pressed in view" in {
+          // User must press the button to join a game with link
+          // Then
+          // User must enter the link a send the request
+          val msg = probe.expectMessageType[ViewMessages.JoinAGameWithAddress](FiniteDuration(20, SECONDS))
+          println(s"Received message: $msg")
+        }
+      }
+    }
