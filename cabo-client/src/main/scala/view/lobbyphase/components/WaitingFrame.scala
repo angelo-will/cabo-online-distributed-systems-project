@@ -1,14 +1,15 @@
 package view.lobbyphase.components
 
 import model.{Game, PlayerInLobby}
-import view.lobbyphase.{IViewListener, InitialPhaseNamesEnum, ScreenNavigator}
+import view.lobbyphase.{IViewListener, ScreenNavigator}
 
+import javax.swing.SwingUtilities
 import scala.swing.event.ButtonClicked
-import scala.swing.{Alignment, BoxPanel, Button, Dimension, Font, Label, MainFrame, Orientation, ScrollPane, Swing}
+import scala.swing.{Alignment, BoxPanel, Button, Dialog, Dimension, Font, Label, MainFrame, Orientation, ScrollPane, Swing}
 
 class WaitingFrame(
                     listener: IViewListener,
-                    players: List[PlayerInLobby],
+                    private var players: List[PlayerInLobby],
                     isHost: Boolean
                   ) extends MainFrame:
   title = "Waiting Lobby"
@@ -23,20 +24,20 @@ class WaitingFrame(
     players,
     isHost
   )
-  
+
   private val startGameButton = new Button("Start Game") {
     font = new Font("Arial", java.awt.Font.PLAIN, 16)
-    enabled = isHost
+    enabled = players.size >= 2 && isHost
     horizontalAlignment = Alignment.Center
   }
   
   listenTo(startGameButton)
-  
+
   reactions += {
     case ButtonClicked(`startGameButton`) =>
       println("Start Game button clicked.")
       listener.startGame()
-//      this.dispose()
+    //      this.dispose()
   }
 
   contents = new BoxPanel(Orientation.Vertical) {
@@ -60,10 +61,27 @@ class WaitingFrame(
   }
 
   def updatePlayersList(newPlayers: List[PlayerInLobby]): Unit =
+    println(s"Inside updatePlayerList, newPlayers = ${newPlayers}, isHost = ${isHost}")
+    players = newPlayers
+    startGameButton.enabled = players.size >= 2 && isHost
     playersListContainer.updatePlayersList(newPlayers)
     playersListContainer.revalidate()
     playersListContainer.repaint()
     repaint()
+
+  def playerHasRequestedToJoinTheGame(player: PlayerInLobby): Unit = {
+    SwingUtilities.invokeLater(() => {
+      if Dialog.showConfirmation(
+        this,
+        s"Player ${player.name} has requested to join the game. Do you accept?",
+        title = "Join Request",
+        optionType = Dialog.Options.YesNo,
+        Dialog.Message.Question
+      ) == Dialog.Result.Yes then
+        listener.playerCanJoinGame(player)
+        this.updatePlayersList(players :+ player)
+    })
+  }
 
 
 // Aggiungi eventuali altri componenti o logica se necessario
@@ -91,11 +109,11 @@ class PlayerRowPanel(
     horizontalAlignment = Alignment.Left
   }
 
-//  private val kickOutButton = new Button("Kick Out") {
-//    font = new Font("Arial", java.awt.Font.PLAIN, 16)
-//    // TODO: create something enabled = player.isHost
-//    horizontalAlignment = Alignment.Right
-//  }
+  //  private val kickOutButton = new Button("Kick Out") {
+  //    font = new Font("Arial", java.awt.Font.PLAIN, 16)
+  //    // TODO: create something enabled = player.isHost
+  //    horizontalAlignment = Alignment.Right
+  //  }
 
   contents += playerNameLabel
 //  contents += Swing.HGlue
@@ -114,9 +132,12 @@ class PlayerRowPanel(
 
     override def joinWithAddress(address: String): Unit =
       println("DummyListener: joinWithAddress chiamato (non fa nulla in questo test)")
-      
+
     override def startGame(): Unit =
       println("DummyListener: startGame chiamato (non fa nulla in questo test)")
+
+    override def playerCanJoinGame(player: PlayerInLobby): Unit =
+      println(s"DummyListener: playerCanJoinGame chiamato per il giocatore ${player.name} (non fa nulla in questo test)")
   }
 
   val dummyPlayers = List(
@@ -128,7 +149,7 @@ class PlayerRowPanel(
   )
 
   val waitingLobbyPanel = new WaitingFrame(dummyListener, dummyPlayers, true)
-//  val waitingLobbyPanel = new WaitingFrame(dummyPlayers, true)
+  //  val waitingLobbyPanel = new WaitingFrame(dummyPlayers, true)
   waitingLobbyPanel.visible = true
 
   val updatedPlayers: List[PlayerInLobby] = List(

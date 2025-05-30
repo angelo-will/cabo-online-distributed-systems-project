@@ -1,9 +1,9 @@
 package view.lobbyphase.components
 
-import view.lobbyphase.{IViewListener, InitialPhaseNamesEnum, ScreenNavigator}
+import view.lobbyphase.{IViewListener, ScreenNavigator}
 
 import java.awt.Font
-import scala.swing.{Alignment, BoxPanel, Button, ButtonGroup, ComboBox, Dialog, Dimension, Label, MainFrame, Orientation, RadioButton, Swing, TextField}
+import scala.swing.{Alignment, BoxPanel, Button, ButtonGroup, ComboBox, Dialog, Dimension, Label, MainFrame, Orientation, Panel, RadioButton, Swing, TextField}
 import scala.swing.event.{ButtonClicked, EditDone}
 import scala.util.Try
 
@@ -44,8 +44,8 @@ class CreateGamePanel(navigator: ScreenNavigator, viewListener: ICreateGameListe
 
   private val createGameButton = new Button("Crea Partita")
   private val backButton = new Button("Indietro")
-  
-//  private var waitingLobbyPanel: Option[WaitingLobbyPanel] = None
+
+  //  private var waitingLobbyPanel: Option[WaitingLobbyPanel] = None
 
   contents += titleLabel
   contents += Swing.VStrut(20)
@@ -82,6 +82,7 @@ class CreateGamePanel(navigator: ScreenNavigator, viewListener: ICreateGameListe
           DECK_SIZE - (numPlayersSelected.selection.item * 4),
           numPlayersSelected.selection.item
         )
+      //new WaitingCreationGame()
       else if b == backButton then
         println("CreateGamePanel: Cliccato 'Indietro'. Chiedo al navigatore di mostrare 'welcomeScreen'.")
         navigator.goToPreviousPanel() // Torna alla schermata precedente
@@ -90,9 +91,8 @@ class CreateGamePanel(navigator: ScreenNavigator, viewListener: ICreateGameListe
       validateAndSetDuration()
   }
 
-  private def validateAndSetDuration(): Unit =
+  private def validateAndSetDuration(): Unit = {
     val inputText = durationField.text.trim
-
     if checkIfInt(inputText) then
       val newDuration = inputText.toInt
       if newDuration >= MIN_TIME_TURN_DURATION && newDuration <= MAX_TIME_TURN_DURATION then
@@ -108,9 +108,10 @@ class CreateGamePanel(navigator: ScreenNavigator, viewListener: ICreateGameListe
         durationField.text = currentValidTurnDuration.toString
     else
       durationField.text = currentValidTurnDuration.toString
+  }
 
-  private def checkIfInt(s: String): Boolean =
-    Try(s.toInt) match
+  private def checkIfInt(s: String): Boolean = {
+    Try(s.toInt) match {
       case scala.util.Success(_) => true
       case scala.util.Failure(_) =>
         Dialog.showMessage(
@@ -120,3 +121,24 @@ class CreateGamePanel(navigator: ScreenNavigator, viewListener: ICreateGameListe
           messageType = Dialog.Message.Error
         )
         false
+    }
+  }
+
+class WaitingCreationGameDialog extends Dialog {
+  title = "Waiting creation"
+  preferredSize = new Dimension(300, 150)
+  modal = true
+  resizable = false
+  peer.setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE)
+  val messageLabel = new Label("Creating the game...") {
+    font = new Font("Arial", java.awt.Font.BOLD, 16)
+    horizontalAlignment = Alignment.Center
+  }
+
+  contents = new BoxPanel(Orientation.Vertical) {
+    border = Swing.EmptyBorder(20, 20, 20, 20)
+    contents += messageLabel
+    contents += Swing.VGlue
+  }
+  centerOnScreen()
+}

@@ -90,4 +90,9 @@ object ViewMessages {
    */
   case class PlayerLeftGame(player: PlayerInLobby) extends ViewCommand
 
+  //TODO: aggiungere su develop
+  case class PlayerRequestedToJoinGame(player: PlayerInLobby) extends ViewCommand
+  
+  //TODO: aggiungere su develop
+  case class PlayerCanJoinGame(player: PlayerInLobby) extends ViewCommand
 }

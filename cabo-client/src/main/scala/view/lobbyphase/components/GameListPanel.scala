@@ -1,7 +1,7 @@
 package view.lobbyphase.components
 
 import model.Game.GameInConstruction
-import view.lobbyphase.{IViewListener, InitialPhaseMainFrame, InitialPhaseNamesEnum, ScreenNavigator}
+import view.lobbyphase.{IViewListener, InitialPhaseMainFrame, ScreenNavigator}
 
 import java.awt.{Color, Font}
 import javax.swing.SwingUtilities
@@ -9,33 +9,11 @@ import scala.swing.{Alignment, BorderPanel, BoxPanel, Button, Dialog, Label, Ori
 import scala.swing.event.ButtonClicked
 import scala.util.Random
 
-class WaitingAccessToGameDialog(listener: IViewListener, game: GameInConstruction) extends Dialog {
-  title = "Waiting for game host..."
-  modal = true
-  contents = new BoxPanel(Orientation.Vertical) {
-    border = Swing.EmptyBorder(20, 20, 20, 20)
-    contents += new Label(s"Trying to enter in the game '${game.code}'...") {
-      font = new Font("SansSerif", java.awt.Font.BOLD, 14)
-    }
-    contents += Swing.VStrut(10)
-    contents += new Label("Wait please...")
-  }
-  pack()
-  centerOnScreen()
+trait IListGamesListener:
+  def joinGame(game: GameInConstruction): Unit
+  def updateGamesList(): Unit
 
-  // TODO: delete remove this than -AAA- Replace to use server response
-  scala.concurrent.ExecutionContext.global.execute(() => {
-    Thread.sleep(3000)
-    SwingUtilities.invokeLater(() => {
-      close()
-      println(s"GameRowPanel: Host of game '${game.code}' has accepted your request.")
-      listener.joinGame(game)
-    })
-  })
-  this.open()
-}
-
-class GameListPanel(parentFrame: InitialPhaseMainFrame, navigator: ScreenNavigator, listener: IViewListener) extends BoxPanel(Orientation.Vertical) {
+class GameListPanel(navigator: ScreenNavigator, listener: IListGamesListener) extends BoxPanel(Orientation.Vertical) {
 
   border = Swing.EmptyBorder(30, 30, 30, 30)
 
@@ -74,6 +52,7 @@ class GameListPanel(parentFrame: InitialPhaseMainFrame, navigator: ScreenNavigat
         navigator.goToPreviousPanel()
       else if b == refreshGamesButton then
         println("GameListPanel: Cliccato 'Aggiorna'.")
+        listener.updateGamesList()
         // TODO: delete remove this than -AAA- togliere quando si prenderanno i dati dal server
         updateGameList(Random.shuffle(games))
   }
@@ -91,7 +70,7 @@ class GameListPanel(parentFrame: InitialPhaseMainFrame, navigator: ScreenNavigat
         listContainer.contents.clear()
 
         if (games.isEmpty) {
-          listContainer.contents += new Label("Nessuna partita disponibile al momento.") {
+          listContainer.contents += new Label("No games at the moment.") {
             horizontalAlignment = Alignment.Center
             font = new Font("SansSerif", java.awt.Font.ITALIC, 14)
           }
@@ -144,7 +123,8 @@ class GameListPanel(parentFrame: InitialPhaseMainFrame, navigator: ScreenNavigat
         else if b == joinButton then
           if showYesNoJoinDialog() == Dialog.Result.Yes then
             println("Yes pressed to enter in the game")
-            parentFrame.dialogWaitingAccessToAccess = Some(new WaitingAccessToGameDialog(listener, game))
+            listener.joinGame(game)
+            //parentFrame.dialogWaitingAccessToAccess = Some(new WaitingAccessToGameDialog(listener, game))
 
       // TODO: inserire la chiamata al listener corretta per partecipare al game
       // listener.joinAGame("")

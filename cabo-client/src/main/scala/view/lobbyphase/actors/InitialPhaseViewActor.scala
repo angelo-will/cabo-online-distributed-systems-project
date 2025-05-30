@@ -11,7 +11,7 @@ import view.*
 import view.lobbyphase.components.WaitingFrame
 
 
-object ViewActor:
+object InitialPhaseViewActor:
 
   case class ViewCreated() extends Message
 
@@ -68,7 +68,7 @@ object ViewActor:
       handleGameCreated(frame, whoToSendResponse, lobbyWaitingRoom)
         //        .orElse(handleFailedToPublishToServer(infoInIdle))
         .orElse(handleGameListFromServer(frame, whoToSendResponse, idle))
-        //              .orElse(handlePositiveGameJoinedAnswer(infoInIdle, lobbyWaitingRoom))
+        .orElse(handlePositiveGameJoinedAnswer(frame, whoToSendResponse, lobbyWaitingRoom))
         .orElse(handleNegativeGameJoinedAnswer(frame, whoToSendResponse, idle))
       //        .orElse(handleGameUpdate(infoInIdle))
       //        .orElse(handleGameStarted(infoInIdle))
@@ -76,7 +76,10 @@ object ViewActor:
 
   private def lobbyWaitingRoom(frame: WaitingFrame, whoToSendResponse: ActorRef[Message]): Behavior[Message] =
     Behaviors.receivePartial {
-      case _ => Behaviors.same
+      handlePlayerRequestToJoinTheGame(frame, whoToSendResponse, lobbyWaitingRoom)
+        .orElse({
+          case _ => Behaviors.same
+        })
       //      handleGameCreated(infoInLobby)
       //        .orElse(handleFailedToPublishToServer(infoInLobby))
       //        .orElse(handleGameListFromServer(infoInLobby))
@@ -117,13 +120,14 @@ object ViewActor:
   PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
     case (ctx, ViewMessages.GameCreated(game)) =>
       ctx.log.info("Game created successfully")
-      initialPhaseMainFrame.close()
+      initialPhaseMainFrame.dispose()
       //      whoToSendResponse ! ViewMessages.GameCreated(game)
       val waitingFrame = new WaitingFrame(
         initialPhaseMainFrame.viewListener,
-        List.empty, // TODO: pass the list of players
+        game.players, // TODO: pass the list of players
         true // TODO: select base on host
       )
+      waitingFrame.open()
       // TODO: create waiting frame
       nextBehavior(waitingFrame, whoToSendResponse)
 
@@ -145,18 +149,22 @@ object ViewActor:
       ctx.log.info(s"Received game list from server: $games")
       nextBehavior(initialPhaseMainFrame, whoToSendResponse)
 
-  //  private def handlePositiveGameJoinedAnswer(
-  //                                              initialPhaseMainFrame: InitialPhaseMainFrame,
-  //                                              whoToSendResponse: ActorRef[Message],
-  //                                              nextBehavior: (WaitingFrame, ActorRef[Message]) => Behavior[Message]
-  //                                            ):
-  //  PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
-  //    case (ctx, ViewMessages.GameJoined(game)) =>
-  //      ctx.log.info(s"Successfully joined game: $game")
-  //      info.frame.userIsEnteredInTheGame(game)
-  //      // TODO: change ending behavior
-  //      // waiting start game
-  //      nextBehavior(info)
+  private def handlePositiveGameJoinedAnswer(
+                                              initialPhaseMainFrame: InitialPhaseMainFrame,
+                                              whoToSendResponse: ActorRef[Message],
+                                              nextBehavior: (WaitingFrame, ActorRef[Message]) => Behavior[Message]
+                                            ):
+  PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
+    case (ctx, ViewMessages.GameJoined(game)) =>
+      ctx.log.info(s"Successfully joined game: $game")
+      initialPhaseMainFrame.dispose()
+      val waitingFrame = new WaitingFrame(
+        initialPhaseMainFrame.viewListener,
+        game.players, // TODO: pass the list of players
+        false
+      )
+      waitingFrame.open()
+      nextBehavior(waitingFrame, whoToSendResponse)
 
   private def handleNegativeGameJoinedAnswer(
                                               initialPhaseMainFrame: InitialPhaseMainFrame,
@@ -170,23 +178,33 @@ object ViewActor:
       // TODO: inform the view
       // TODO: change ending behavior
       nextBehavior(initialPhaseMainFrame, whoToSendResponse)
-//
-//  private def handleGameUpdate(info: ViewActorInfoWaitingRoom):
-//  PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
-//    case (ctx, ViewMessages.GameInfoUpdate(game)) =>
-//      ctx.log.info(s"Arrived new info about the game: $game")
-//      // TODO: inform the view
-//      // TODO: change ending behavior
-//      Behaviors.same
-//
-//  private def handleGameStarted(info: ViewActorInfoWaitingRoom):
-//  PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
-//    case (ctx, ViewMessages.GameStarted()) =>
-//      ctx.log.info(s"Received message to start the game: GameStarted")
-//      // TODO: inform the view to start the game
-//      // TODO: change ending behavior
-//      Behaviors.same
+  //
+  //  private def handleGameUpdate(info: ViewActorInfoWaitingRoom):
+  //  PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
+  //    case (ctx, ViewMessages.GameInfoUpdate(game)) =>
+  //      ctx.log.info(s"Arrived new info about the game: $game")
+  //      // TODO: inform the view
+  //      // TODO: change ending behavior
+  //      Behaviors.same
+  //
+  //  private def handleGameStarted(info: ViewActorInfoWaitingRoom):
+  //  PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
+  //    case (ctx, ViewMessages.GameStarted()) =>
+  //      ctx.log.info(s"Received message to start the game: GameStarted")
+  //      // TODO: inform the view to start the game
+  //      // TODO: change ending behavior
+  //      Behaviors.same
 
+  private def handlePlayerRequestToJoinTheGame(
+                                                waitingFrame: WaitingFrame,
+                                                whoToSendResponse: ActorRef[Message],
+                                                nextBehavior: (WaitingFrame, ActorRef[Message]) => Behavior[Message]
+                                              ):
+  PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
+    case (ctx, ViewMessages.PlayerRequestedToJoinGame(player)) =>
+      ctx.log.info(s"Player requested to join the game: $player")
+      waitingFrame.playerHasRequestedToJoinTheGame(player)
+      nextBehavior(waitingFrame, whoToSendResponse)
 
 // TODO: delete remove this than -AAA- remove this in deploy phase
 // to use rename application.conf to something in common resources.
@@ -197,7 +215,7 @@ object ViewActor:
   object ApplicationRootActor:
     def apply(): Behavior[Message] = Behaviors.setup { ctx =>
       ctx.log.info("ApplicationRootActor: Avvio...")
-      ctx.spawn(ViewActor(ctx.self), "ViewActor")
+      ctx.spawn(InitialPhaseViewActor(ctx.self), "ViewActor")
       Behaviors.receive { (context, message) =>
         println("Received message in ApplicationRootActor: " + message)
         Behaviors.same

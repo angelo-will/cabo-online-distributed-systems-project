@@ -1,6 +1,7 @@
 package view.lobbyphase
 
 import model.Game.GameInConstruction
+import model.PlayerInLobby
 
 trait IViewListener:
   def createGame(makePublic: Boolean, maxTimeRound: Int, maxNumRound: Int, maxPlayers: Int): Unit
@@ -12,4 +13,6 @@ trait IViewListener:
   def joinWithAddress(address: String): Unit
   
   def startGame(): Unit
+  
+  def playerCanJoinGame(player: PlayerInLobby): Unit
 

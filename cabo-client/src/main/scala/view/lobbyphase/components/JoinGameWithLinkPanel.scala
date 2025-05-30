@@ -1,12 +1,15 @@
 package view.lobbyphase.components
 
-import view.lobbyphase.{IViewListener, InitialPhaseNamesEnum, ScreenNavigator}
+import view.lobbyphase.{IViewListener, ScreenNavigator}
 
 import java.awt.Font
 import scala.swing.{Alignment, BoxPanel, Button, Label, Orientation, Swing, TextField}
 import scala.swing.event.ButtonClicked
 
-class JoinGameWithLinkPanel(navigator: ScreenNavigator, viewListener: IViewListener) extends BoxPanel(Orientation.Vertical):
+trait IJoinGameWithLinkListener:
+  def joinWithAddress(address: String): Unit
+
+class JoinGameWithLinkPanel(navigator: ScreenNavigator, viewListener: IJoinGameWithLinkListener) extends BoxPanel(Orientation.Vertical):
   border = Swing.EmptyBorder(30, 30, 30, 30) // Margine interno
 
   private val titleLabel = new Label("Unisciti a una partita mediante link") {
