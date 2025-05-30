@@ -55,7 +55,7 @@ class InitialPhaseViewActorSpec extends ScalaTestWithActorTestKit
         Thread.sleep(3000)
         actorView ! ViewMessages.GameCreated(Game.GameInConstruction(
           code = "testGame",
-          GameParameters(!newGame.makePublic, newGame.maxTimeRound, newGame.maxNumRound, newGame.maxPlayers),
+          GameParameters(!newGame.isPublic, newGame.maxTimeRound, newGame.maxNumRound, newGame.maxPlayers),
           players = List(PlayerInLobby("user1", "User One", probe.ref))
         ))
         probe.expectMessage(FiniteDuration(40, SECONDS), Passed())
@@ -109,7 +109,7 @@ class InitialPhaseViewActorSpec extends ScalaTestWithActorTestKit
         val newGame = probe.expectMessageType[ViewMessages.CreateNewGame](FiniteDuration(20, SECONDS))
         val gameInConstruction = Game.GameInConstruction(
           code = "testGame",
-          GameParameters(!newGame.makePublic, newGame.maxTimeRound, newGame.maxNumRound, newGame.maxPlayers),
+          GameParameters(!newGame.isPublic, newGame.maxTimeRound, newGame.maxNumRound, newGame.maxPlayers),
           players = List(PlayerInLobby("user1", "User One", probe.ref))
         )
 
@@ -146,12 +146,12 @@ class InitialPhaseViewActorSpec extends ScalaTestWithActorTestKit
 
         val playerJoiner = PlayerInLobby("playerJoiner", "Player Joiner", probe.ref)
         val playerHost = PlayerInLobby("host", "Host Player", hostRef)
-        
+
         // Player insert the link in gui
         val address = probe.expectMessageType[ViewMessages.JoinAGameWithAddress](FiniteDuration(20, SECONDS))
 
         Thread.sleep(3000)
-        
+
         // host accepted and integrate the player in the game in construction
         val gameInConstruction = Game.GameInConstruction(
           code = "testGame",
@@ -159,9 +159,43 @@ class InitialPhaseViewActorSpec extends ScalaTestWithActorTestKit
           players = List(playerHost, playerJoiner)
         )
         actorViewPlayerJoiner ! ViewMessages.GameJoined(gameInConstruction)
-        
+
         probe.expectMessage(FiniteDuration(40, SECONDS), Passed())
       }
+    }
+    "allow a normal game simulation" in {
+      val actorViewHost = testKit.spawn(InitialPhaseViewActor(probe.ref))
+      Thread.sleep(3000)
+      val actorViewJoiner = testKit.spawn(InitialPhaseViewActor(probe.ref))
+
+      probe.expectMessageType[ViewCreated]
+      probe.expectMessageType[ViewCreated]
+
+      // host build the game
+
+      val newGame = probe.expectMessageType[ViewMessages.CreateNewGame](FiniteDuration(20, SECONDS))
+      val gameBuilt = Game.GameInConstruction(
+        code = "testGame",
+        GameParameters(newGame.isPublic, newGame.maxTimeRound, newGame.maxNumRound, newGame.maxPlayers),
+        players = List(PlayerInLobby("host", "Host Player", probe.ref))
+      )
+      actorViewHost ! ViewMessages.GameCreated(gameBuilt)
+
+      // joiner request to join the game
+      val _ = probe.expectMessageType[ViewMessages.JoinAGame](FiniteDuration(20,SECONDS))
+      Thread.sleep(3000)
+      actorViewJoiner ! ViewMessages.GameList(List(gameBuilt))
+
+      val gameToJoin = probe.expectMessageType[ViewMessages.JoinGame](FiniteDuration(20, SECONDS))
+
+      Thread.sleep(2000)
+
+      // the host see changing of the players in list
+      val gameAfterJoin = gameBuilt.copy(
+        players = gameBuilt.players :+ PlayerInLobby("joiner", "Joiner Player", probe.ref))
+      actorViewHost ! ViewMessages.GameInfoUpdate(gameAfterJoin)
+      actorViewJoiner ! ViewMessages.GameJoined(gameAfterJoin)
+      Thread.sleep(20000)
     }
   }
 

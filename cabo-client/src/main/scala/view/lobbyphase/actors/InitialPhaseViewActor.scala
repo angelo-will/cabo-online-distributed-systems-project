@@ -56,6 +56,7 @@ object InitialPhaseViewActor:
   private def lobbyWaitingRoom(frame: WaitingFrame, whoToSendResponse: ActorRef[Message]): Behavior[Message] =
     Behaviors.receivePartial {
       handlePlayerRequestToJoinTheGame(frame, whoToSendResponse, lobbyWaitingRoom)
+        .orElse(handleGameUpdate(frame, whoToSendResponse, lobbyWaitingRoom))
         .orElse({
           case _ => Behaviors.same
         })
@@ -63,7 +64,6 @@ object InitialPhaseViewActor:
       //        .orElse(handleFailedToPublishToServer(infoInLobby))
       //        .orElse(handleGameListFromServer(infoInLobby))
       //        .orElse(handlePositiveGameJoinedAnswer(infoInLobby))
-      //        .orElse(handleGameUpdate(infoInLobby))
       //        .orElse(handleGameStarted(infoInLobby))
     }
   // handlers for messages from View
@@ -136,14 +136,18 @@ object InitialPhaseViewActor:
       // TODO: inform the view
       // TODO: change ending behavior
       nextBehavior(initialPhaseMainFrame, whoToSendResponse)
+
   //
-  //  private def handleGameUpdate(info: ViewActorInfoWaitingRoom):
-  //  PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
-  //    case (ctx, ViewMessages.GameInfoUpdate(game)) =>
-  //      ctx.log.info(s"Arrived new info about the game: $game")
-  //      // TODO: inform the view
-  //      // TODO: change ending behavior
-  //      Behaviors.same
+  private def handleGameUpdate(
+                                waitingFrame: WaitingFrame,
+                                whoToSendResponse: ActorRef[Message],
+                                nextBehavior: (WaitingFrame, ActorRef[Message]) => Behavior[Message]
+                              ):
+  PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
+    case (ctx, ViewMessages.GameInfoUpdate(game)) =>
+      ctx.log.info(s"Arrived new info about the game: $game")
+      waitingFrame.updatePlayersList(game.players)
+      nextBehavior(waitingFrame, whoToSendResponse)
   //
   //  private def handleGameStarted(info: ViewActorInfoWaitingRoom):
   //  PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =

@@ -10,12 +10,12 @@ object ViewMessages {
   /**
    * Message sent by the view to the client to create a new game
    *
-   * @param makePublic
+   * @param isPublic
    * @param maxTimeRound
    * @param maxNumRound
    * @param maxPlayers
    */
-  case class CreateNewGame(makePublic: Boolean, maxTimeRound: Int, maxNumRound: Int, maxPlayers: Int) extends ViewCommand
+  case class CreateNewGame(isPublic: Boolean, maxTimeRound: Int, maxNumRound: Int, maxPlayers: Int) extends ViewCommand
 
   /**
    * Message sent by the client to the view if it's not possible to share the game with the server
