@@ -8,7 +8,7 @@ import scala.swing.event.{ButtonClicked, EditDone}
 import scala.util.Try
 
 trait ICreateGameListener:
-  def createGame(makePublic: Boolean, maxTimeRound: Int, maxNumRound: Int, maxPlayers: Int): Unit
+  def createGame(isPublic: Boolean, maxTimeRound: Int, maxNumRound: Int, maxPlayers: Int): Unit
 
 class CreateGamePanel(navigator: ScreenNavigator, viewListener: ICreateGameListener) extends BoxPanel(Orientation.Vertical):
   border = Swing.EmptyBorder(30, 30, 30, 30)

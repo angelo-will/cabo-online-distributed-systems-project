@@ -263,8 +263,8 @@ object ViewApplication:
 
 object AppMultiplePanel extends SimpleSwingApplication:
   def top: MainFrame = new InitialPhaseMainFrame(new IViewListener {
-    override def createGame(makePublic: Boolean, maxTimeRound: Int, maxNumRound: Int, maxPlayers: Int): Unit =
-      println(s"Listener finto: Create game with these parameters: makePublic: $makePublic, maxTimeRound: $maxTimeRound, maxNumRound: $maxNumRound, maxPlayers: $maxPlayers")
+    override def createGame(isPubblic: Boolean, maxTimeRound: Int, maxNumRound: Int, maxPlayers: Int): Unit =
+      println(s"Listener finto: Create game with these parameters: makePublic: $isPubblic, maxTimeRound: $maxTimeRound, maxNumRound: $maxNumRound, maxPlayers: $maxPlayers")
 
     override def requestGames(): Unit =
       println("Listener finto: Requesting games from server...")

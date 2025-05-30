@@ -121,7 +121,7 @@ class PlayerRowPanel(
 
 @main def testWaitingLobbyPanel(): Unit =
   val dummyListener = new IViewListener {
-    override def createGame(makePublic: Boolean, maxTimeRound: Int, maxNumRound: Int, maxPlayers: Int): Unit =
+    override def createGame(isPubblic: Boolean, maxTimeRound: Int, maxNumRound: Int, maxPlayers: Int): Unit =
       println("DummyListener: createGame chiamato (non fa nulla in questo test)")
 
     override def requestGames(): Unit =

@@ -4,7 +4,7 @@ import model.Game.GameInConstruction
 import model.PlayerInLobby
 
 trait IViewListener:
-  def createGame(makePublic: Boolean, maxTimeRound: Int, maxNumRound: Int, maxPlayers: Int): Unit
+  def createGame(isPubblic: Boolean, maxTimeRound: Int, maxNumRound: Int, maxPlayers: Int): Unit
 
   def requestGames(): Unit
   
