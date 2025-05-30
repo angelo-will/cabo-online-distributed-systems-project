@@ -45,6 +45,5 @@ class JoinGameWithLinkPanel(navigator: ScreenNavigator, viewListener: IJoinGameW
         viewListener.joinWithAddress(gameCodeField.text)
       else if b == backButton then
         println("JoinGamePanel: Cliccato 'Indietro'. Chiedo al navigatore di mostrare 'welcomeScreen'.")
-//        navigator.goToPreviousPanel(InitialPhaseNamesEnum.WelcomePanel) 
         navigator.goToPreviousPanel() 
   }

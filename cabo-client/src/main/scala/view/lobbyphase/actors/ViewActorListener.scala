@@ -6,8 +6,8 @@ import utils.{Message, ViewMessages}
 import view.lobbyphase.IViewListener
 
 case class ViewActorListener(ref: ActorRef[Message]) extends IViewListener:
-  override def createGame(isPubblic: Boolean, maxTimeRound: Int, maxNumRound: Int, maxPlayers: Int): Unit =
-    ref ! ViewMessages.CreateNewGame(isPubblic, maxTimeRound, maxNumRound, maxPlayers)
+  override def createGame(isPublic: Boolean, maxTimeRound: Int, maxNumRound: Int, maxPlayers: Int): Unit =
+    ref ! ViewMessages.CreateNewGame(isPublic, maxTimeRound, maxNumRound, maxPlayers)
 
   override def requestGames(): Unit =
     ref ! ViewMessages.JoinAGame()

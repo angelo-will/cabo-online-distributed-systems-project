@@ -17,31 +17,10 @@ object InitialPhaseViewActor:
 
   private case class ViewEndCreation(mainFrame: InitialPhaseMainFrame) extends Message
 
-  //  private sealed trait ViewActorInfo extends Message
-  //
-  //  private case class ViewActorInfoInitPhase(frame: InitialPhaseMainFrame, whoToSendResponse: ActorRef[Message]) extends ViewActorInfo
-  //
-  //  private case class ViewActorInfoWaitingRoom(frame: WaitingFrame, whoToSendResponse: ActorRef[Message]) extends ViewActorInfo
-
 
   def apply(whoToSendResponse: ActorRef[Message]): Behavior[Message] =
 
     Behaviors.setup { ctx =>
-
-      //      val myViewListener = new IViewListener {
-      //        override def createGame(makePublic: Boolean, maxTimeRound: Int, maxNumRound: Int, maxPlayers: Int): Unit =
-      //          ctx.self ! ViewMessages.CreateNewGame(makePublic, maxTimeRound, maxNumRound, maxPlayers)
-      //
-      //        override def requestGames(): Unit =
-      //          whoToSendResponse ! ViewMessages.JoinAGame()
-      //
-      //        override def joinGame(game: Game.GameInConstruction): Unit =
-      //          ctx.self ! ViewMessages.JoinGame(game)
-      //
-      //        override def joinWithAddress(address: String): Unit =
-      //          ctx.self ! ViewMessages.JoinAGameWithAddress(address)
-      //      }
-
       // TODO: delete remove this than -AAA- decide if wait a message to create view or create it directly
       ViewApplication.startView(ViewActorListener(whoToSendResponse), afterCreation = frame => {
         //      ViewApplication.startView(myViewListener, afterCreation = frame => {
@@ -88,27 +67,6 @@ object InitialPhaseViewActor:
       //        .orElse(handleGameStarted(infoInLobby))
     }
   // handlers for messages from View
-
-  //  private def handleNewGame(
-  //                             // da chiudere
-  //                             initialPhaseMainFrame:InitialPhaseMainFrame,
-  //                             whoToSendResponse: ActorRef[Message],
-  //                             nextBehavior: (WaitingFrame, ActorRef[Message]) => Behavior[Message]):
-  //  PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
-  //    case (ctx, ViewMessages.CreateNewGame(makePublic, maxTimeRound, maxNumRound, maxPlayers)) =>
-  //      whoToSendResponse ! ViewMessages.CreateNewGame(makePublic, maxTimeRound, maxNumRound, maxPlayers)
-  //      initialPhaseMainFrame.close()
-
-
-  // TODO: il JoinAGame aspetta una risposta positiva?
-  //  private def handleJoinAGame(
-  //                               info: ViewActorInfoInitPhase,
-  //                               nextBehavior: ViewActorInfo => Behavior[Message]
-  //                             ):
-  //  PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
-  //    case (ctx, ViewMessages.JoinGame(game)) =>
-  //      info.whoToSendResponse ! ViewMessages.JoinGame(game)
-  //      nextBehavior(info)
 
   // Handlers for messages from Client  
 

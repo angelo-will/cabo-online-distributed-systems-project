@@ -45,8 +45,6 @@ class CreateGamePanel(navigator: ScreenNavigator, viewListener: ICreateGameListe
   private val createGameButton = new Button("Crea Partita")
   private val backButton = new Button("Indietro")
 
-  //  private var waitingLobbyPanel: Option[WaitingLobbyPanel] = None
-
   contents += titleLabel
   contents += Swing.VStrut(20)
 
@@ -82,7 +80,6 @@ class CreateGamePanel(navigator: ScreenNavigator, viewListener: ICreateGameListe
           DECK_SIZE - (numPlayersSelected.selection.item * 4),
           numPlayersSelected.selection.item
         )
-      //new WaitingCreationGame()
       else if b == backButton then
         println("CreateGamePanel: Cliccato 'Indietro'. Chiedo al navigatore di mostrare 'welcomeScreen'.")
         navigator.goToPreviousPanel() // Torna alla schermata precedente

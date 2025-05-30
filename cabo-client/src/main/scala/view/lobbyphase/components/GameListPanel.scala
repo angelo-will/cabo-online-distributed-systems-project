@@ -1,13 +1,12 @@
 package view.lobbyphase.components
 
 import model.Game.GameInConstruction
-import view.lobbyphase.{IViewListener, InitialPhaseMainFrame, ScreenNavigator}
+import view.lobbyphase.ScreenNavigator
 
 import java.awt.{Color, Font}
 import javax.swing.SwingUtilities
 import scala.swing.{Alignment, BorderPanel, BoxPanel, Button, Dialog, Label, Orientation, ScrollPane, Swing}
 import scala.swing.event.ButtonClicked
-import scala.util.Random
 
 trait IListGamesListener:
   def joinGame(game: GameInConstruction): Unit
@@ -35,11 +34,8 @@ class GameListPanel(navigator: ScreenNavigator, listener: IListGamesListener) ex
   contents += Swing.VStrut(20)
   contents += gamesContainer
 
-  // TODO: delete remove this than -AAA- per test
-  var games: Seq[GameInConstruction] = _
 
   def updateGameList(games: Seq[GameInConstruction]): Unit =
-    this.games = games
     gamesContainer.updateGameList(games)
 
 
@@ -48,13 +44,10 @@ class GameListPanel(navigator: ScreenNavigator, listener: IListGamesListener) ex
     case ButtonClicked(b) =>
       if b == backButton then
         println("GameListPanel: Cliccato 'Indietro'.")
-//        navigator.goToPreviousPanel(InitialPhaseNamesEnum.WelcomePanel)
         navigator.goToPreviousPanel()
       else if b == refreshGamesButton then
         println("GameListPanel: Cliccato 'Aggiorna'.")
         listener.updateGamesList()
-        // TODO: delete remove this than -AAA- togliere quando si prenderanno i dati dal server
-        updateGameList(Random.shuffle(games))
   }
 
   private class GameListContainer extends ScrollPane {
@@ -124,10 +117,6 @@ class GameListPanel(navigator: ScreenNavigator, listener: IListGamesListener) ex
           if showYesNoJoinDialog() == Dialog.Result.Yes then
             println("Yes pressed to enter in the game")
             listener.joinGame(game)
-            //parentFrame.dialogWaitingAccessToAccess = Some(new WaitingAccessToGameDialog(listener, game))
-
-      // TODO: inserire la chiamata al listener corretta per partecipare al game
-      // listener.joinAGame("")
     }
 
 

@@ -1,7 +1,7 @@
 package view.lobbyphase.components
 
 import model.{Game, PlayerInLobby}
-import view.lobbyphase.{IViewListener, ScreenNavigator}
+import view.lobbyphase.IViewListener
 
 import javax.swing.SwingUtilities
 import scala.swing.event.ButtonClicked
@@ -13,7 +13,7 @@ class WaitingFrame(
                     isHost: Boolean
                   ) extends MainFrame:
   title = "Waiting Lobby"
-  preferredSize = new Dimension(600, 400) // Dimensione preferita della finestra
+  preferredSize = new Dimension(600, 400)
   centerOnScreen()
   peer.setDefaultCloseOperation(
     //TODO: Insert message to actor view to reopen first frame
@@ -37,7 +37,6 @@ class WaitingFrame(
     case ButtonClicked(`startGameButton`) =>
       println("Start Game button clicked.")
       listener.startGame()
-    //      this.dispose()
   }
 
   contents = new BoxPanel(Orientation.Vertical) {
@@ -83,8 +82,6 @@ class WaitingFrame(
     })
   }
 
-
-// Aggiungi eventuali altri componenti o logica se necessario
 class WaitingLobbyPlayersContainer(
                                     listener: IViewListener,
                                     players: List[PlayerInLobby],
@@ -109,15 +106,7 @@ class PlayerRowPanel(
     horizontalAlignment = Alignment.Left
   }
 
-  //  private val kickOutButton = new Button("Kick Out") {
-  //    font = new Font("Arial", java.awt.Font.PLAIN, 16)
-  //    // TODO: create something enabled = player.isHost
-  //    horizontalAlignment = Alignment.Right
-  //  }
-
   contents += playerNameLabel
-//  contents += Swing.HGlue
-//  contents += kickOutButton
 
 @main def testWaitingLobbyPanel(): Unit =
   val dummyListener = new IViewListener {
@@ -166,12 +155,5 @@ class PlayerRowPanel(
     Thread.sleep(3000)
     waitingLobbyPanel.updatePlayersList(updatedPlayers)
     println("Lista giocatori aggiornata dopo 10 secondi!")
-    //    }
-    //  val mainFrame: MainFrame = new MainFrame {
-    //    title = "Waiting Lobby Panel Test (No Akka)"
-    //    contents = waitingLobbyPanel
-    //    size = new Dimension(600, 400)
-    //    centerOnScreen()
-    //    visible = true
 
   })
