@@ -6,6 +6,7 @@ import view.lobbyphase.IViewListener
 import javax.swing.SwingUtilities
 import scala.swing.event.ButtonClicked
 import scala.swing.{Alignment, BoxPanel, Button, Dialog, Dimension, Font, Label, MainFrame, Orientation, ScrollPane, Swing}
+import scala.util.Random
 
 class WaitingFrame(
                     listener: IViewListener,
@@ -30,7 +31,7 @@ class WaitingFrame(
     enabled = players.size >= 2 && isHost
     horizontalAlignment = Alignment.Center
   }
-  
+
   listenTo(startGameButton)
 
   reactions += {
@@ -67,6 +68,17 @@ class WaitingFrame(
     playersListContainer.revalidate()
     playersListContainer.repaint()
     repaint()
+
+  def openErrorPubOnServerDialog(): Unit =
+    SwingUtilities.invokeLater(() => {
+      Dialog.showMessage(
+        this,
+        "<html>Impossible public the game on Server.<br>" +
+          "Other players can still reach you with your link.</html>",
+        title = "Error",
+        messageType = Dialog.Message.Error
+      )
+    })
 
   def playerHasRequestedToJoinTheGame(player: PlayerInLobby): Unit = {
     SwingUtilities.invokeLater(() => {
