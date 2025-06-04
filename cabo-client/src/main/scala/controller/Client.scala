@@ -1,11 +1,12 @@
 package controller
 
-import akka.actor.typed.{ActorRef, Behavior}
 import akka.actor.typed.receptionist.Receptionist
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
+import akka.actor.typed.{ActorRef, Behavior}
+import akka.cluster.ClusterEvent.MemberExited
 import model.Game.GameInConstruction
 import model.{GameParameters, PlayerInLobby}
-import utils.ClientMessages.{CreateNewGame, JoinAGame, JoinAddress, JoinGame, LeaveTheGame, StartTheGame}
+import utils.ClientMessages.*
 import utils.ServerMessages.{AbortGame, ServerCommand}
 import utils.{Message, ServerMessages, ViewMessages}
 
@@ -25,8 +26,11 @@ object Client:
 
   case class GameHasStarted() extends Message
 
-  case class ListingResponseListing(listing: Receptionist.Listing) extends Message
+  case class PlayerUnreachable(playerInLobby: PlayerInLobby) extends Message
 
+  //todo - check if can be private
+  case class ListingResponseListing(listing: Receptionist.Listing) extends Message
+  
   def apply(userId: String = "Player", name: String = "defaultCoolName"): Behavior[Message] = Behaviors.setup { ctx =>
     
     //todo - create a view actor
@@ -35,11 +39,13 @@ object Client:
         ctx.log.info("View actor received a message, but it is not implemented yet.")
         Behaviors.same
     }), "ViewActor")
+
+    val connectionHandler = ctx.spawn(ConnectionHandler[MemberExited](ctx.self), "ConnectionHandler")
     
-    new Client(userId, name, viewActorRef).start
+    new Client(userId, name, viewActorRef, connectionHandler).start
   }
 
-private case class Client(userId: String, name: String, viewActorRef: ActorRef[Message]):
+private case class Client(userId: String, name: String, viewActorRef: ActorRef[Message], connectionHandler: ActorRef[ConnectionHandler.InternalCommand]):
 
   import controller.Client.*
 
@@ -81,6 +87,8 @@ private case class Client(userId: String, name: String, viewActorRef: ActorRef[M
           ctx.spawnAnonymous(contactServerAndAsk(_ ! ServerMessages.RegisterGame(game, ctx.self)))
         }
 
+        connectionHandler ! ConnectionHandler.UpdateList(game.players)
+
         viewActorRef ! ViewMessages.GameCreated(game)
 
         hostBehavior(game)
@@ -92,8 +100,23 @@ private case class Client(userId: String, name: String, viewActorRef: ActorRef[M
     }
   }
 
-  //DECIDERE SE USARE PLAYER.ID INVECE DI PLAYER NELLA MAPPA
   private def hostBehavior(game: GameInConstruction): Behavior[Message] = {
+
+    def removePlayerFromGame(ctx: ActorContext[Message], playerInLobby: PlayerInLobby) = {
+      val gameUpdated = game.copy(players = game.players.filterNot(_.userID == playerInLobby.userID))
+
+      if gameUpdated.gameParameters.isPublic then
+        ctx.spawnAnonymous(contactServerAndAsk(_ ! ServerMessages.UpdateGame(gameUpdated, ctx.self)))
+
+      gameUpdated.players.filter(!_.address.equals(ctx.self)).foreach(_.address ! UpdateAboutGame(gameUpdated))
+
+      connectionHandler ! ConnectionHandler.UpdateList(gameUpdated.players)
+
+      viewActorRef ! ViewMessages.GameInfoUpdate(gameUpdated)
+
+      hostBehavior(gameUpdated)
+    }
+
     Behaviors.receivePartial {
       case (ctx, ServerMessages.GameRegistered(game, server)) =>
         //The server has registered the game
@@ -121,6 +144,8 @@ private case class Client(userId: String, name: String, viewActorRef: ActorRef[M
 
           replyTo ! YouJoinedTheGame(gameUpdated)
 
+          connectionHandler ! ConnectionHandler.UpdateList(gameUpdated.players)
+
           gameUpdated.players.filter(p => !p.address.equals(ctx.self) & !p.address.equals(newPlayer.address)).foreach(_.address ! UpdateAboutGame(gameUpdated))
 
           viewActorRef ! ViewMessages.GameInfoUpdate(gameUpdated)
@@ -136,18 +161,13 @@ private case class Client(userId: String, name: String, viewActorRef: ActorRef[M
       case (ctx, IWantToLeaveTheGame(player)) =>
         //A player wants to leave the game
         ctx.log.info(s"Player: ${player.userID} wants to leave the game: ${game.code}")
-        //The player can leave the game
-        val gameUpdated = game.copy(players = game.players.filterNot(_.userID == player.userID))
+        removePlayerFromGame(ctx, player)
 
-        if gameUpdated.gameParameters.isPublic then
-          //Update the game on the server
-          ctx.spawnAnonymous(contactServerAndAsk(_ ! ServerMessages.UpdateGame(gameUpdated, ctx.self)))
-
-        gameUpdated.players.filter(!_.address.equals(ctx.self)).foreach(_.address ! UpdateAboutGame(gameUpdated))
-
-        viewActorRef ! ViewMessages.GameInfoUpdate(gameUpdated)
-
-        hostBehavior(gameUpdated)
+      case (ctx, PlayerUnreachable(playerInLobby)) =>
+        //A player is unreachable
+        ctx.log.info(s"Player: ${playerInLobby.userID} is unreachable")
+        //todo - decide if we want to wait some time before removing the player
+        removePlayerFromGame(ctx, playerInLobby)
 
       case (ctx, LeaveTheGame()) =>
         //The user wants to leave the game
@@ -156,6 +176,8 @@ private case class Client(userId: String, name: String, viewActorRef: ActorRef[M
           ctx.spawnAnonymous(contactServerAndAsk(_ ! ServerMessages.AbortGame(game, ctx.self)))
         game.players.filter(!_.address.equals(ctx.self)).foreach(_.address ! GameCancelled())
         viewActorRef ! ViewMessages.GameAborted()
+        //todo - if we use the variable argument this has to be changed
+        connectionHandler ! ConnectionHandler.UpdateList(List())
         start
 
       case (ctx, StartTheGame()) =>
@@ -189,11 +211,13 @@ private case class Client(userId: String, name: String, viewActorRef: ActorRef[M
         Behaviors.same
 
       case (ctx, JoinGame(game)) =>
+        //todo - add a timer to check if the game is still available
         ctx.log.info(s"Trying to join game: ${game.code}")
         game.players.head.address ! IWantToPlay(PlayerInLobby(userId, name, ctx.self), ctx.self)
         Behaviors.receiveMessagePartial {
           case YouJoinedTheGame(game) =>
             ctx.log.info(s"Joined game: $game")
+            connectionHandler ! ConnectionHandler.UpdateList(List(game.players.head))
             viewActorRef ! ViewMessages.GameJoined(game)
             //Joined a game
             gameJoined(game)
@@ -218,11 +242,13 @@ private case class Client(userId: String, name: String, viewActorRef: ActorRef[M
         ctx.log.info(s"Leaving game: ${game.code}")
         game.players.head.address ! IWantToLeaveTheGame(PlayerInLobby(userId, name, ctx.self))
         // todo - decide if waiting for a response or not
+        connectionHandler ! ConnectionHandler.UpdateList(List())
         start
 
       case (ctx, GameCancelled()) =>
         ctx.log.info(s"Game: ${game.code} has been aborted")
         viewActorRef ! ViewMessages.GameAborted()
+        connectionHandler ! ConnectionHandler.UpdateList(List())
         start
 
       case (ctx, GameHasStarted()) =>
