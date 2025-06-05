@@ -49,7 +49,7 @@ class ClientTest extends ScalaTestWithActorTestKit
   "A client" should {
     "be able to join a game created by another player" in {
       val defaultName = "defaultCoolName"
-      val hostUserID = "Player01"
+      val hostUserID = "Player01a"
       val probeClientHost = testKit.createTestProbe[Message]()
       val clientHost = testKit.spawn(Behaviors.monitor(probeClientHost.ref, Client(hostUserID, defaultName)))
 
@@ -74,7 +74,7 @@ class ClientTest extends ScalaTestWithActorTestKit
 
     "not be able to join a game that is already full" in {
       val defaultName = "defaultCoolName"
-      val hostUserID = "Player01"
+      val hostUserID = "Player01b"
       val probeClientHost = testKit.createTestProbe[Message]()
       val clientHost = testKit.spawn(Behaviors.monitor(probeClientHost.ref, Client(hostUserID, defaultName)))
 
@@ -97,21 +97,23 @@ class ClientTest extends ScalaTestWithActorTestKit
 
       probeClientHost.expectMessage(IWantToPlay(PlayerInLobby("Player02", defaultName+"2", clientJoiner), clientJoiner))
 
-      probeClientJoiner.expectMessage(YouJoinedTheGame(gameInConstruction.copy(players = gameInConstruction.players :+ PlayerInLobby("Player02", defaultName+"2", clientJoiner))))
+      val twoPlayersGame = gameInConstruction.copy(players = gameInConstruction.players :+ PlayerInLobby("Player02", defaultName + "2", clientJoiner))
+      probeClientJoiner.expectMessage(YouJoinedTheGame(twoPlayersGame))
 
       // Simulate the game being full
       clientTooJoiner ! JoinAGame()
       probeClientTooJoiner.expectMessage(JoinAGame())
 
+      // Attempt to join the full game, even if it is the old game reference
       clientTooJoiner ! JoinGame(gameInConstruction)
       probeClientTooJoiner.expectMessage(JoinGame(gameInConstruction))
 
-      probeClientTooJoiner.expectMessage(YouCanNotJoinTheGame(gameInConstruction))
+      probeClientTooJoiner.expectMessage(YouCanNotJoinTheGame(twoPlayersGame))
     }
 
     "receive a notification when another player joins the game" in {
       val defaultName = "defaultCoolName"
-      val hostUserID = "Player01"
+      val hostUserID = "Player01c"
       val probeClientHost = testKit.createTestProbe[Message]()
       val clientHost = testKit.spawn(Behaviors.monitor(probeClientHost.ref, Client(hostUserID, defaultName)))
 
@@ -156,7 +158,7 @@ class ClientTest extends ScalaTestWithActorTestKit
 
     "be able to leave a joined game" in {
       val defaultName = "defaultCoolName"
-      val hostUserID = "Player01"
+      val hostUserID = "Player01d"
       val probeClientHost = testKit.createTestProbe[Message]()
       val clientHost = testKit.spawn(Behaviors.monitor(probeClientHost.ref, Client(hostUserID, defaultName)))
 
@@ -188,7 +190,7 @@ class ClientTest extends ScalaTestWithActorTestKit
 
     "be notified if someone leave the game" in {
       val defaultName = "defaultCoolName"
-      val hostUserID = "Player01"
+      val hostUserID = "Player01e"
       val probeClientHost = testKit.createTestProbe[Message]()
       val clientHost = testKit.spawn(Behaviors.monitor(probeClientHost.ref, Client(hostUserID, defaultName)))
 
@@ -235,7 +237,7 @@ class ClientTest extends ScalaTestWithActorTestKit
 
     "should receive an abort notification if the host leaves the game" in {
       val defaultName = "defaultCoolName"
-      val hostUserID = "Player01"
+      val hostUserID = "Player01f"
       val probeClientHost = testKit.createTestProbe[Message]()
       val clientHost = testKit.spawn(Behaviors.monitor(probeClientHost.ref, Client(hostUserID, defaultName)))
 
