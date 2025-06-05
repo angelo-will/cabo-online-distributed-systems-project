@@ -1,15 +1,17 @@
 import akka.actor.testkit.typed.scaladsl.{ScalaTestWithActorTestKit, TestProbe}
 import akka.actor.typed.Behavior
+import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
 import akka.actor.typed.scaladsl.Behaviors
+import akka.cluster.typed.{Cluster, Join}
 import controller.Client
-import controller.Client.{GameCancelled, IWantToLeaveTheGame, IWantToPlay, UpdateAboutGame, YouCanNotJoinTheGame, YouJoinedTheGame}
+import controller.Client.{GameCancelled, IWantToLeaveTheGame, IWantToPlay, PlayerUnreachable, UpdateAboutGame, YouCanNotJoinTheGame, YouJoinedTheGame}
 import model.Game.GameInConstruction
 import model.{GameParameters, PlayerInLobby}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatest.wordspec.AnyWordSpecLike
-import utils.ClientMessages.{CreateNewGame, JoinAGame, JoinGame, LeaveTheGame}
+import utils.ClientMessages.{CreateNewGame, JoinAGame, JoinAddress, JoinGame, LeaveTheGame}
 import utils.Message
 import utils.ViewMessages.*
 
@@ -37,25 +39,12 @@ class ClientTest extends ScalaTestWithActorTestKit
   // view expects messages from player actor
   // other players' actors expect messages from player actor in the end of the turn to know what happened
 
-  var testProbe: TestProbe[Message] = _
-
-  override def beforeEach(): Unit =
-    testProbe = testKit.createTestProbe[Message]()
-
   override def beforeAll(): Unit = {
-    super.beforeAll()
+    val cluster = Cluster.get(testKit.system)
+    cluster.manager.tell(Join.create(cluster.selfMember.address))
   }
 
   override def afterAll(): Unit = testKit.shutdownTestKit()
-
-  "This test" must {
-    "log information" in {
-      val testActor = testKit.spawn(TestReceiveMessage())
-
-      // Send a message to the actor
-      testActor ! TestMessage(testProbe.ref.path.toSerializationFormat)
-    }
-  }
 
   "A client" should {
     "be able to join a game created by another player" in {
@@ -117,7 +106,7 @@ class ClientTest extends ScalaTestWithActorTestKit
       clientTooJoiner ! JoinGame(gameInConstruction)
       probeClientTooJoiner.expectMessage(JoinGame(gameInConstruction))
 
-      probeClientTooJoiner.expectMessage(YouCanNotJoinTheGame())
+      probeClientTooJoiner.expectMessage(YouCanNotJoinTheGame(gameInConstruction))
     }
 
     "receive a notification when another player joins the game" in {
@@ -275,4 +264,61 @@ class ClientTest extends ScalaTestWithActorTestKit
       // The joiner should receive an abort notification
       probeClientJoiner.expectMessage(GameCancelled())
     }
+
+    "should be able to enter a game using an 'address' (code)" in {
+      val probeClientHost = testKit.createTestProbe[Message]()
+      val clientHost = testKit.spawn(Behaviors.monitor(probeClientHost.ref, Client("Player01", "defaultCoolName")))
+
+      val probeClientJoiner = testKit.createTestProbe[Message]()
+      val clientJoiner = testKit.spawn(Behaviors.monitor(probeClientJoiner.ref, Client("Player02", "defaultCoolName2")))
+
+      clientHost ! CreateNewGame(makePublic = false, maxTimeRound = 10, maxNumRound = 5, maxPlayers = 4)
+      probeClientHost.expectMessage(CreateNewGame(makePublic = false, maxTimeRound = 10, maxNumRound = 5, maxPlayers = 4))
+
+      val probe = TestProbe[Receptionist.Listing]()
+      eventually(timeout(3.seconds), interval(100.millis)) {
+        system.receptionist ! Receptionist.Find(ServiceKey[Message]("Player01game"), probe.ref)
+        val listing = probe.receiveMessage()
+        assert(listing.serviceInstances(ServiceKey[Message]("Player01game")).contains(clientHost))
+      }
+
+      clientJoiner ! JoinAGame()
+      probeClientJoiner.expectMessage(JoinAGame())
+
+      clientJoiner ! JoinAddress("Player01game")
+      probeClientJoiner.expectMessage(JoinAddress("Player01game"))
+
+      probeClientHost.expectMessage(IWantToPlay(PlayerInLobby("Player02", "defaultCoolName2", clientJoiner), clientJoiner))
+
+      probeClientJoiner.expectMessage(YouJoinedTheGame(GameInConstruction("Player01game", GameParameters(false, 10, 5, 4), List(PlayerInLobby("Player01", "defaultCoolName", clientHost), PlayerInLobby("Player02", "defaultCoolName2", clientJoiner)))))
+    }
+
+//    "should receive a notification if a player 'crash'" in {
+//      val defaultName = "defaultCoolName"
+//      val hostUserID = "Player01"
+//      val probeClientHost = testKit.createTestProbe[Message]()
+//      val clientHost = testKit.spawn(Behaviors.monitor(probeClientHost.ref, Client(hostUserID, defaultName)))
+//
+//      val probeClientJoiner = testKit.createTestProbe[Message]()
+//      val clientJoiner = testKit.spawn(Behaviors.monitor(probeClientJoiner.ref, Client("Player02", defaultName + "2")))
+//
+//      val gameInConstruction = GameInConstruction(hostUserID + "game", GameParameters(false, 10, 5, 4), List(PlayerInLobby(hostUserID, defaultName, clientHost)))
+//
+//      clientHost ! CreateNewGame(makePublic = false, maxTimeRound = 10, maxNumRound = 5, maxPlayers = 4)
+//      probeClientHost.expectMessage(CreateNewGame(makePublic = false, maxTimeRound = 10, maxNumRound = 5, maxPlayers = 4))
+//
+//      clientJoiner ! JoinAGame()
+//      probeClientJoiner.expectMessage(JoinAGame())
+//
+//      clientJoiner ! JoinGame(gameInConstruction)
+//      probeClientJoiner.expectMessage(JoinGame(gameInConstruction))
+//
+//      probeClientHost.expectMessage(IWantToPlay(PlayerInLobby("Player02", defaultName + "2", clientJoiner), clientJoiner))
+//
+//      probeClientJoiner.expectMessage(YouJoinedTheGame(gameInConstruction.copy(players = gameInConstruction.players :+ PlayerInLobby("Player02", defaultName + "2", clientJoiner))))
+//
+//      testKit.stop(clientJoiner) // Simulate a crash by stopping the client actor
+//
+//      probeClientHost.expectMessage(10.seconds,PlayerUnreachable(PlayerInLobby("Player02", defaultName + "2", clientJoiner)))
+//    }
   }
