@@ -3,6 +3,7 @@ import akka.actor.typed.Behavior
 import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
 import akka.actor.typed.scaladsl.Behaviors
 import akka.cluster.typed.{Cluster, Join}
+import com.typesafe.config.ConfigFactory
 import controller.Client
 import controller.Client.{GameCancelled, IWantToLeaveTheGame, IWantToPlay, PlayerUnreachable, UpdateAboutGame, YouCanNotJoinTheGame, YouJoinedTheGame}
 import model.Game.GameInConstruction
@@ -28,7 +29,10 @@ object TestReceiveMessage:
     }
   }
 
-class ClientTest extends ScalaTestWithActorTestKit 
+class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString("""
+    akka.actor.provider = "cluster"
+    akka.remote.artery.canonical.port = 2579
+  """))
   with AnyWordSpecLike
   with BeforeAndAfterAll
   with BeforeAndAfterEach
