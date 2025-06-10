@@ -33,7 +33,7 @@ object ConnectionHandler:
         Behaviors.same
 
       case (ctx, UpdateList(playerList)) =>
-        ctx.log.info(s"Updating player list: ${playerList.head.address.path.address}")
+        ctx.log.info(s"Updating player list: ${playerList.map(_.userID).mkString(", ")}")
         // Here you can implement the logic to update the player list in the UI or notify the parent actor
         normalBehavior(parent, playerList)
     }

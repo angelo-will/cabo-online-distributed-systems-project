@@ -32,17 +32,20 @@ object Client:
 
   case class PlayerUnreachable(playerInLobby: PlayerInLobby) extends Message
 
-  //todo - check if can be private
-  case class ListingResponseListing(listing: Receptionist.Listing) extends Message
+  private case class ListingResponseListing(listing: Receptionist.Listing) extends Message
   
-  def apply(userId: String = "Player", name: String = "defaultCoolName"): Behavior[Message] = Behaviors.setup { ctx =>
-    
-    //todo - create a view actor
-    val viewActorRef = ctx.spawn(Behaviors.setup(ctx => Behaviors.receiveMessagePartial{
+  private def viewDefaultBehavior: Behavior[Message] = Behaviors.setup { ctx =>
+    Behaviors.receiveMessagePartial {
       case _ =>
         ctx.log.info("View actor received a message, but it is not implemented yet.")
         Behaviors.same
-    }), "ViewActor")
+    }
+  }
+  
+  def apply(userId: String = "Player", name: String = "defaultCoolName", viewBehavior: Behavior[Message] = viewDefaultBehavior): Behavior[Message] = Behaviors.setup { ctx =>
+    
+    //todo - create a view actor
+    val viewActorRef = ctx.spawn(viewBehavior, "ViewActor")
 
     val connectionHandler = ctx.spawn(ConnectionHandler[MemberExited](ctx.self), "ConnectionHandler")
     
@@ -68,11 +71,10 @@ private case class Client(userId: String, name: String, viewActorRef: ActorRef[M
             ctx.log.info(s"Found required contact: $contact")
             whatToAskTo(contact)
           } else {
-            ctx.log.error("Contact not found")
-            //Send an error message to user
+            ctx.log.error(s"Contact with key ${key.id} not found")
             ifFailure()
           }
-          Behaviors.same
+          Behaviors.stopped
       }
     }
   }
@@ -92,7 +94,6 @@ private case class Client(userId: String, name: String, viewActorRef: ActorRef[M
             (ServerKey)
             (_ ! ServerMessages.RegisterGame(game, ctx.self))
             (() => viewActorRef ! ViewMessages.FailedToPublishToServer()))
-//          ctx.spawnAnonymous(contactServerAndAsk(_ ! ServerMessages.RegisterGame(game, ctx.self)))
         }
 
         ctx.system.receptionist ! Receptionist.register(akka.actor.typed.receptionist.ServiceKey[Message](game.code), ctx.self)
@@ -109,7 +110,6 @@ private case class Client(userId: String, name: String, viewActorRef: ActorRef[M
           (ServerKey)
           (_ ! ServerMessages.GetGames(ctx.self))
           (() => viewActorRef ! ViewMessages.FailedToPublishToServer()))
-//        ctx.spawnAnonymous(contactServerAndAsk(_ ! ServerMessages.GetGames(ctx.self)))
         joiningAGame
     }
   }
@@ -124,13 +124,14 @@ private case class Client(userId: String, name: String, viewActorRef: ActorRef[M
           (ServerKey)
           (_ ! ServerMessages.UpdateGame(game, ctx.self))
           (() => viewActorRef ! ViewMessages.FailedToPublishToServer()))
-//        ctx.spawnAnonymous(contactServerAndAsk(_ ! ServerMessages.UpdateGame(gameUpdated, ctx.self)))
 
       gameUpdated.players.filter(!_.address.equals(ctx.self)).foreach(_.address ! UpdateAboutGame(gameUpdated))
 
       connectionHandler ! ConnectionHandler.UpdateList(gameUpdated.players)
 
       viewActorRef ! ViewMessages.GameInfoUpdate(gameUpdated)
+
+      ctx.log.info(s"Player: ${playerInLobby.userID} removed the game, now the players are: ${gameUpdated.players.map(_.userID).mkString(", ")}")
 
       hostBehavior(gameUpdated)
     }
@@ -162,7 +163,6 @@ private case class Client(userId: String, name: String, viewActorRef: ActorRef[M
               (ServerKey)
               (_ ! ServerMessages.UpdateGame(game, ctx.self))
               (() => viewActorRef ! ViewMessages.FailedToPublishToServer()))
-//            ctx.spawnAnonymous(contactServerAndAsk(_ ! ServerMessages.UpdateGame(gameUpdated, ctx.self)))
 
           replyTo ! YouJoinedTheGame(gameUpdated)
 
@@ -199,7 +199,6 @@ private case class Client(userId: String, name: String, viewActorRef: ActorRef[M
             (ServerKey)
             (_ ! ServerMessages.AbortGame(game, ctx.self))
             (() => viewActorRef ! ViewMessages.FailedToPublishToServer()))
-//          ctx.spawnAnonymous(contactServerAndAsk(_ ! ServerMessages.AbortGame(game, ctx.self)))
         game.players.filter(!_.address.equals(ctx.self)).foreach(_.address ! GameCancelled())
         viewActorRef ! ViewMessages.GameAborted()
         //todo - if we use the variable argument this has to be changed
@@ -215,7 +214,6 @@ private case class Client(userId: String, name: String, viewActorRef: ActorRef[M
             (ServerKey)
             (_ ! ServerMessages.StartGame(game, ctx.self))
             (() => viewActorRef ! ViewMessages.FailedToPublishToServer()))
-//          ctx.spawnAnonymous(contactServerAndAsk(_ ! ServerMessages.StartGame(game, ctx.self)))
 
         game.players.foreach(_.address ! GameHasStarted())
 
@@ -230,7 +228,7 @@ private case class Client(userId: String, name: String, viewActorRef: ActorRef[M
 
     def responseForJoining(): Behavior[Message] = {
       Behaviors.withTimers { timers =>
-        timers.startTimerAtFixedRate(FailedToContactHost(), 20.seconds)
+        timers.startTimerAtFixedRate(FailedToContactHost(), 60.seconds)
         Behaviors.receivePartial {
           case (ctx, YouJoinedTheGame(game)) =>
             ctx.log.info(s"Joined game: $game")
@@ -247,6 +245,7 @@ private case class Client(userId: String, name: String, viewActorRef: ActorRef[M
 
           case (ctx, FailedToContactHost()) =>
             ctx.log.info("Failed to contact host")
+            timers.cancelAll()
             //todo - ask the view if wants to retry
             joiningAGame
         }
@@ -264,8 +263,7 @@ private case class Client(userId: String, name: String, viewActorRef: ActorRef[M
         }
         Behaviors.same
 
-      case (ctx, JoinAddress(address)) => 
-        //todo - decide how to join a game by "address"
+      case (ctx, JoinAddress(address)) =>
 
         ctx.spawnAnonymous(contactInReceptionistAndAsk
           (akka.actor.typed.receptionist.ServiceKey[Message](address))
@@ -276,7 +274,6 @@ private case class Client(userId: String, name: String, viewActorRef: ActorRef[M
         responseForJoining()
 
       case (ctx, JoinGame(game)) =>
-        //todo - add a timer to check if the game is still available
         ctx.log.info(s"Trying to join game: ${game.code}")
         game.players.head.address ! IWantToPlay(PlayerInLobby(userId, name, ctx.self), ctx.self)
         responseForJoining()
@@ -298,6 +295,13 @@ private case class Client(userId: String, name: String, viewActorRef: ActorRef[M
         start
 
       case (ctx, GameCancelled()) =>
+        ctx.log.info(s"Game: ${game.code} has been aborted")
+        viewActorRef ! ViewMessages.GameAborted()
+        connectionHandler ! ConnectionHandler.UpdateList(List())
+        start
+
+      case (ctx, PlayerUnreachable(playerInLobby)) =>
+        //todo - for now the same as above, but we could wait some time before assume the game is aborted
         ctx.log.info(s"Game: ${game.code} has been aborted")
         viewActorRef ! ViewMessages.GameAborted()
         connectionHandler ! ConnectionHandler.UpdateList(List())
