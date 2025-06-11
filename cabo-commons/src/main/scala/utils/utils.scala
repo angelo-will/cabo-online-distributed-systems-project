@@ -6,7 +6,7 @@ import com.typesafe.config.{Config, ConfigFactory}
 
 val seeds = List(2551, 2552) // seed used in the configuration
 
-def startup[X](configuration: Config, port: Int)(root: => Behavior[X]): ActorSystem[X] =
+def startup[X](port: Int, configuration: Config = ConfigFactory.load("application.conf"))(root: => Behavior[X]): ActorSystem[X] =
   // Override the configuration of the port
   // Siccome sono nella stessa macchina devo usare porte diverse per simulare nodi diversi
   val config = ConfigFactory
@@ -16,7 +16,7 @@ def startup[X](configuration: Config, port: Int)(root: => Behavior[X]): ActorSys
   // Create an Akka system
   ActorSystem(root, "ClusterSystem", config)
 
-def startupWithRole[X](configuration: Config = ConfigFactory.load("application.conf"), role: String, port: Int)(root: => Behavior[X]): ActorSystem[X] =
+def startupWithRole[X](role: String, port: Int, configuration: Config = ConfigFactory.load("application.conf"))(root: => Behavior[X]): ActorSystem[X] =
   val config = ConfigFactory
     .parseString(
       s"""
@@ -25,7 +25,7 @@ def startupWithRole[X](configuration: Config = ConfigFactory.load("application.c
     .withFallback(configuration)
 
   // Create an Akka system
-  startup(config, port)(root)
+  startup(port, config)(root)
 
 def deployActor(behavior: Behavior[Message])(actorName: String): Behavior[Message] = Behaviors.setup { ctx =>
   ctx.spawn(behavior, actorName)
