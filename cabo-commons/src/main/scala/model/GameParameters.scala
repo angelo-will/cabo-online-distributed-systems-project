@@ -1,15 +1,27 @@
 package model
 
-abstract class RoundLimitationParameter():
+import akka.serialization.jackson.CborSerializable
+import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
+
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+@JsonSubTypes(
+  Array(
+    new JsonSubTypes.Type(value = classOf[NoRoundLimitation], name = "noRoundLimitation"),
+    new JsonSubTypes.Type(value = classOf[RoundLimitation], name = "roundLimitation")))
+abstract class RoundLimitationParameter:
   def isRoundsEnded: Boolean
 
-case class NoRoundLimitation() extends RoundLimitationParameter:
+final case class NoRoundLimitation() extends RoundLimitationParameter:
   override def isRoundsEnded: Boolean = false
 
-case class RoundLimitation(maxRound: Int) extends RoundLimitationParameter:
+final case class RoundLimitation(maxRound: Int) extends RoundLimitationParameter:
   override def isRoundsEnded: Boolean = maxRound <= 0
 
-trait IGameParameters:
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+@JsonSubTypes(
+  Array(
+    new JsonSubTypes.Type(value = classOf[GameParameters], name = "gameParameters")))
+trait IGameParameters extends CborSerializable:
   def isPublic: Boolean
   def maxTimeRound: Int
   def roundLimitation: RoundLimitationParameter
