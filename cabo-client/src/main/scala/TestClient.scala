@@ -41,30 +41,3 @@ import scala.io.StdIn.readLine
 
   println("User should be dead, check log...\n")
 }
-
-object TestWithRealClient extends App {
-
-  private val hostUserID = "TestClientID"
-  private val defaultName = "TestName"
-
-//  val gameInConstruction = GameInConstruction(hostUserID + "game", GameParameters(false, 10, 5, 4), List(PlayerInLobby(hostUserID, defaultName, clientHost)))
-  val hostUser = startup(port = 2579)(Client(hostUserID, defaultName))
-
-  println(s"Host user started with ID: $hostUserID and name: $defaultName")
-
-  hostUser ! ClientMessages.CreateNewGame(makePublic = false, maxTimeRound = 10, maxNumRound = 5, maxPlayers = 4)
-
-  scala.io.StdIn.readLine("Press ENTER to join the game...\n")
-  
-  val userToDie = startup(port = 2580)(Client("DieUser", "DieName"))
-  
-  userToDie ! ClientMessages.JoinAGame()
-  
-  userToDie ! ClientMessages.JoinAddress(hostUserID+"game")
-
-  scala.io.StdIn.readLine("Press ENTER to kill...\n")
-
-  userToDie.terminate()
-
-  scala.io.StdIn.readLine("User should be dead, check log...\n")
-}
