@@ -16,6 +16,11 @@ lazy val deps = Seq(
   "ch.qos.logback" % "logback-classic" % "1.2.3"
 )
 
+lazy val clientDeps = deps ++ Seq(
+  "org.scala-lang.modules" %% "scala-swing" % "3.0.0",
+  "com.typesafe.akka" %% "akka-multi-node-testkit" % akkaVersion % Test
+)
+
 lazy val root = (project in file("."))
   .settings(
     name := "project-cabo-online",
@@ -37,13 +42,12 @@ lazy val server = (project in file("cabo-server"))
   )
   .dependsOn(commons)
 
-lazy val clientDeps = deps ++ Seq(
-  "org.scala-lang.modules" %% "scala-swing" % "3.0.0"
-)
 
 lazy val client = (project in file("cabo-client"))
   .settings(
     name := "project-cabo-client",
     libraryDependencies ++= clientDeps
   )
+  .enablePlugins(MultiJvmPlugin)
+  .configs(MultiJvm)
   .dependsOn(commons)
