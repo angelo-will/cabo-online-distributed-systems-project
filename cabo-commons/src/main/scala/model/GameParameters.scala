@@ -29,11 +29,17 @@ trait IGameParameters extends CborSerializable:
 
 // companion object with constructor for GameParameters
 object GameParameters:
+
+  final val defaultMaxTimeRound: Int = 10 // default max time for a round in seconds
+  final val defaultRoundLimitation: Int = 0 // default round limitation, 0 means no limitation
+  final val defaultMaxPlayers: Int = 5 // default maximum number of players in a game
+  final val defaultIsPublic: Boolean = false // default game visibility
+  
   def apply(
-             isPublic: Boolean = false,
-             maxTimeRound: Int = 10,
-             roundLimitation: Int = 0,
-             maxPlayers: Int = 5
+             isPublic: Boolean = defaultIsPublic,
+             maxTimeRound: Int = defaultMaxTimeRound,
+             roundLimitation: Int = defaultRoundLimitation,
+             maxPlayers: Int = defaultMaxPlayers
            ): GameParameters =
     new GameParameters(
       isPublic,

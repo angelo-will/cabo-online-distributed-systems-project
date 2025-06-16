@@ -1,6 +1,7 @@
 package utils
 
 import model.Game.GameInConstruction
+import model.GameParameters
 
 object ClientMessages {
 
@@ -14,7 +15,11 @@ object ClientMessages {
    * @param maxNumRound
    * @param maxPlayers
    */
-  case class CreateNewGame(makePublic: Boolean, maxTimeRound: Int, maxNumRound: Int, maxPlayers: Int) extends ClientCommand
+  case class CreateNewGame(makePublic: Boolean = GameParameters.defaultIsPublic,
+                           maxTimeRound: Int = GameParameters.defaultMaxTimeRound,
+                           maxNumRound: Int = GameParameters.defaultRoundLimitation, 
+                           maxPlayers: Int = GameParameters.defaultMaxPlayers
+                          ) extends ClientCommand
 
   /**
    * Message sent by the view if the player wants to join a game
