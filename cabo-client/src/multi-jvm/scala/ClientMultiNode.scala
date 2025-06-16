@@ -107,7 +107,7 @@ abstract class ClientMultiNode extends MultiNodeSpec(MultiNodeConfig) with STMul
         eventually(timeout(3.seconds), interval(100.millis)) {
           typedSystem.receptionist ! Receptionist.Find(ServiceKey[Message]("hostgame"), probe.ref)
           val listing = probe.receiveMessage()
-          assert(listing.serviceInstances(ServiceKey[Message]("hostgame")).size == 1)
+          assert(listing.serviceInstances(ServiceKey[Message]("hostgame")).map(_.path.name).contains("Host"))
         }
 
         client ! ClientMessages.JoinAGame()
