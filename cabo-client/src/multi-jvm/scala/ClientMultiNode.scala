@@ -11,13 +11,15 @@ import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import akka.actor.typed.scaladsl.adapter.*
 import akka.cluster.Cluster
 import akka.cluster.ClusterEvent.{CurrentClusterState, MemberUp}
+import akka.remote.testconductor.{RoleName, TestConductor}
 import controller.Client
-import controller.Client.{IWantToPlay, YouJoinedTheGame}
+import controller.Client.{IWantToPlay, PlayerUnreachable, YouJoinedTheGame}
 import org.scalatest.concurrent.Eventually.eventually
 import org.scalatest.concurrent.Futures.{interval, timeout}
 import utils.ClientMessages.{JoinAddress, JoinGame}
 import utils.{ClientMessages, Message}
 
+import java.net.InetSocketAddress
 import scala.language.implicitConversions
 import scala.concurrent.duration.DurationInt
 
@@ -119,8 +121,70 @@ abstract class ClientMultiNode extends MultiNodeSpec(MultiNodeConfig) with STMul
         enterBarrier("join-message-sent")
 
         probeClient.expectMessageType[YouJoinedTheGame]
+      }
+    }
+
+    "be notified if a player disconnect" in {
+      runOn(node1) {
+        val probeHost = TestProbe[Message]()
+        val host = system.spawn(Behaviors.monitor(probeHost.ref, Client("host2", "Gino")), "Host2")
+
+        host ! ClientMessages.CreateNewGame()
+        probeHost.receiveMessages(1)
+
+        val probe = TestProbe[Receptionist.Listing]()
+        eventually(timeout(3.seconds), interval(100.millis)) {
+          typedSystem.receptionist ! Receptionist.Find(ServiceKey[Message]("host2game"), probe.ref)
+          val listing = probe.receiveMessage()
+          assert(listing.serviceInstances(ServiceKey[Message]("host2game")).contains(host))
+        }
+
+        enterBarrier("host-game-created")
+
+        enterBarrier("join-message-sent")
+
+        probeHost.expectMessageType[IWantToPlay]
+
+        enterBarrier("player-joined")
+
+        testConductor.exit(node2, 0)
+
+        probeHost.expectMessageType[PlayerUnreachable]
+
+        enterBarrier("player-disconnected")
+
 
       }
+
+      runOn(node2) {
+        val probeClient = TestProbe[Message]()
+        val client = system.spawn(Behaviors.monitor(probeClient.ref, Client("client", "Gino")), "Client2")
+
+        enterBarrier("host-game-created")
+
+        val probe = TestProbe[Receptionist.Listing]()
+        eventually(timeout(3.seconds), interval(100.millis)) {
+          typedSystem.receptionist ! Receptionist.Find(ServiceKey[Message]("host2game"), probe.ref)
+          val listing = probe.receiveMessage()
+          assert(listing.serviceInstances(ServiceKey[Message]("host2game")).map(_.path.name).contains("Host2"))
+        }
+
+        client ! ClientMessages.JoinAGame()
+        probeClient.expectMessage(ClientMessages.JoinAGame())
+
+        client ! JoinAddress("host2game")
+        probeClient.expectMessage(ClientMessages.JoinAddress("host2game"))
+
+        enterBarrier("join-message-sent")
+
+        probeClient.expectMessageType[YouJoinedTheGame]
+
+        enterBarrier("player-joined")
+
+        enterBarrier("player-disconnected")
+
+      }
+
     }
 
     enterBarrier("test-completed")
