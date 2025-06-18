@@ -2,26 +2,25 @@ import akka.actor.testkit.typed.scaladsl.TestProbe
 import akka.actor.typed.ActorSystem
 import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
 import akka.actor.typed.scaladsl.Behaviors
-import akka.remote.testkit.{MultiNodeConfig, MultiNodeSpec, MultiNodeSpecCallbacks}
-import akka.testkit.ImplicitSender
-import com.typesafe.config.ConfigFactory
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.wordspec.AnyWordSpecLike
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import akka.actor.typed.scaladsl.adapter.*
 import akka.cluster.Cluster
 import akka.cluster.ClusterEvent.{CurrentClusterState, MemberUp}
-import akka.remote.testconductor.{RoleName, TestConductor}
+import akka.remote.testconductor.RoleName
+import akka.remote.testkit.{MultiNodeConfig, MultiNodeSpec, MultiNodeSpecCallbacks}
+import akka.testkit.ImplicitSender
+import com.typesafe.config.ConfigFactory
 import controller.Client
 import controller.Client.{IWantToPlay, PlayerUnreachable, YouJoinedTheGame}
 import org.scalatest.concurrent.Eventually.eventually
 import org.scalatest.concurrent.Futures.{interval, timeout}
-import utils.ClientMessages.{JoinAddress, JoinGame}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
+import utils.ClientMessages.JoinAddress
 import utils.{ClientMessages, Message}
 
-import java.net.InetSocketAddress
-import scala.language.implicitConversions
 import scala.concurrent.duration.DurationInt
+import scala.language.implicitConversions
 
 /**
  * Hooks up MultiNodeSpec with ScalaTest
@@ -52,7 +51,7 @@ class MultiNodeSpecClientMultiJvmNode2 extends ClientMultiNode
 
 abstract class ClientMultiNode extends MultiNodeSpec(MultiNodeConfig) with STMultiNodeSpec with ImplicitSender {
 
-  import MultiNodeConfig._
+  import MultiNodeConfig.*
 
   override def initialParticipants: Int = roles.size
 
