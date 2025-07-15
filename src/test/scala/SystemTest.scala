@@ -41,6 +41,9 @@ class SystemTest extends ScalaTestWithActorTestKit
 
   override def afterAll(): Unit = testKit.shutdownTestKit()
 
+  def correctPlayerID(name: String, ref: ActorRef[Message]): String =
+    name + ref.path.address.hashCode()
+
   "Client" should {
     "create game correctly and send it to the server" in {
       val defaultName = "defaultCoolName"
@@ -49,12 +52,14 @@ class SystemTest extends ScalaTestWithActorTestKit
       val probeClientHost = testKit.createTestProbe[Message]()
       val clientHost = testKit.spawn(Behaviors.monitor(probeClientHost.ref, Client(hostUserID)))
 
+      val hostPlayerID = correctPlayerID(hostUserID, clientHost)
+
       //      val probeClientJoiner = testKit.createTestProbe[Message]()
       //      val clientJoiner = testKit.spawn(Behaviors.monitor(probeClientJoiner.ref, Client("Player02")))
 
       clientHost ! CreateNewGame(makePublic = true, maxTimeRound = 10, maxNumRound = 5, maxPlayers = 4)
 
-      val gameInConstruction = GameInConstruction(hostUserID + "game", GameParameters(true, 10, 5, 4), List(PlayerInLobby(hostUserID, defaultName, clientHost)))
+      val gameInConstruction = GameInConstruction(hostPlayerID + "game", GameParameters(true, 10, 5, 4), List(PlayerInLobby(hostPlayerID, defaultName, clientHost)))
 
       probeServer.expectMessage(RegisterGame(gameInConstruction, clientHost))
 
