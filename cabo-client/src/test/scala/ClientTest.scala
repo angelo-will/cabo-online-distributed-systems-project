@@ -1,5 +1,5 @@
 import akka.actor.testkit.typed.scaladsl.{ScalaTestWithActorTestKit, TestProbe}
-import akka.actor.typed.Behavior
+import akka.actor.typed.{ActorRef, Behavior}
 import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
 import akka.actor.typed.scaladsl.Behaviors
 import akka.cluster.typed.{Cluster, Join}
@@ -49,6 +49,9 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString("""
   }
 
   override def afterAll(): Unit = testKit.shutdownTestKit()
+  
+  def correctPlayerID(name: String, ref: ActorRef[Message]): String =
+    name + ref.path.address.hashCode()
 
   "A client" should {
     "be able to join a game created by another player" in {
@@ -59,8 +62,11 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString("""
 
       val probeClientJoiner = testKit.createTestProbe[Message]()
       val clientJoiner = testKit.spawn(Behaviors.monitor(probeClientJoiner.ref, Client("Player02", defaultName+"2")))
+      
+      val hostPlayerID = correctPlayerID(hostUserID, clientHost)
+      val joinerPlayerID = correctPlayerID("Player02", clientJoiner)
 
-      val gameInConstruction = GameInConstruction(hostUserID + "game", GameParameters(false, 10, 5, 4), List(PlayerInLobby(hostUserID, defaultName, clientHost)))
+      val gameInConstruction = GameInConstruction(hostPlayerID + "game", GameParameters(false, 10, 5, 4), List(PlayerInLobby(hostPlayerID, defaultName, clientHost)))
 
       clientHost ! CreateNewGame(makePublic = false, maxTimeRound = 10, maxNumRound = 5, maxPlayers = 4)
       probeClientHost.expectMessage(CreateNewGame(makePublic = false, maxTimeRound = 10, maxNumRound = 5, maxPlayers = 4))
@@ -71,9 +77,9 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString("""
       clientJoiner ! JoinGame(gameInConstruction)
       probeClientJoiner.expectMessage(JoinGame(gameInConstruction))
 
-      probeClientHost.expectMessage(IWantToPlay(PlayerInLobby("Player02", defaultName+"2", clientJoiner), clientJoiner))
+      probeClientHost.expectMessage(IWantToPlay(PlayerInLobby(joinerPlayerID, defaultName+"2", clientJoiner), clientJoiner))
 
-      probeClientJoiner.expectMessage(YouJoinedTheGame(gameInConstruction.copy(players = gameInConstruction.players :+ PlayerInLobby("Player02", defaultName+"2", clientJoiner))))
+      probeClientJoiner.expectMessage(YouJoinedTheGame(gameInConstruction.copy(players = gameInConstruction.players :+ PlayerInLobby(joinerPlayerID, defaultName+"2", clientJoiner))))
     }
 
     "not be able to join a game that is already full" in {
@@ -88,7 +94,11 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString("""
       val probeClientTooJoiner = testKit.createTestProbe[Message]()
       val clientTooJoiner = testKit.spawn(Behaviors.monitor(probeClientTooJoiner.ref, Client("Player03", defaultName + "3")))
 
-      val gameInConstruction = GameInConstruction(hostUserID + "game", GameParameters(false, 10, 5, 2), List(PlayerInLobby(hostUserID, defaultName, clientHost)))
+      val hostPlayerID = correctPlayerID(hostUserID, clientHost)
+      val joinerPlayerID = correctPlayerID("Player02", clientJoiner)
+      val joinerTooPlayerID = correctPlayerID("Player03", clientTooJoiner)
+
+      val gameInConstruction = GameInConstruction(hostPlayerID + "game", GameParameters(false, 10, 5, 2), List(PlayerInLobby(hostPlayerID, defaultName, clientHost)))
 
       clientHost ! CreateNewGame(makePublic = false, maxTimeRound = 10, maxNumRound = 5, maxPlayers = 2)
       probeClientHost.expectMessage(CreateNewGame(makePublic = false, maxTimeRound = 10, maxNumRound = 5, maxPlayers = 2))
@@ -99,9 +109,9 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString("""
       clientJoiner ! JoinGame(gameInConstruction)
       probeClientJoiner.expectMessage(JoinGame(gameInConstruction))
 
-      probeClientHost.expectMessage(IWantToPlay(PlayerInLobby("Player02", defaultName+"2", clientJoiner), clientJoiner))
+      probeClientHost.expectMessage(IWantToPlay(PlayerInLobby(joinerPlayerID, defaultName+"2", clientJoiner), clientJoiner))
 
-      val twoPlayersGame = gameInConstruction.copy(players = gameInConstruction.players :+ PlayerInLobby("Player02", defaultName + "2", clientJoiner))
+      val twoPlayersGame = gameInConstruction.copy(players = gameInConstruction.players :+ PlayerInLobby(joinerPlayerID, defaultName + "2", clientJoiner))
       probeClientJoiner.expectMessage(YouJoinedTheGame(twoPlayersGame))
 
       // Simulate the game being full
@@ -124,8 +134,11 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString("""
       val probeClientJoiner = testKit.createTestProbe[Message]()
       val clientJoiner = testKit.spawn(Behaviors.monitor(probeClientJoiner.ref, Client("Player02", defaultName + "2")))
 
-      val gameInConstruction = GameInConstruction(hostUserID + "game", GameParameters(false, 10, 5, 4), List(PlayerInLobby(hostUserID, defaultName, clientHost)))
-
+      val hostPlayerID = correctPlayerID(hostUserID, clientHost)
+      val joinerPlayerID = correctPlayerID("Player02", clientJoiner)
+      
+      val gameInConstruction = GameInConstruction(hostPlayerID + "game", GameParameters(false, 10, 5, 4), List(PlayerInLobby(hostPlayerID, defaultName, clientHost)))
+      
       clientHost ! CreateNewGame(makePublic = false, maxTimeRound = 10, maxNumRound = 5, maxPlayers = 4)
       probeClientHost.expectMessage(CreateNewGame(makePublic = false, maxTimeRound = 10, maxNumRound = 5, maxPlayers = 4))
 
@@ -135,13 +148,15 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString("""
       clientJoiner ! JoinGame(gameInConstruction)
       probeClientJoiner.expectMessage(JoinGame(gameInConstruction))
 
-      probeClientHost.expectMessage(IWantToPlay(PlayerInLobby("Player02", defaultName + "2", clientJoiner), clientJoiner))
+      probeClientHost.expectMessage(IWantToPlay(PlayerInLobby(joinerPlayerID, defaultName + "2", clientJoiner), clientJoiner))
 
-      val twoPlayers = gameInConstruction.players :+ PlayerInLobby("Player02", defaultName + "2", clientJoiner)
+      val twoPlayers = gameInConstruction.players :+ PlayerInLobby(joinerPlayerID, defaultName + "2", clientJoiner)
       probeClientJoiner.expectMessage(YouJoinedTheGame(gameInConstruction.copy(players = twoPlayers)))
 
       val probeClientTooJoiner = testKit.createTestProbe[Message]()
       val clientTooJoiner = testKit.spawn(Behaviors.monitor(probeClientTooJoiner.ref, Client("Player03", defaultName + "3")))
+
+      val joinerTooPlayerID = correctPlayerID("Player03", clientTooJoiner)
 
       clientTooJoiner ! JoinAGame()
       probeClientTooJoiner.expectMessage(JoinAGame())
@@ -149,9 +164,9 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString("""
       clientTooJoiner ! JoinGame(gameInConstruction)
       probeClientTooJoiner.expectMessage(JoinGame(gameInConstruction))
 
-      probeClientHost.expectMessage(IWantToPlay(PlayerInLobby("Player03", defaultName + "3", clientTooJoiner), clientTooJoiner))
+      probeClientHost.expectMessage(IWantToPlay(PlayerInLobby(joinerTooPlayerID, defaultName + "3", clientTooJoiner), clientTooJoiner))
 
-      val threePlayers = twoPlayers :+ PlayerInLobby("Player03", defaultName + "3", clientTooJoiner)
+      val threePlayers = twoPlayers :+ PlayerInLobby(joinerTooPlayerID, defaultName + "3", clientTooJoiner)
       probeClientTooJoiner.expectMessage(YouJoinedTheGame(gameInConstruction.copy(players = threePlayers)))
 
       probeClientJoiner.expectMessage(UpdateAboutGame(gameInConstruction.copy(players = threePlayers)))
@@ -169,7 +184,10 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString("""
       val probeClientJoiner = testKit.createTestProbe[Message]()
       val clientJoiner = testKit.spawn(Behaviors.monitor(probeClientJoiner.ref, Client("Player02", defaultName + "2")))
 
-      val gameInConstruction = GameInConstruction(hostUserID + "game", GameParameters(false, 10, 5, 4), List(PlayerInLobby(hostUserID, defaultName, clientHost)))
+      val hostPlayerID = correctPlayerID(hostUserID, clientHost)
+      val joinerPlayerID = correctPlayerID("Player02", clientJoiner)
+
+      val gameInConstruction = GameInConstruction(hostPlayerID + "game", GameParameters(false, 10, 5, 4), List(PlayerInLobby(hostPlayerID, defaultName, clientHost)))
 
       clientHost ! CreateNewGame(makePublic = false, maxTimeRound = 10, maxNumRound = 5, maxPlayers = 4)
       probeClientHost.expectMessage(CreateNewGame(makePublic = false, maxTimeRound = 10, maxNumRound = 5, maxPlayers = 4))
@@ -180,16 +198,16 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString("""
       clientJoiner ! JoinGame(gameInConstruction)
       probeClientJoiner.expectMessage(JoinGame(gameInConstruction))
 
-      probeClientHost.expectMessage(IWantToPlay(PlayerInLobby("Player02", defaultName + "2", clientJoiner), clientJoiner))
+      probeClientHost.expectMessage(IWantToPlay(PlayerInLobby(joinerPlayerID, defaultName + "2", clientJoiner), clientJoiner))
 
-      probeClientJoiner.expectMessage(YouJoinedTheGame(gameInConstruction.copy(players = gameInConstruction.players :+ PlayerInLobby("Player02", defaultName + "2", clientJoiner))))
+      probeClientJoiner.expectMessage(YouJoinedTheGame(gameInConstruction.copy(players = gameInConstruction.players :+ PlayerInLobby(joinerPlayerID, defaultName + "2", clientJoiner))))
 
       // Now the player leaves the game
       clientJoiner ! LeaveTheGame()
       probeClientJoiner.expectMessage(LeaveTheGame())
 
       // The host should receive a notification about the player leaving
-      probeClientHost.expectMessage(IWantToLeaveTheGame(PlayerInLobby("Player02", defaultName + "2", clientJoiner)))
+      probeClientHost.expectMessage(IWantToLeaveTheGame(PlayerInLobby(joinerPlayerID, defaultName + "2", clientJoiner)))
     }
 
     "be notified if someone leave the game" in {
@@ -204,7 +222,11 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString("""
       val probeClientTooJoiner = testKit.createTestProbe[Message]()
       val clientTooJoiner = testKit.spawn(Behaviors.monitor(probeClientTooJoiner.ref, Client("Player03", defaultName + "3")))
 
-      val gameInConstruction = GameInConstruction(hostUserID + "game", GameParameters(false, 10, 5, 4), List(PlayerInLobby(hostUserID, defaultName, clientHost)))
+      val hostPlayerID = correctPlayerID(hostUserID, clientHost)
+      val joinerPlayerID = correctPlayerID("Player02", clientJoiner)
+      val joinerTooPlayerID = correctPlayerID("Player03", clientTooJoiner)
+
+      val gameInConstruction = GameInConstruction(hostPlayerID + "game", GameParameters(false, 10, 5, 4), List(PlayerInLobby(hostPlayerID, defaultName, clientHost)))
 
       clientHost ! CreateNewGame(makePublic = false, maxTimeRound = 10, maxNumRound = 5, maxPlayers = 4)
       probeClientHost.expectMessage(CreateNewGame(makePublic = false, maxTimeRound = 10, maxNumRound = 5, maxPlayers = 4))
@@ -230,13 +252,13 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString("""
       probeClientJoiner.receiveMessage() // Player02 expects the join message for Player03
       probeClientTooJoiner.receiveMessage() // Expecting the join message for Player03
       
-      val gameToExpect = gameInConstruction.copy(players = gameInConstruction.players :+ PlayerInLobby("Player02", defaultName + "2", clientJoiner) :+ PlayerInLobby("Player03", defaultName + "3", clientTooJoiner))
+      val gameToExpect = gameInConstruction.copy(players = gameInConstruction.players :+ PlayerInLobby(joinerPlayerID, defaultName + "2", clientJoiner) :+ PlayerInLobby(joinerTooPlayerID, defaultName + "3", clientTooJoiner))
 
       // Now the player leaves the game
       clientJoiner ! LeaveTheGame()
       probeClientJoiner.expectMessage(LeaveTheGame())
 
-      probeClientTooJoiner.expectMessage(UpdateAboutGame(gameInConstruction.copy(players = gameToExpect.players.filterNot(_.userID == "Player02"))))
+      probeClientTooJoiner.expectMessage(UpdateAboutGame(gameInConstruction.copy(players = gameToExpect.players.filterNot(_.userID == joinerPlayerID))))
     }
 
     "should receive an abort notification if the host leaves the game" in {
@@ -248,7 +270,10 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString("""
       val probeClientJoiner = testKit.createTestProbe[Message]()
       val clientJoiner = testKit.spawn(Behaviors.monitor(probeClientJoiner.ref, Client("Player02", defaultName + "2")))
 
-      val gameInConstruction = GameInConstruction(hostUserID + "game", GameParameters(false, 10, 5, 4), List(PlayerInLobby(hostUserID, defaultName, clientHost)))
+      val hostPlayerID = correctPlayerID(hostUserID, clientHost)
+      val joinerPlayerID = correctPlayerID("Player02", clientJoiner)
+
+      val gameInConstruction = GameInConstruction(hostPlayerID + "game", GameParameters(false, 10, 5, 4), List(PlayerInLobby(hostPlayerID, defaultName, clientHost)))
 
       clientHost ! CreateNewGame(makePublic = false, maxTimeRound = 10, maxNumRound = 5, maxPlayers = 4)
       probeClientHost.expectMessage(CreateNewGame(makePublic = false, maxTimeRound = 10, maxNumRound = 5, maxPlayers = 4))
@@ -259,9 +284,9 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString("""
       clientJoiner ! JoinGame(gameInConstruction)
       probeClientJoiner.expectMessage(JoinGame(gameInConstruction))
 
-      probeClientHost.expectMessage(IWantToPlay(PlayerInLobby("Player02", defaultName + "2", clientJoiner), clientJoiner))
+      probeClientHost.expectMessage(IWantToPlay(PlayerInLobby(joinerPlayerID, defaultName + "2", clientJoiner), clientJoiner))
 
-      probeClientJoiner.expectMessage(YouJoinedTheGame(gameInConstruction.copy(players = gameInConstruction.players :+ PlayerInLobby("Player02", defaultName + "2", clientJoiner))))
+      probeClientJoiner.expectMessage(YouJoinedTheGame(gameInConstruction.copy(players = gameInConstruction.players :+ PlayerInLobby(joinerPlayerID, defaultName + "2", clientJoiner))))
 
       // Now the host leaves the game
       clientHost ! LeaveTheGame()
@@ -283,20 +308,20 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString("""
 
       val probe = TestProbe[Receptionist.Listing]()
       eventually(timeout(3.seconds), interval(100.millis)) {
-        system.receptionist ! Receptionist.Find(ServiceKey[Message]("Player01game"), probe.ref)
+        system.receptionist ! Receptionist.Find(ServiceKey[Message](correctPlayerID("Player01", clientHost)+"game"), probe.ref)
         val listing = probe.receiveMessage()
-        assert(listing.serviceInstances(ServiceKey[Message]("Player01game")).contains(clientHost))
+        assert(listing.serviceInstances(ServiceKey[Message](correctPlayerID("Player01", clientHost)+"game")).contains(clientHost))
       }
 
       clientJoiner ! JoinAGame()
       probeClientJoiner.expectMessage(JoinAGame())
 
-      clientJoiner ! JoinAddress("Player01game")
-      probeClientJoiner.expectMessage(JoinAddress("Player01game"))
+      clientJoiner ! JoinAddress(correctPlayerID("Player01", clientHost)+"game")
+      probeClientJoiner.expectMessage(JoinAddress(correctPlayerID("Player01", clientHost)+"game"))
 
-      probeClientHost.expectMessage(IWantToPlay(PlayerInLobby("Player02", "defaultCoolName2", clientJoiner), clientJoiner))
+      probeClientHost.expectMessage(IWantToPlay(PlayerInLobby(correctPlayerID("Player02", clientJoiner), "defaultCoolName2", clientJoiner), clientJoiner))
 
-      probeClientJoiner.expectMessage(YouJoinedTheGame(GameInConstruction("Player01game", GameParameters(false, 10, 5, 4), List(PlayerInLobby("Player01", "defaultCoolName", clientHost), PlayerInLobby("Player02", "defaultCoolName2", clientJoiner)))))
+      probeClientJoiner.expectMessage(YouJoinedTheGame(GameInConstruction(correctPlayerID("Player01", clientHost)+"game", GameParameters(false, 10, 5, 4), List(PlayerInLobby(correctPlayerID("Player01", clientHost), "defaultCoolName", clientHost), PlayerInLobby(correctPlayerID("Player02", clientJoiner), "defaultCoolName2", clientJoiner)))))
     }
 
     "should be able to change the name of the player" in {
