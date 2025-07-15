@@ -12,7 +12,7 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatest.wordspec.AnyWordSpecLike
-import utils.ClientMessages.{CreateNewGame, JoinAGame, JoinAddress, JoinGame, LeaveTheGame}
+import utils.ClientMessages.{ChangePlayerName, CreateNewGame, GetPlayerInfo, JoinAGame, JoinAddress, JoinGame, LeaveTheGame, PlayerInfo}
 import utils.Message
 import utils.ViewMessages.*
 
@@ -297,6 +297,26 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString("""
       probeClientHost.expectMessage(IWantToPlay(PlayerInLobby("Player02", "defaultCoolName2", clientJoiner), clientJoiner))
 
       probeClientJoiner.expectMessage(YouJoinedTheGame(GameInConstruction("Player01game", GameParameters(false, 10, 5, 4), List(PlayerInLobby("Player01", "defaultCoolName", clientHost), PlayerInLobby("Player02", "defaultCoolName2", clientJoiner)))))
+    }
+
+    "should be able to change the name of the player" in {
+      val defaultName = "defaultCoolName"
+      val hostUserID = "Player01g"
+      val probeClientHost = testKit.createTestProbe[Message]()
+      val clientHost = testKit.spawn(Behaviors.monitor(probeClientHost.ref, Client(hostUserID, defaultName)))
+
+      val probe = testKit.createTestProbe[Message]()
+
+      clientHost ! GetPlayerInfo(probe.ref)
+      probeClientHost.expectMessage(GetPlayerInfo(probe.ref))
+
+      probe.expectMessage(PlayerInfo(hostUserID+clientHost.path.address.hashCode(), defaultName))
+
+      val newCoolName = "NewCoolName"
+      clientHost ! ChangePlayerName(newCoolName, probe.ref)
+      probeClientHost.expectMessage(ChangePlayerName(newCoolName, probe.ref))
+
+      probe.expectMessage(PlayerInfo(hostUserID + clientHost.path.address.hashCode(), newCoolName))
     }
 
 //    "should receive a notification if a player 'crash'" in {

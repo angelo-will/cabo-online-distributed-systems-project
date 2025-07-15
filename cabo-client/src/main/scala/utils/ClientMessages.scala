@@ -1,5 +1,6 @@
 package utils
 
+import akka.actor.typed.ActorRef
 import model.Game.GameInConstruction
 import model.GameParameters
 
@@ -51,5 +52,24 @@ object ClientMessages {
    * Message sent by the view to the client to leave the game
    */
   case class LeaveTheGame() extends ClientCommand
+
+  /**
+   * Message sent by the view to the client to change the player name
+   *
+   * @param newName
+   * @param replyTo
+   */
+  case class ChangePlayerName(newName: String, replyTo: ActorRef[ClientCommand]) extends ClientCommand
+  
+  /**
+   * Message sent by the view to the client to get the player information
+   * This is useful for displaying player details in the UI
+   */
+  case class GetPlayerInfo(replyTo: ActorRef[ClientCommand]) extends ClientCommand
+  
+  /**
+   * Reply to provide player information
+   */
+  case class PlayerInfo(userID: String, name: String) extends ClientCommand
 
 }

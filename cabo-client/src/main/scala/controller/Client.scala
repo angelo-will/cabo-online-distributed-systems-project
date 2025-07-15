@@ -49,10 +49,10 @@ object Client:
 
     val connectionHandler = ctx.spawn(ConnectionHandler[MemberExited](ctx.self), "ConnectionHandler")
     
-    new Client(userId, name, viewActorRef, connectionHandler).start
+    new Client(userId+ctx.self.path.address.hashCode(), name, viewActorRef, connectionHandler).start
   }
 
-private case class Client(userId: String, name: String, viewActorRef: ActorRef[Message], connectionHandler: ActorRef[ConnectionHandler.InternalCommand]):
+private case class Client(userId: String, var name: String, viewActorRef: ActorRef[Message], connectionHandler: ActorRef[ConnectionHandler.InternalCommand]):
 
   import controller.Client.*
 
@@ -111,6 +111,17 @@ private case class Client(userId: String, name: String, viewActorRef: ActorRef[M
           (_ ! ServerMessages.GetGames(ctx.self))
           (() => viewActorRef ! ViewMessages.FailedToPublishToServer()))
         joiningAGame
+
+      case ChangePlayerName(newName, replyTo) =>
+        ctx.log.info(s"Changing player name from $name to $newName")
+        this.name = newName
+        replyTo ! PlayerInfo(userId, name)
+        Behaviors.same
+
+      case GetPlayerInfo(replyTo) =>
+        ctx.log.info(s"Sending player info to $replyTo")
+        replyTo ! PlayerInfo(userId, name)
+        Behaviors.same
     }
   }
 
