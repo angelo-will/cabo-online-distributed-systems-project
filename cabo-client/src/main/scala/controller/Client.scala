@@ -211,6 +211,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
             (_ ! ServerMessages.AbortGame(game, ctx.self))
             (() => viewActorRef ! ViewMessages.FailedToPublishToServer()))
         game.players.filter(!_.address.equals(ctx.self)).foreach(_.address ! GameCancelled())
+        ctx.system.receptionist ! Receptionist.deregister(akka.actor.typed.receptionist.ServiceKey[Message](game.code), ctx.self)
         viewActorRef ! ViewMessages.GameAborted()
         //todo - if we use the variable argument this has to be changed
         connectionHandler ! ConnectionHandler.UpdateList(List())
