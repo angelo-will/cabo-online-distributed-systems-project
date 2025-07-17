@@ -10,7 +10,7 @@ import model.Game.GameInConstruction
 import model.{GameParameters, PlayerInLobby}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, color}
 import org.scalatest.wordspec.AnyWordSpecLike
 import utils.ClientMessages.{ChangePlayerName, CreateNewGame, GetPlayerInfo, JoinAGame, JoinAddress, JoinGame, LeaveTheGame, PlayerInfo}
 import utils.Message
@@ -167,51 +167,28 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString("""
     }
 
     "receive a notification when another player joins the game" in {
-//      val defaultName = "defaultCoolName"
-//      val hostUserID = "Player01c"
-      val probeClientHost = testKit.createTestProbe[Message]()
-      val clientHost = testKit.spawn(Behaviors.monitor(probeClientHost.ref, Client(hostId, hostName)))
 
-      val probeClientJoiner = testKit.createTestProbe[Message]()
-      val clientJoiner = testKit.spawn(Behaviors.monitor(probeClientJoiner.ref, Client(joinerId, hostName + "2")))
+      val (clientHost, probeClientHost) = createClientAndProbe(hostId, hostName)
 
-      val hostPlayerID = correctPlayerID(hostId, clientHost)
-      val joinerPlayerID = correctPlayerID(joinerId, clientJoiner)
-      
-      val gameInConstruction = GameInConstruction(hostPlayerID + "game", GameParameters(false, 10, 5, 4), List(PlayerInLobby(hostPlayerID, hostName, clientHost)))
-      
-      clientHost ! CreateNewGame(makePublic = false, maxTimeRound = 10, maxNumRound = 5, maxPlayers = 4)
-      probeClientHost.expectMessage(CreateNewGame(makePublic = false, maxTimeRound = 10, maxNumRound = 5, maxPlayers = 4))
+      val (clientJoiner, probeClientJoiner) = createClientAndProbe(joinerId, joinerName)
 
-      clientJoiner ! JoinAGame()
-      probeClientJoiner.expectMessage(JoinAGame())
+      val (clientTooJoiner, probeClientTooJoiner) = createClientAndProbe(joinerTooId, joinerTooName)
 
-      clientJoiner ! JoinGame(gameInConstruction)
-      probeClientJoiner.expectMessage(JoinGame(gameInConstruction))
+      hostCreateGame(clientHost, probeClientHost)
 
-      probeClientHost.expectMessage(IWantToPlay(PlayerInLobby(joinerPlayerID, hostName + "2", clientJoiner), clientJoiner))
+      joinHostGame(clientHost, probeClientHost, clientJoiner, probeClientJoiner)
 
-      val twoPlayers = gameInConstruction.players :+ PlayerInLobby(joinerPlayerID, hostName + "2", clientJoiner)
-      probeClientJoiner.expectMessage(YouJoinedTheGame(gameInConstruction.copy(players = twoPlayers)))
+      joinHostGame(clientHost, probeClientHost, clientTooJoiner, probeClientTooJoiner)
 
-      val probeClientTooJoiner = testKit.createTestProbe[Message]()
-      val clientTooJoiner = testKit.spawn(Behaviors.monitor(probeClientTooJoiner.ref, Client(joinerTooId, hostName + "3")))
+      probeClientJoiner.receiveMessage() match {
+        case UpdateAboutGame(game) =>
+          assert(game.players.size == 3)
+          assert(game.players.exists(p => p.userID == correctPlayerID(hostId, clientHost)))
+          assert(game.players.exists(p => p.userID == correctPlayerID(joinerId, clientJoiner)))
+          assert(game.players.exists(p => p.userID == correctPlayerID(joinerTooId, clientTooJoiner)))
+        case _ => fail("Expected UpdateAboutGame message")
+      }
 
-      val joinerTooPlayerID = correctPlayerID(joinerTooId, clientTooJoiner)
-
-      clientTooJoiner ! JoinAGame()
-      probeClientTooJoiner.expectMessage(JoinAGame())
-
-      clientTooJoiner ! JoinGame(gameInConstruction)
-      probeClientTooJoiner.expectMessage(JoinGame(gameInConstruction))
-
-      probeClientHost.expectMessage(IWantToPlay(PlayerInLobby(joinerTooPlayerID, hostName + "3", clientTooJoiner), clientTooJoiner))
-
-      val threePlayers = twoPlayers :+ PlayerInLobby(joinerTooPlayerID, hostName + "3", clientTooJoiner)
-      probeClientTooJoiner.expectMessage(YouJoinedTheGame(gameInConstruction.copy(players = threePlayers)))
-
-      probeClientJoiner.expectMessage(UpdateAboutGame(gameInConstruction.copy(players = threePlayers)))
-      
       probeClientHost.expectNoMessage()
       probeClientTooJoiner.expectNoMessage()
 
