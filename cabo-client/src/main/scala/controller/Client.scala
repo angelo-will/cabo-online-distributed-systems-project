@@ -117,7 +117,8 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
         this.name = newName
         replyTo ! PlayerInfo(userId, name)
         Behaviors.same
-
+        
+        //todo - this should be shared between the states of the client
       case GetPlayerInfo(replyTo) =>
         ctx.log.info(s"Sending player info to $replyTo")
         replyTo ! PlayerInfo(userId, name)
@@ -148,6 +149,12 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
     }
 
     Behaviors.receivePartial {
+
+      case (ctx, GetPlayerInfo(replyTo)) =>
+        ctx.log.info(s"Sending player info to $replyTo")
+        replyTo ! PlayerInfo(userId, name)
+        Behaviors.same
+      
       case (ctx, ServerMessages.GameRegistered(game, server)) =>
         //The server has registered the game
         ctx.log.info(s"Game update: ${game.code} by server: $server")
@@ -265,6 +272,12 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
     }
 
     Behaviors.receivePartial {
+
+      case (ctx, GetPlayerInfo(replyTo)) =>
+        ctx.log.info(s"Sending player info to $replyTo")
+        replyTo ! PlayerInfo(userId, name)
+        Behaviors.same
+      
       case (ctx, ServerMessages.GamesList(games)) =>
         if games.nonEmpty then {
           ctx.log.info(s"Games found: $games")
@@ -294,6 +307,12 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
 
   private def gameJoined(game: GameInConstruction): Behavior[Message] = {
     Behaviors.receivePartial {
+
+      case (ctx, GetPlayerInfo(replyTo)) =>
+        ctx.log.info(s"Sending player info to $replyTo")
+        replyTo ! PlayerInfo(userId, name)
+        Behaviors.same
+      
       case (ctx, UpdateAboutGame(game)) =>
         ctx.log.info(s"Game info update: ${game.code}")
         viewActorRef ! ViewMessages.GameInfoUpdate(game)
