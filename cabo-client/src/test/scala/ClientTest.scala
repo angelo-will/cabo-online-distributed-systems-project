@@ -82,8 +82,7 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString("""
     (client, probe)
   }
 
-  def hostCreateGame(clientHost: ActorRef[Message], probeClientHost: TestProbe[Message],
-                     clientJoiner: ActorRef[Message], probeClientJoiner: TestProbe[Message]): Unit = {
+  def hostCreateGame(clientHost: ActorRef[Message], probeClientHost: TestProbe[Message]): Unit = {
 
     val (hostPlayerID, _) = retrieveClientID(clientHost, probeClientHost)
 
@@ -128,7 +127,7 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString("""
 
       val (clientJoiner, probeClientJoiner) = createClientAndProbe(joinerId, joinerName)
 
-      hostCreateGame(clientHost, probeClientHost, clientJoiner, probeClientJoiner)
+      hostCreateGame(clientHost, probeClientHost)
 
       joinHostGame(clientHost, probeClientHost, clientJoiner, probeClientJoiner)
 
