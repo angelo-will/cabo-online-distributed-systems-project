@@ -199,36 +199,46 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString("""
     "be able to leave a joined game" in {
 //      val defaultName = "defaultCoolName"
 //      val hostUserID = "Player01d"
-      val probeClientHost = testKit.createTestProbe[Message]()
-      val clientHost = testKit.spawn(Behaviors.monitor(probeClientHost.ref, Client(hostId, hostName)))
+//      val probeClientHost = testKit.createTestProbe[Message]()
+//      val clientHost = testKit.spawn(Behaviors.monitor(probeClientHost.ref, Client(hostId, hostName)))
+//
+//      val probeClientJoiner = testKit.createTestProbe[Message]()
+//      val clientJoiner = testKit.spawn(Behaviors.monitor(probeClientJoiner.ref, Client(joinerId, hostName + "2")))
+//
+//      val hostPlayerID = correctPlayerID(hostId, clientHost)
+//      val joinerPlayerID = correctPlayerID(joinerId, clientJoiner)
 
-      val probeClientJoiner = testKit.createTestProbe[Message]()
-      val clientJoiner = testKit.spawn(Behaviors.monitor(probeClientJoiner.ref, Client(joinerId, hostName + "2")))
+      val (clientHost, probeClientHost) = createClientAndProbe(hostId, hostName)
 
-      val hostPlayerID = correctPlayerID(hostId, clientHost)
-      val joinerPlayerID = correctPlayerID(joinerId, clientJoiner)
+      val (clientJoiner, probeClientJoiner) = createClientAndProbe(joinerId, joinerName)
 
-      val gameInConstruction = GameInConstruction(hostPlayerID + "game", GameParameters(false, 10, 5, 4), List(PlayerInLobby(hostPlayerID, hostName, clientHost)))
+      val (clientTooJoiner, probeClientTooJoiner) = createClientAndProbe(joinerTooId, joinerTooName)
 
-      clientHost ! CreateNewGame(makePublic = false, maxTimeRound = 10, maxNumRound = 5, maxPlayers = 4)
-      probeClientHost.expectMessage(CreateNewGame(makePublic = false, maxTimeRound = 10, maxNumRound = 5, maxPlayers = 4))
+//      val gameInConstruction = GameInConstruction(hostPlayerID + "game", GameParameters(false, 10, 5, 4), List(PlayerInLobby(hostPlayerID, hostName, clientHost)))
+//
+//      clientHost ! CreateNewGame(makePublic = false, maxTimeRound = 10, maxNumRound = 5, maxPlayers = 4)
+//      probeClientHost.expectMessage(CreateNewGame(makePublic = false, maxTimeRound = 10, maxNumRound = 5, maxPlayers = 4))
 
-      clientJoiner ! JoinAGame()
-      probeClientJoiner.expectMessage(JoinAGame())
+      hostCreateGame(clientHost, probeClientHost)
 
-      clientJoiner ! JoinGame(gameInConstruction)
-      probeClientJoiner.expectMessage(JoinGame(gameInConstruction))
+//      clientJoiner ! JoinAGame()
+//      probeClientJoiner.expectMessage(JoinAGame())
+//
+//      clientJoiner ! JoinGame(gameInConstruction)
+//      probeClientJoiner.expectMessage(JoinGame(gameInConstruction))
+//
+//      probeClientHost.expectMessage(IWantToPlay(PlayerInLobby(joinerPlayerID, hostName + "2", clientJoiner), clientJoiner))
+//
+//      probeClientJoiner.expectMessage(YouJoinedTheGame(gameInConstruction.copy(players = gameInConstruction.players :+ PlayerInLobby(joinerPlayerID, hostName + "2", clientJoiner))))
 
-      probeClientHost.expectMessage(IWantToPlay(PlayerInLobby(joinerPlayerID, hostName + "2", clientJoiner), clientJoiner))
-
-      probeClientJoiner.expectMessage(YouJoinedTheGame(gameInConstruction.copy(players = gameInConstruction.players :+ PlayerInLobby(joinerPlayerID, hostName + "2", clientJoiner))))
+      joinHostGame(clientHost, probeClientHost, clientJoiner, probeClientJoiner)
 
       // Now the player leaves the game
       clientJoiner ! LeaveTheGame()
       probeClientJoiner.expectMessage(LeaveTheGame())
 
       // The host should receive a notification about the player leaving
-      probeClientHost.expectMessage(IWantToLeaveTheGame(PlayerInLobby(joinerPlayerID, hostName + "2", clientJoiner)))
+      probeClientHost.expectMessage(IWantToLeaveTheGame(PlayerInLobby(correctPlayerID(joinerId, clientJoiner), joinerName, clientJoiner)))
 
       // Remove the game from the receptionist
       clientHost ! LeaveTheGame()
