@@ -258,6 +258,7 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString("""
     }
 
     "should receive an abort notification if the host leaves the game" in {
+
       val (clientHost, probeClientHost) = createClientAndProbe(hostId, hostName)
 
       val (clientJoiner, probeClientJoiner) = createClientAndProbe(joinerId, joinerName)
@@ -280,35 +281,17 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString("""
     }
 
     "should be able to enter a game using an 'address' (code)" in {
-      val probeClientHost = testKit.createTestProbe[Message]()
-      val clientHost = testKit.spawn(Behaviors.monitor(probeClientHost.ref, Client(hostId, hostName)))
 
-      val probeClientJoiner = testKit.createTestProbe[Message]()
-      val clientJoiner = testKit.spawn(Behaviors.monitor(probeClientJoiner.ref, Client(joinerId, "defaultCoolName2")))
+      val (clientHost, probeClientHost) = createClientAndProbe(hostId, hostName)
 
-      clientHost ! CreateNewGame(makePublic = false, maxTimeRound = 10, maxNumRound = 5, maxPlayers = 4)
-      probeClientHost.expectMessage(CreateNewGame(makePublic = false, maxTimeRound = 10, maxNumRound = 5, maxPlayers = 4))
+      val (clientJoiner, probeClientJoiner) = createClientAndProbe(joinerId, joinerName)
 
-      val probe = TestProbe[Receptionist.Listing]()
-      eventually(timeout(3.seconds), interval(100.millis)) {
-        system.receptionist ! Receptionist.Find(ServiceKey[Message](correctPlayerID(hostId, clientHost)+"game"), probe.ref)
-        val listing = probe.receiveMessage()
-        assert(listing.serviceInstances(ServiceKey[Message](correctPlayerID(hostId, clientHost)+"game")).contains(clientHost))
-      }
+      hostCreateGame(clientHost, probeClientHost)
 
-      clientJoiner ! JoinAGame()
-      probeClientJoiner.expectMessage(JoinAGame())
-
-      clientJoiner ! JoinAddress(correctPlayerID(hostId, clientHost)+"game")
-      probeClientJoiner.expectMessage(JoinAddress(correctPlayerID(hostId, clientHost)+"game"))
-
-      probeClientHost.expectMessage(IWantToPlay(PlayerInLobby(correctPlayerID(joinerId, clientJoiner), "defaultCoolName2", clientJoiner), clientJoiner))
-
-      probeClientJoiner.expectMessage(YouJoinedTheGame(GameInConstruction(correctPlayerID(hostId, clientHost)+"game", GameParameters(false, 10, 5, 4), List(PlayerInLobby(correctPlayerID(hostId, clientHost), hostName, clientHost), PlayerInLobby(correctPlayerID(joinerId, clientJoiner), "defaultCoolName2", clientJoiner)))))
-
+      joinHostGame(clientHost, probeClientHost, clientJoiner, probeClientJoiner)
+      
       // Remove the game from the receptionist
       clientHost ! LeaveTheGame()
-
     }
 
     "should be able to change the name of the player" in {
