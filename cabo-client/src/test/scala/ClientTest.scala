@@ -1,18 +1,17 @@
 import akka.actor.testkit.typed.scaladsl.{ScalaTestWithActorTestKit, TestProbe}
-import akka.actor.typed.{ActorRef, Behavior}
 import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
 import akka.actor.typed.scaladsl.Behaviors
+import akka.actor.typed.{ActorRef, Behavior}
 import akka.cluster.typed.{Cluster, Join}
 import com.typesafe.config.ConfigFactory
 import controller.Client
-import controller.Client.{GameCancelled, IWantToLeaveTheGame, IWantToPlay, PlayerUnreachable, UpdateAboutGame, YouCanNotJoinTheGame, YouJoinedTheGame}
-import model.Game.GameInConstruction
-import model.{GameParameters, PlayerInLobby}
+import controller.Client.*
+import model.PlayerInLobby
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, color}
 import org.scalatest.wordspec.AnyWordSpecLike
-import utils.ClientMessages.{ChangePlayerName, CreateNewGame, GetPlayerInfo, JoinAGame, JoinAddress, JoinGame, LeaveTheGame, PlayerInfo}
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
+import utils.ClientMessages.*
 import utils.Message
 import utils.ViewMessages.*
 
