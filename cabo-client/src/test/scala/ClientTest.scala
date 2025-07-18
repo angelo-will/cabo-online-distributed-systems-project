@@ -197,16 +197,6 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString("""
     }
 
     "be able to leave a joined game" in {
-//      val defaultName = "defaultCoolName"
-//      val hostUserID = "Player01d"
-//      val probeClientHost = testKit.createTestProbe[Message]()
-//      val clientHost = testKit.spawn(Behaviors.monitor(probeClientHost.ref, Client(hostId, hostName)))
-//
-//      val probeClientJoiner = testKit.createTestProbe[Message]()
-//      val clientJoiner = testKit.spawn(Behaviors.monitor(probeClientJoiner.ref, Client(joinerId, hostName + "2")))
-//
-//      val hostPlayerID = correctPlayerID(hostId, clientHost)
-//      val joinerPlayerID = correctPlayerID(joinerId, clientJoiner)
 
       val (clientHost, probeClientHost) = createClientAndProbe(hostId, hostName)
 
@@ -214,22 +204,7 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString("""
 
       val (clientTooJoiner, probeClientTooJoiner) = createClientAndProbe(joinerTooId, joinerTooName)
 
-//      val gameInConstruction = GameInConstruction(hostPlayerID + "game", GameParameters(false, 10, 5, 4), List(PlayerInLobby(hostPlayerID, hostName, clientHost)))
-//
-//      clientHost ! CreateNewGame(makePublic = false, maxTimeRound = 10, maxNumRound = 5, maxPlayers = 4)
-//      probeClientHost.expectMessage(CreateNewGame(makePublic = false, maxTimeRound = 10, maxNumRound = 5, maxPlayers = 4))
-
       hostCreateGame(clientHost, probeClientHost)
-
-//      clientJoiner ! JoinAGame()
-//      probeClientJoiner.expectMessage(JoinAGame())
-//
-//      clientJoiner ! JoinGame(gameInConstruction)
-//      probeClientJoiner.expectMessage(JoinGame(gameInConstruction))
-//
-//      probeClientHost.expectMessage(IWantToPlay(PlayerInLobby(joinerPlayerID, hostName + "2", clientJoiner), clientJoiner))
-//
-//      probeClientJoiner.expectMessage(YouJoinedTheGame(gameInConstruction.copy(players = gameInConstruction.players :+ PlayerInLobby(joinerPlayerID, hostName + "2", clientJoiner))))
 
       joinHostGame(clientHost, probeClientHost, clientJoiner, probeClientJoiner)
 
