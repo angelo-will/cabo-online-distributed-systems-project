@@ -13,20 +13,6 @@ import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import utils.ClientMessages.*
 import utils.Message
-import utils.ViewMessages.*
-
-case class TestMessage(address: String) extends Message
-case class ReplyTestMessage() extends Message
-
-object TestReceiveMessage:
-  def apply(): Behavior[Message] = Behaviors.setup[Message] { ctx =>
-    Behaviors.receiveMessagePartial[Message] {
-      case TestMessage(address) =>
-        ctx.log.info(s"Received message from: $address")
-        
-        Behaviors.same
-    }
-  }
 
 class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString("""
     akka.actor.provider = "cluster"
@@ -45,24 +31,19 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString("""
   
   val joinerTooId = "JoinerTooPlayer"
   val joinerTooName = "JoinerTooName"
-
-  // test sequence of steps that user makes for a turn
-  // instructions of test emulate messages from view actor to actor representing player
-  // view expects messages from player actor
-  // other players' actors expect messages from player actor in the end of the turn to know what happened
-
+  
   override def beforeAll(): Unit = {
     val cluster = Cluster.get(testKit.system)
     cluster.manager.tell(Join.create(cluster.selfMember.address))
   }
 
   override def afterAll(): Unit = testKit.shutdownTestKit()
-  
+
   def correctPlayerID(name: String, ref: ActorRef[Message]): String = {
     name + ref.path.address.hashCode()
   }
 
-  def retrieveClientID(client: ActorRef[Message], clientProbe: TestProbe[Message]): (String, String) = {
+  def retrieveClientIdAndName(client: ActorRef[Message], clientProbe: TestProbe[Message]): (String, String) = {
 
     val probe = testKit.createTestProbe[Message]()
 
@@ -84,7 +65,7 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString("""
   def hostCreateGame(clientHost: ActorRef[Message], probeClientHost: TestProbe[Message],
                      makePublic: Boolean = false, maxTimeRound: Int = 10, maxNumRound: Int = 5, maxPlayers: Int = 4): Unit = {
 
-    val (hostPlayerID, _) = retrieveClientID(clientHost, probeClientHost)
+    val (hostPlayerID, _) = retrieveClientIdAndName(clientHost, probeClientHost)
 
     clientHost ! CreateNewGame(makePublic, maxTimeRound, maxNumRound, maxPlayers)
     probeClientHost.expectMessage(CreateNewGame(makePublic, maxTimeRound, maxNumRound, maxPlayers))
@@ -100,9 +81,9 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString("""
   def joinHostGame(clientHost: ActorRef[Message], probeClientHost: TestProbe[Message],
                    clientJoiner: ActorRef[Message], probeClientJoiner: TestProbe[Message]): Unit = {
 
-    val (hostPlayerID, _) = retrieveClientID(clientHost, probeClientHost)
+    val (hostPlayerID, _) = retrieveClientIdAndName(clientHost, probeClientHost)
 
-    val (joinerPlayerID, joinerName) = retrieveClientID(clientJoiner, probeClientJoiner)
+    val (joinerPlayerID, joinerName) = retrieveClientIdAndName(clientJoiner, probeClientJoiner)
 
     clientJoiner ! JoinAGame()
     probeClientJoiner.expectMessage(JoinAGame())
