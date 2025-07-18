@@ -289,16 +289,16 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString("""
       hostCreateGame(clientHost, probeClientHost)
 
       joinHostGame(clientHost, probeClientHost, clientJoiner, probeClientJoiner)
-      
+
       // Remove the game from the receptionist
       clientHost ! LeaveTheGame()
     }
 
     "should be able to change the name of the player" in {
-//      val defaultName = "defaultCoolName"
-//      val hostUserID = "Player01g"
-      val probeClientHost = testKit.createTestProbe[Message]()
+
       val clientHost = testKit.spawn(Behaviors.monitor(probeClientHost.ref, Client(hostId, hostName)))
+
+      val (clientHost, probeClientHost) = createClientAndProbe(hostId, hostName)
 
       val probe = testKit.createTestProbe[Message]()
 
