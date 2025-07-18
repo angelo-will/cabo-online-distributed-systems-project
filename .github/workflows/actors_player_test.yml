@@ -4,13 +4,9 @@ on:
   push:
     branches:
       - develop
-      - feature/implementation_game_coordinator_actor
-      - feature/initial_client
-      - refactor/clientTest
   pull_request:
     branches:
       - develop
-      - feature/implementation_game_coordinator_actor
 jobs:
   build:
     runs-on: ubuntu-latest
