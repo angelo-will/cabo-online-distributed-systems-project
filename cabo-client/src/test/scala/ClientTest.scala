@@ -296,8 +296,6 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString("""
 
     "should be able to change the name of the player" in {
 
-      val clientHost = testKit.spawn(Behaviors.monitor(probeClientHost.ref, Client(hostId, hostName)))
-
       val (clientHost, probeClientHost) = createClientAndProbe(hostId, hostName)
 
       val probe = testKit.createTestProbe[Message]()
