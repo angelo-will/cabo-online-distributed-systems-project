@@ -6,6 +6,7 @@ on:
       - develop
       - feature/implementation_game_coordinator_actor
       - feature/initial_client
+      - refactor/clientTest
   pull_request:
     branches:
       - develop
