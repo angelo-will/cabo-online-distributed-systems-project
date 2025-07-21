@@ -79,15 +79,26 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
     }
   }
 
+  private def sharedHandler: PartialFunction[(ActorContext[Message], Message), Behavior[Message]] = {
+    case (ctx, GetPlayerInfo(replyTo)) =>
+      ctx.log.info(s"Sending player info to $replyTo")
+      replyTo ! PlayerInfo(userId, name)
+      Behaviors.same
+  }
+
+  private def withShared(
+                  specific: PartialFunction[(ActorContext[Message], Message), Behavior[Message]]
+                ): Behavior[Message] =
+    Behaviors.receivePartial(sharedHandler.orElse(specific))
+
   private def start: Behavior[Message] = Behaviors.setup { ctx =>
 
-    Behaviors.receiveMessagePartial[Message] {
-      
-      case CreateNewGame(makePublic, maxTimeRound, maxNumRound, maxPlayers) =>
+    withShared( {
+      case (ctx, CreateNewGame(makePublic, maxTimeRound, maxNumRound, maxPlayers)) =>
 
         val player: PlayerInLobby = PlayerInLobby(userId, name, ctx.self)
 
-        val game: GameInConstruction = GameInConstruction(userId+"game", GameParameters(makePublic, maxTimeRound, maxNumRound, maxPlayers), List(player))
+        val game: GameInConstruction = GameInConstruction(userId + "game", GameParameters(makePublic, maxTimeRound, maxNumRound, maxPlayers), List(player))
 
         if makePublic then {
           ctx.spawnAnonymous(contactInReceptionistAndAsk
@@ -104,7 +115,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
 
         hostBehavior(game)
 
-      case JoinAGame() =>
+      case (ctx, JoinAGame()) =>
         ctx.log.info("Preparing to join a game")
         ctx.spawnAnonymous(contactInReceptionistAndAsk
           (ServerKey)
@@ -112,18 +123,12 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
           (() => viewActorRef ! ViewMessages.FailedToPublishToServer()))
         joiningAGame
 
-      case ChangePlayerName(newName, replyTo) =>
+      case (ctx, ChangePlayerName(newName, replyTo)) =>
         ctx.log.info(s"Changing player name from $name to $newName")
         this.name = newName
         replyTo ! PlayerInfo(userId, name)
         Behaviors.same
-        
-        //todo - this should be shared between the states of the client
-      case GetPlayerInfo(replyTo) =>
-        ctx.log.info(s"Sending player info to $replyTo")
-        replyTo ! PlayerInfo(userId, name)
-        Behaviors.same
-    }
+    })
   }
 
   private def hostBehavior(game: GameInConstruction): Behavior[Message] = {
@@ -147,14 +152,14 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
 
       hostBehavior(gameUpdated)
     }
-
-    Behaviors.receivePartial {
+    
+    withShared( {
 
       case (ctx, GetPlayerInfo(replyTo)) =>
         ctx.log.info(s"Sending player info to $replyTo")
         replyTo ! PlayerInfo(userId, name)
         Behaviors.same
-      
+
       case (ctx, ServerMessages.GameRegistered(game, server)) =>
         //The server has registered the game
         ctx.log.info(s"Game update: ${game.code} by server: $server")
@@ -240,7 +245,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
 
         //Go into game
         Behaviors.same
-    }
+    })
   }
 
   private def joiningAGame: Behavior[Message] = {
@@ -248,7 +253,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
     def responseForJoining(): Behavior[Message] = {
       Behaviors.withTimers { timers =>
         timers.startTimerAtFixedRate(FailedToContactHost(), 60.seconds)
-        Behaviors.receivePartial {
+        withShared( {
           case (ctx, YouJoinedTheGame(game)) =>
             ctx.log.info(s"Joined game: $game")
             connectionHandler ! ConnectionHandler.UpdateList(List(game.players.head))
@@ -267,17 +272,16 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
             timers.cancelAll()
             //todo - ask the view if wants to retry
             joiningAGame
-        }
+        })
       }
     }
-
-    Behaviors.receivePartial {
-
+    
+    withShared( { 
       case (ctx, GetPlayerInfo(replyTo)) =>
         ctx.log.info(s"Sending player info to $replyTo")
         replyTo ! PlayerInfo(userId, name)
         Behaviors.same
-      
+  
       case (ctx, ServerMessages.GamesList(games)) =>
         if games.nonEmpty then {
           ctx.log.info(s"Games found: $games")
@@ -287,60 +291,60 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
           viewActorRef ! ViewMessages.GameList(List())
         }
         Behaviors.same
-
+  
       case (ctx, JoinAddress(address)) =>
-
+  
         ctx.spawnAnonymous(contactInReceptionistAndAsk
           (akka.actor.typed.receptionist.ServiceKey[Message](address))
           (_ ! IWantToPlay(PlayerInLobby(userId, name, ctx.self), ctx.self))
           //todo - add a specific message to viewActorRef
-          (() => viewActorRef ! ViewMessages.FailedToPublishToServer()))
-
+            (() => viewActorRef ! ViewMessages.FailedToPublishToServer()))
+  
         responseForJoining()
-
+  
       case (ctx, JoinGame(game)) =>
         ctx.log.info(s"Trying to join game: ${game.code}")
         game.players.head.address ! IWantToPlay(PlayerInLobby(userId, name, ctx.self), ctx.self)
-        responseForJoining()
-    }
+        responseForJoining() 
+    })
   }
 
   private def gameJoined(game: GameInConstruction): Behavior[Message] = {
-    Behaviors.receivePartial {
+    
+    withShared( {
+        case (ctx, GetPlayerInfo(replyTo)) =>
+          ctx.log.info(s"Sending player info to $replyTo")
+          replyTo ! PlayerInfo(userId, name)
+          Behaviors.same
 
-      case (ctx, GetPlayerInfo(replyTo)) =>
-        ctx.log.info(s"Sending player info to $replyTo")
-        replyTo ! PlayerInfo(userId, name)
-        Behaviors.same
-      
-      case (ctx, UpdateAboutGame(game)) =>
-        ctx.log.info(s"Game info update: ${game.code}")
-        viewActorRef ! ViewMessages.GameInfoUpdate(game)
-        gameJoined(game)
+        case (ctx, UpdateAboutGame(game)) =>
+          ctx.log.info(s"Game info update: ${game.code}")
+          viewActorRef ! ViewMessages.GameInfoUpdate(game)
+          gameJoined(game)
 
-      case (ctx, LeaveTheGame()) =>
-        ctx.log.info(s"Leaving game: ${game.code}")
-        game.players.head.address ! IWantToLeaveTheGame(PlayerInLobby(userId, name, ctx.self))
-        // todo - decide if waiting for a response or not
-        connectionHandler ! ConnectionHandler.UpdateList(List())
-        start
+        case (ctx, LeaveTheGame()) =>
+          ctx.log.info(s"Leaving game: ${game.code}")
+          game.players.head.address ! IWantToLeaveTheGame(PlayerInLobby(userId, name, ctx.self))
+          // todo - decide if waiting for a response or not
+          connectionHandler ! ConnectionHandler.UpdateList(List())
+          start
 
-      case (ctx, GameCancelled()) =>
-        ctx.log.info(s"Game: ${game.code} has been aborted")
-        viewActorRef ! ViewMessages.GameAborted()
-        connectionHandler ! ConnectionHandler.UpdateList(List())
-        start
+        case (ctx, GameCancelled()) =>
+          ctx.log.info(s"Game: ${game.code} has been aborted")
+          viewActorRef ! ViewMessages.GameAborted()
+          connectionHandler ! ConnectionHandler.UpdateList(List())
+          start
 
-      case (ctx, PlayerUnreachable(playerInLobby)) =>
-        //todo - for now the same as above, but we could wait some time before assume the game is aborted
-        ctx.log.info(s"Game: ${game.code} has been aborted")
-        viewActorRef ! ViewMessages.GameAborted()
-        connectionHandler ! ConnectionHandler.UpdateList(List())
-        start
+        case (ctx, PlayerUnreachable(playerInLobby)) =>
+          //todo - for now the same as above, but we could wait some time before assume the game is aborted
+          ctx.log.info(s"Game: ${game.code} has been aborted")
+          viewActorRef ! ViewMessages.GameAborted()
+          connectionHandler ! ConnectionHandler.UpdateList(List())
+          start
 
-      case (ctx, GameHasStarted()) =>
-        ctx.log.info(s"Game has started: ${game.code}")
-        //todo - Go into game
-        Behaviors.empty
-    }
+        case (ctx, GameHasStarted()) =>
+          ctx.log.info(s"Game has started: ${game.code}")
+          //todo - Go into game
+          Behaviors.empty
+    })
   }

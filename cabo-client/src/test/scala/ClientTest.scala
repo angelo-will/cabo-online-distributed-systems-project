@@ -291,8 +291,25 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString("""
 
       probe.expectMessage(PlayerInfo(hostId + clientHost.path.address.hashCode(), newCoolName))
 
+      // should be able to retrieve player information after creating a game
+      hostCreateGame(clientHost, probeClientHost)
+
+      clientHost ! GetPlayerInfo(probe.ref)
+      probeClientHost.expectMessage(GetPlayerInfo(probe.ref))
+
+      probe.expectMessage(PlayerInfo(hostId + clientHost.path.address.hashCode(), newCoolName))
+
       // Remove the game from the receptionist
       clientHost ! LeaveTheGame()
+      probeClientHost.expectMessage(LeaveTheGame())
+
+      clientHost ! JoinAGame()
+      probeClientHost.expectMessage(JoinAGame())
+
+      clientHost ! GetPlayerInfo(probe.ref)
+      probeClientHost.expectMessage(GetPlayerInfo(probe.ref))
+
+      probe.expectMessage(PlayerInfo(hostId + clientHost.path.address.hashCode(), newCoolName))
     }
 
 //    "should receive a notification if a player 'crash'" in {
