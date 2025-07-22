@@ -155,11 +155,6 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
     
     withShared( {
 
-      case (ctx, GetPlayerInfo(replyTo)) =>
-        ctx.log.info(s"Sending player info to $replyTo")
-        replyTo ! PlayerInfo(userId, name)
-        Behaviors.same
-
       case (ctx, ServerMessages.GameRegistered(game, server)) =>
         //The server has registered the game
         ctx.log.info(s"Game update: ${game.code} by server: $server")
@@ -276,11 +271,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
       }
     }
     
-    withShared( { 
-      case (ctx, GetPlayerInfo(replyTo)) =>
-        ctx.log.info(s"Sending player info to $replyTo")
-        replyTo ! PlayerInfo(userId, name)
-        Behaviors.same
+    withShared( {
   
       case (ctx, ServerMessages.GamesList(games)) =>
         if games.nonEmpty then {
@@ -312,10 +303,6 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
   private def gameJoined(game: GameInConstruction): Behavior[Message] = {
     
     withShared( {
-        case (ctx, GetPlayerInfo(replyTo)) =>
-          ctx.log.info(s"Sending player info to $replyTo")
-          replyTo ! PlayerInfo(userId, name)
-          Behaviors.same
 
         case (ctx, UpdateAboutGame(game)) =>
           ctx.log.info(s"Game info update: ${game.code}")
