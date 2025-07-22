@@ -311,33 +311,4 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString("""
 
       probe.expectMessage(PlayerInfo(hostId + clientHost.path.address.hashCode(), newCoolName))
     }
-
-//    "should receive a notification if a player 'crash'" in {
-//      val defaultName = "defaultCoolName"
-//      val hostUserID = "Player01"
-//      val probeClientHost = testKit.createTestProbe[Message]()
-//      val clientHost = testKit.spawn(Behaviors.monitor(probeClientHost.ref, Client(hostUserID, defaultName)))
-//
-//      val probeClientJoiner = testKit.createTestProbe[Message]()
-//      val clientJoiner = testKit.spawn(Behaviors.monitor(probeClientJoiner.ref, Client(joinerId, defaultName + "2")))
-//
-//      val gameInConstruction = GameInConstruction(hostUserID + "game", GameParameters(false, 10, 5, 4), List(PlayerInLobby(hostUserID, defaultName, clientHost)))
-//
-//      clientHost ! CreateNewGame(makePublic = false, maxTimeRound = 10, maxNumRound = 5, maxPlayers = 4)
-//      probeClientHost.expectMessage(CreateNewGame(makePublic = false, maxTimeRound = 10, maxNumRound = 5, maxPlayers = 4))
-//
-//      clientJoiner ! JoinAGame()
-//      probeClientJoiner.expectMessage(JoinAGame())
-//
-//      clientJoiner ! JoinGame(gameInConstruction)
-//      probeClientJoiner.expectMessage(JoinGame(gameInConstruction))
-//
-//      probeClientHost.expectMessage(IWantToPlay(PlayerInLobby(joinerId, defaultName + "2", clientJoiner), clientJoiner))
-//
-//      probeClientJoiner.expectMessage(YouJoinedTheGame(gameInConstruction.copy(players = gameInConstruction.players :+ PlayerInLobby(joinerId, defaultName + "2", clientJoiner))))
-//
-//      testKit.stop(clientJoiner) // Simulate a crash by stopping the client actor
-//
-//      probeClientHost.expectMessage(10.seconds,PlayerUnreachable(PlayerInLobby(joinerId, defaultName + "2", clientJoiner)))
-//    }
   }
