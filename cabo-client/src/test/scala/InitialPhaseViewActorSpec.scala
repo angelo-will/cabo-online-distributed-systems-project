@@ -48,7 +48,7 @@ class InitialPhaseViewActorSpec extends ScalaTestWithActorTestKit
         createCheckFrame("<html>" +
           "Initial Phase View Actor<br>" +
           "- must close the waiting creation game view<br>" +
-          s"    when the game is created." +
+          s"    when the game is created (public or private)." +
           "</html>", probe.ref).open()
         probe.expectMessageType[ViewCreated]
         val newGame = probe.expectMessageType[ViewMessages.CreateNewGame](FiniteDuration(20, SECONDS))
@@ -196,6 +196,30 @@ class InitialPhaseViewActorSpec extends ScalaTestWithActorTestKit
       actorViewHost ! ViewMessages.GameInfoUpdate(gameAfterJoin)
       actorViewJoiner ! ViewMessages.GameJoined(gameAfterJoin)
       Thread.sleep(20000)
+    }
+  }
+  
+  "open error to publish on server dialog" when {
+    "server send error" in {
+      val actorView = testKit.spawn(InitialPhaseViewActor(probe.ref))
+      createCheckFrame("<html>" +
+        "Initial Phase View Actor<br>" +
+        "- must open error to publish on server dialog<br>" +
+        s"    when the server send error." +
+        "</html>", probe.ref).open()
+      probe.expectMessageType[ViewCreated]
+      val newGame = probe.expectMessageType[ViewMessages.CreateNewGame](FiniteDuration(20, SECONDS))
+      // Simulate the game creation
+      Thread.sleep(3000)
+      actorView ! ViewMessages.GameCreated(Game.GameInConstruction(
+        code = "testGame",
+        GameParameters(newGame.isPublic, newGame.maxTimeRound, newGame.maxNumRound, newGame.maxPlayers),
+        players = List(PlayerInLobby("user1", "User One", probe.ref))
+      ))
+      Thread.sleep(2000)
+      // Simulate the error from server
+      actorView ! ViewMessages.FailedToPublishToServer()
+      probe.expectMessage(FiniteDuration(20, SECONDS), Passed())
     }
   }
 

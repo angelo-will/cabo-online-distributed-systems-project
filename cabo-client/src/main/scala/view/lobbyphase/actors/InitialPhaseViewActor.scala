@@ -5,8 +5,7 @@ import akka.actor.typed.{ActorRef, Behavior}
 import com.typesafe.config.ConfigFactory
 import model.Game
 import utils.{Message, ViewMessages}
-import view.*
-import view.lobbyphase.{IViewListener, InitialPhaseMainFrame, ViewApplication}
+import view.lobbyphase.{InitialPhaseMainFrame, ViewApplication}
 import view.*
 import view.lobbyphase.components.WaitingFrame
 
@@ -23,14 +22,12 @@ object InitialPhaseViewActor:
     Behaviors.setup { ctx =>
       // TODO: delete remove this than -AAA- decide if wait a message to create view or create it directly
       ViewApplication.startView(ViewActorListener(whoToSendResponse), afterCreation = frame => {
-        //      ViewApplication.startView(myViewListener, afterCreation = frame => {
         ctx.self ! ViewEndCreation(frame)
       })
       Behaviors.receivePartial {
         case (ctx, ViewEndCreation(frame)) =>
           ctx.log.info("Inside handleViewEndCreation")
           whoToSendResponse ! ViewCreated()
-          //          idle(ViewActorInfoInitPhase(frame, whoToSendResponse))
           idle(
             frame,
             whoToSendResponse,
@@ -45,25 +42,19 @@ object InitialPhaseViewActor:
                   ): Behavior[Message] =
     Behaviors.receivePartial {
       handleGameCreated(frame, whoToSendResponse, lobbyWaitingRoom)
-        //        .orElse(handleFailedToPublishToServer(infoInIdle))
         .orElse(handleGameListFromServer(frame, whoToSendResponse, idle))
         .orElse(handlePositiveGameJoinedAnswer(frame, whoToSendResponse, lobbyWaitingRoom))
         .orElse(handleNegativeGameJoinedAnswer(frame, whoToSendResponse, idle))
-      //        .orElse(handleGameUpdate(infoInIdle))
-      //        .orElse(handleGameStarted(infoInIdle))
     }
 
   private def lobbyWaitingRoom(frame: WaitingFrame, whoToSendResponse: ActorRef[Message]): Behavior[Message] =
     Behaviors.receivePartial {
       handlePlayerRequestToJoinTheGame(frame, whoToSendResponse, lobbyWaitingRoom)
         .orElse(handleGameUpdate(frame, whoToSendResponse, lobbyWaitingRoom))
+        .orElse(handleFailedToPublishToServer(frame, whoToSendResponse, lobbyWaitingRoom))
         .orElse({
           case _ => Behaviors.same
         })
-      //      handleGameCreated(infoInLobby)
-      //        .orElse(handleFailedToPublishToServer(infoInLobby))
-      //        .orElse(handleGameListFromServer(infoInLobby))
-      //        .orElse(handlePositiveGameJoinedAnswer(infoInLobby))
       //        .orElse(handleGameStarted(infoInLobby))
     }
   // handlers for messages from View
@@ -82,20 +73,24 @@ object InitialPhaseViewActor:
       //      whoToSendResponse ! ViewMessages.GameCreated(game)
       val waitingFrame = new WaitingFrame(
         initialPhaseMainFrame.viewListener,
-        game.players, // TODO: pass the list of players
-        true // TODO: select base on host
+        game.players,
+        true
       )
       waitingFrame.open()
       // TODO: create waiting frame
       nextBehavior(waitingFrame, whoToSendResponse)
 
-  //  private def handleFailedToPublishToServer(info: ViewActorInfoWaitingRoom):
-  //  PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
-  //    case (ctx, ViewMessages.FailedToPublishToServer()) =>
-  //      ctx.log.error(s"Failed to publish to server the game created")
-  //      info.frame.failedToPublishToServer()
-  //      info.nextBehavior(info)
-  //
+  private def handleFailedToPublishToServer(
+                                             waitingFrame: WaitingFrame,
+                                             whoToSendResponse: ActorRef[Message],
+                                             nextBehavior: (WaitingFrame, ActorRef[Message]) => Behavior[Message]
+                                           ):
+  PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
+    case (ctx, ViewMessages.FailedToPublishToServer()) =>
+      ctx.log.error(s"Failed to publish to server the game created")
+      waitingFrame.openErrorPubOnServerDialog()
+      nextBehavior(waitingFrame, whoToSendResponse)
+
   private def handleGameListFromServer(
                                         initialPhaseMainFrame: InitialPhaseMainFrame,
                                         whoToSendResponse: ActorRef[Message],
@@ -118,7 +113,7 @@ object InitialPhaseViewActor:
       initialPhaseMainFrame.dispose()
       val waitingFrame = new WaitingFrame(
         initialPhaseMainFrame.viewListener,
-        game.players, // TODO: pass the list of players
+        game.players,
         false
       )
       waitingFrame.open()
