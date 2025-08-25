@@ -1,6 +1,5 @@
 package view.lobbyphase
 
-import akka.actor.testkit.typed.scaladsl.TestProbe
 import akka.actor.typed.{ActorRef, ActorSystem}
 import model.{Game, GameParameters, PlayerInLobby}
 import utils.Message
