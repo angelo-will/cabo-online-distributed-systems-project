@@ -9,7 +9,6 @@ import scala.concurrent.duration.*
 import model.Game.GameInConstruction
 import model.{GameParameters, PlayerInLobby}
 import utils.{Message, ServerMessages}
-import utils.*
 import utils.ServerMessages.*
 
 class ServerTest extends ScalaTestWithActorTestKit
@@ -36,8 +35,8 @@ class ServerTest extends ScalaTestWithActorTestKit
     // Clear the server's game list after each test to avoid state leakage
 
     eventually(timeout(3.seconds), interval(100.millis)) {
-      server ! ServerMessages.ClearGames(testProbe.ref)
-      testProbe.expectMessage(ServerMessages.GamesCleared(server))
+      server ! ClearGames(testProbe.ref)
+      testProbe.expectMessage(GamesCleared(server))
       server ! GetGames(testProbe.ref)
       testProbe.expectMessage(GamesList(Set()))
     }
