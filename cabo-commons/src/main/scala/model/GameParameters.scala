@@ -1,15 +1,27 @@
 package model
 
-abstract class RoundLimitationParameter():
+import akka.serialization.jackson.CborSerializable
+import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
+
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+@JsonSubTypes(
+  Array(
+    new JsonSubTypes.Type(value = classOf[NoRoundLimitation], name = "noRoundLimitation"),
+    new JsonSubTypes.Type(value = classOf[RoundLimitation], name = "roundLimitation")))
+abstract class RoundLimitationParameter:
   def isRoundsEnded: Boolean
 
-case class NoRoundLimitation() extends RoundLimitationParameter:
+final case class NoRoundLimitation() extends RoundLimitationParameter:
   override def isRoundsEnded: Boolean = false
 
-case class RoundLimitation(maxRound: Int) extends RoundLimitationParameter:
+final case class RoundLimitation(maxRound: Int) extends RoundLimitationParameter:
   override def isRoundsEnded: Boolean = maxRound <= 0
 
-trait IGameParameters:
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+@JsonSubTypes(
+  Array(
+    new JsonSubTypes.Type(value = classOf[GameParameters], name = "gameParameters")))
+trait IGameParameters extends CborSerializable:
   def isPublic: Boolean
   def maxTimeRound: Int
   def roundLimitation: RoundLimitationParameter
@@ -17,16 +29,22 @@ trait IGameParameters:
 
 // companion object with constructor for GameParameters
 object GameParameters:
+
+  final val defaultMaxTimeRound: Int = 10 // default max time for a round in seconds
+  final val defaultRoundLimitation: Int = 0 // default round limitation, 0 means no limitation
+  final val defaultMaxPlayers: Int = 5 // default maximum number of players in a game
+  final val defaultIsPublic: Boolean = false // default game visibility
+  
   def apply(
-             isPublic: Boolean = false,
-             maxTimeRound: Int = 10,
-             roundLimitation: Int = 0,
-             maxPlayers: Int = 5
+             isPublic: Boolean = defaultIsPublic,
+             maxTimeRound: Int = defaultMaxTimeRound,
+             roundLimitation: Int = defaultRoundLimitation,
+             maxPlayers: Int = defaultMaxPlayers
            ): GameParameters =
     new GameParameters(
       isPublic,
       maxTimeRound,
-      if roundLimitation > 0 then RoundLimitation(roundLimitation) else NoRoundLimitation(),
+      if roundLimitation > 0 then RoundLimitation(roundLimitation) else NoRoundLimitation(), 
       maxPlayers match {
         case p if p < 2 => 2 // minimum players
         case p => p
@@ -37,4 +55,4 @@ case class GameParameters private (
                                     maxTimeRound: Int,
                                     roundLimitation: RoundLimitationParameter,
                                     maxPlayers: Int
-                                  ) extends IGameParameters
+                         ) extends IGameParameters

@@ -11,18 +11,25 @@ lazy val deps = Seq(
   "com.typesafe.akka" %% "akka-remote" % akkaVersion, // For akka remote
   "com.typesafe.akka" %% "akka-cluster-typed" % akkaVersion, // akka clustering module
   "com.typesafe.akka" %% "akka-serialization-jackson" % akkaVersion,
-//  "com.typesafe.akka" %% "akka-actor-testkit-typed" % akkaVersion % Test,
-  "com.typesafe.akka" %% "akka-actor-testkit-typed" % akkaVersion,
+  "com.typesafe.akka" %% "akka-actor-testkit-typed" % akkaVersion % Test,
   "org.scalatest" %% "scalatest" % "3.2.19" % Test,
-  "org.scala-lang.modules" %% "scala-swing" % "3.0.0",
+  "com.typesafe.akka" %% "akka-multi-node-testkit" % akkaVersion % Test,
   "ch.qos.logback" % "logback-classic" % "1.2.3"
+)
+
+lazy val clientDeps = deps ++ Seq(
+  "org.scala-lang.modules" %% "scala-swing" % "3.0.0",
 )
 
 lazy val root = (project in file("."))
   .settings(
     name := "project-cabo-online",
+    libraryDependencies ++= deps
   )
+  .enablePlugins(MultiJvmPlugin)
+  .configs(MultiJvm)
   .aggregate(client, server)
+  .dependsOn(client, server)
 
 lazy val commons = (project in file("cabo-commons"))
   .settings(
@@ -37,13 +44,12 @@ lazy val server = (project in file("cabo-server"))
   )
   .dependsOn(commons)
 
-lazy val clientDeps = deps ++ Seq(
-  "org.scala-lang.modules" %% "scala-swing" % "3.0.0"
-)
 
 lazy val client = (project in file("cabo-client"))
   .settings(
     name := "project-cabo-client",
     libraryDependencies ++= clientDeps
   )
+  .enablePlugins(MultiJvmPlugin)
+  .configs(MultiJvm)
   .dependsOn(commons)

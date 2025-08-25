@@ -6,7 +6,7 @@ import utils.{deployActor, startup, startupWithRole}
 object Main extends App:
 
   // Start also the seed nodes as access point for the cluster
-  utils.seeds.foreach(port => startup(ConfigFactory.load("application.conf"), port)(Behaviors.empty))
+  utils.seeds.foreach(port => startup(port)(Behaviors.empty))
 
   startupWithRole(role="server", port = 2553)(deployActor(Server())("lobbyServer"))
 

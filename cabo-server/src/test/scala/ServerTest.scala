@@ -32,6 +32,16 @@ class ServerTest extends ScalaTestWithActorTestKit
     server = testKit.spawn(Server())
     testProbe = testKit.createTestProbe[Message]()
 
+  override def afterEach(): Unit =
+    // Clear the server's game list after each test to avoid state leakage
+
+    eventually(timeout(3.seconds), interval(100.millis)) {
+      server ! ServerMessages.ClearGames(testProbe.ref)
+      testProbe.expectMessage(ServerMessages.GamesCleared(server))
+      server ! GetGames(testProbe.ref)
+      testProbe.expectMessage(GamesList(Set()))
+    }
+
   override def afterAll(): Unit =
     testKit.shutdownTestKit()
 
@@ -47,9 +57,6 @@ class ServerTest extends ScalaTestWithActorTestKit
         val game = GameInConstruction("codeGame", GameParameters(maxTimeRound = 10), List.empty)
         server ! RegisterGame(game, testProbe.ref)
         testProbe.expectMessage(GameRegistered(game, server))
-
-        //Remove the game from the sever because the list is persistent between test
-        server ! StartGame(game, testProbe.ref)
       }
     }
     "send a GamesList message with games not started" when {
@@ -63,10 +70,6 @@ class ServerTest extends ScalaTestWithActorTestKit
         val message = testProbe.receiveMessages(3, 5.seconds).filter(_.isInstanceOf[GamesList]).head
 
         message mustBe GamesList(Set(game1, game2))
-
-        //Remove the games from the sever because the list is persistent between test
-        server ! StartGame(game1, testProbe.ref)
-        server ! StartGame(game2, testProbe.ref)
       }
     }
     "send a GameList message without a game" when {
@@ -110,8 +113,6 @@ class ServerTest extends ScalaTestWithActorTestKit
         server ! GetGames(testProbe.ref)
 
         testProbe.expectMessage(GamesList(Set(game)))
-
-        server ! StartGame(game, testProbe.ref)
       }
     }
     "must not modify other games" when {
@@ -131,9 +132,6 @@ class ServerTest extends ScalaTestWithActorTestKit
 
         server ! GetGames(testProbe.ref)
         testProbe.expectMessage(GamesList(Set(game, gameUpdated)))
-
-        server ! StartGame(gameToUpdate, testProbe.ref)
-        server ! StartGame(game, testProbe.ref)
       }
     }
   }
