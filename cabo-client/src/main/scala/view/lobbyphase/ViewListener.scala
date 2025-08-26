@@ -14,5 +14,5 @@ trait IViewListener:
   
   def startGame(): Unit
   
-  def playerCanJoinGame(player: PlayerInLobby): Unit
+//  def playerCanJoinGame(player: PlayerInLobby): Unit
 

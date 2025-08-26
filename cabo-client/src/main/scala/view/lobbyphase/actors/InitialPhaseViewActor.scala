@@ -49,8 +49,8 @@ object InitialPhaseViewActor:
 
   private def lobbyWaitingRoom(frame: WaitingFrame, whoToSendResponse: ActorRef[Message]): Behavior[Message] =
     Behaviors.receivePartial {
-      handlePlayerRequestToJoinTheGame(frame, whoToSendResponse, lobbyWaitingRoom)
-        .orElse(handleGameUpdate(frame, whoToSendResponse, lobbyWaitingRoom))
+      handleGameUpdate(frame, whoToSendResponse, lobbyWaitingRoom)
+//        .orElse(handlePlayerRequestToJoinTheGame(frame, whoToSendResponse, lobbyWaitingRoom))
         .orElse(handleFailedToPublishToServer(frame, whoToSendResponse, lobbyWaitingRoom))
         .orElse({
           case _ => Behaviors.same
@@ -152,16 +152,16 @@ object InitialPhaseViewActor:
   //      // TODO: change ending behavior
   //      Behaviors.same
 
-  private def handlePlayerRequestToJoinTheGame(
-                                                waitingFrame: WaitingFrame,
-                                                whoToSendResponse: ActorRef[Message],
-                                                nextBehavior: (WaitingFrame, ActorRef[Message]) => Behavior[Message]
-                                              ):
-  PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
-    case (ctx, ViewMessages.PlayerRequestedToJoinGame(player)) =>
-      ctx.log.info(s"Player requested to join the game: $player")
-      waitingFrame.playerHasRequestedToJoinTheGame(player)
-      nextBehavior(waitingFrame, whoToSendResponse)
+//  private def handlePlayerRequestToJoinTheGame(
+//                                                waitingFrame: WaitingFrame,
+//                                                whoToSendResponse: ActorRef[Message],
+//                                                nextBehavior: (WaitingFrame, ActorRef[Message]) => Behavior[Message]
+//                                              ):
+//  PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
+//    case (ctx, ViewMessages.PlayerRequestedToJoinGame(player)) =>
+//      ctx.log.info(s"Player requested to join the game: $player")
+//      waitingFrame.playerHasRequestedToJoinTheGame(player)
+//      nextBehavior(waitingFrame, whoToSendResponse)
 
 // TODO: delete remove this than -AAA- remove this in deploy phase
 // to use rename application.conf to something in common resources.

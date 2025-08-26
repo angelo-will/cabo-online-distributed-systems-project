@@ -80,19 +80,19 @@ class WaitingFrame(
       )
     })
 
-  def playerHasRequestedToJoinTheGame(player: PlayerInLobby): Unit = {
-    SwingUtilities.invokeLater(() => {
-      if Dialog.showConfirmation(
-        this,
-        s"Player ${player.name} has requested to join the game. Do you accept?",
-        title = "Join Request",
-        optionType = Dialog.Options.YesNo,
-        Dialog.Message.Question
-      ) == Dialog.Result.Yes then
-        listener.playerCanJoinGame(player)
-        this.updatePlayersList(players :+ player)
-    })
-  }
+//  def playerHasRequestedToJoinTheGame(player: PlayerInLobby): Unit = {
+//    SwingUtilities.invokeLater(() => {
+//      if Dialog.showConfirmation(
+//        this,
+//        s"Player ${player.name} has requested to join the game. Do you accept?",
+//        title = "Join Request",
+//        optionType = Dialog.Options.YesNo,
+//        Dialog.Message.Question
+//      ) == Dialog.Result.Yes then
+//        listener.playerCanJoinGame(player)
+//        this.updatePlayersList(players :+ player)
+//    })
+//  }
 
 class WaitingLobbyPlayersContainer(
                                     listener: IViewListener,
@@ -137,8 +137,8 @@ class PlayerRowPanel(
     override def startGame(): Unit =
       println("DummyListener: startGame chiamato (non fa nulla in questo test)")
 
-    override def playerCanJoinGame(player: PlayerInLobby): Unit =
-      println(s"DummyListener: playerCanJoinGame chiamato per il giocatore ${player.name} (non fa nulla in questo test)")
+//    override def playerCanJoinGame(player: PlayerInLobby): Unit =
+//      println(s"DummyListener: playerCanJoinGame chiamato per il giocatore ${player.name} (non fa nulla in questo test)")
   }
 
   val dummyPlayers = List(

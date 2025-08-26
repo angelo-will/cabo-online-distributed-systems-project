@@ -1,13 +1,17 @@
 import akka.actor.testkit.typed.scaladsl.{ScalaTestWithActorTestKit, TestProbe}
 import akka.actor.typed.ActorRef
+//import controller.GameCoordinatorActor
 import controller.GameCoordinatorActor
 import model.Suit.*
 import model.{Card, Game, Power}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
-import utils.GameCoordinatorMessage.{CardDrawn, DiscardYourNthCard, DrawCardFromDeck, NewTopCardDiscardStack}
-import utils.{GameCoordinatorMessage, Message}
+import utils.Message
+import utils.GameCoordinatorMessage
+import utils.GameCoordinatorMessage.*
+//import utils.GameCoordinatorMessage.{CardDrawn, DiscardYourNthCard, DrawCardFromDeck, NewTopCardDiscardStack}
+//import utils.{GameCoordinatorMessage, Message}
 
 class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
   with AnyWordSpecLike
