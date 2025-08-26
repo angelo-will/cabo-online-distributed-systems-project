@@ -1,7 +1,7 @@
 package view.lobbyphase.components
 
 import model.{Game, PlayerInLobby}
-import view.lobbyphase.ViewListener.IViewListener
+import view.lobbyphase.ViewListener.IInitialViewListener
 
 import javax.swing.SwingUtilities
 import scala.swing.event.ButtonClicked
@@ -9,7 +9,7 @@ import scala.swing.{Alignment, BoxPanel, Button, Dialog, Dimension, Font, Label,
 import scala.util.Random
 
 class WaitingFrame(
-                    listener: IViewListener,
+                    listener: IInitialViewListener,
                     private var players: List[PlayerInLobby],
                     isHost: Boolean
                   ) extends MainFrame:
@@ -95,7 +95,7 @@ class WaitingFrame(
 //  }
 
 class WaitingLobbyPlayersContainer(
-                                    listener: IViewListener,
+                                    listener: IInitialViewListener,
                                     players: List[PlayerInLobby],
                                     canKickOut: Boolean
                                   ) extends ScrollPane:
@@ -121,7 +121,7 @@ class PlayerRowPanel(
   contents += playerNameLabel
 
 @main def testWaitingLobbyPanel(): Unit =
-  val dummyListener = new IViewListener {
+  val dummyListener = new IInitialViewListener {
     override def createGame(isPubblic: Boolean, maxTimeRound: Int, maxNumRound: Int, maxPlayers: Int): Unit =
       println("DummyListener: createGame chiamato (non fa nulla in questo test)")
 

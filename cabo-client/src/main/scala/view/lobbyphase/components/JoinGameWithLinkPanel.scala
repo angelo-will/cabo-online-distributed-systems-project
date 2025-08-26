@@ -1,6 +1,6 @@
 package view.lobbyphase.components
 
-import view.lobbyphase.ViewListener.IViewListener
+import view.lobbyphase.ViewListener.IInitialViewListener
 import view.lobbyphase.ScreenNavigator
 
 import java.awt.Font

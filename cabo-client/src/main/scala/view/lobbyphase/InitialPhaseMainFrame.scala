@@ -6,7 +6,7 @@ import utils.Message
 import view.*
 import view.lobbyphase.components.{CreateGamePanel, GameListPanel, JoinGameWithLinkPanel, WelcomePanel}
 import view.lobbyphase.components.*
-import view.lobbyphase.ViewListener.IViewListener
+import view.lobbyphase.ViewListener.IInitialViewListener
 
 import java.awt
 import java.awt.event.WindowAdapter
@@ -21,7 +21,7 @@ enum DialogType:
   case WaitingAccessToGameFromServer extends DialogType
   case WaitingAccessToGameOfUser extends DialogType
 
-class InitialPhaseMainFrame(val viewListener: IViewListener) extends MainFrame:
+class InitialPhaseMainFrame(val viewListener: IInitialViewListener) extends MainFrame:
   title = "Cabo Online"
   preferredSize = new Dimension(500, 400)
   centerOnScreen()
@@ -251,7 +251,7 @@ class InitialPhaseMainFrame(val viewListener: IViewListener) extends MainFrame:
 ///////////////////// FINE  PER TEST /////////////////////////////
 
 object ViewApplication:
-  def startView(viewListener: IViewListener, afterCreation: (frame: InitialPhaseMainFrame) => Unit): Unit =
+  def startView(viewListener: IInitialViewListener, afterCreation: (frame: InitialPhaseMainFrame) => Unit): Unit =
     var mainFrame: InitialPhaseMainFrame = null
     SwingUtilities.invokeLater(() =>
       mainFrame = new InitialPhaseMainFrame(viewListener)
@@ -262,7 +262,7 @@ object ViewApplication:
 
 
 object AppMultiplePanel extends SimpleSwingApplication:
-  def top: MainFrame = new InitialPhaseMainFrame(new IViewListener {
+  def top: MainFrame = new InitialPhaseMainFrame(new IInitialViewListener {
     override def createGame(isPubblic: Boolean, maxTimeRound: Int, maxNumRound: Int, maxPlayers: Int): Unit =
       println(s"Listener finto: Create game with these parameters: makePublic: $isPubblic, maxTimeRound: $maxTimeRound, maxNumRound: $maxNumRound, maxPlayers: $maxPlayers")
 
