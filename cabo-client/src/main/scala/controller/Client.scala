@@ -4,7 +4,7 @@ import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.cluster.ClusterEvent.MemberExited
-import model.Game.GameInConstruction
+import model.Game.{GameInConstruction, GameInProgress}
 import model.{GameParameters, PlayerInLobby}
 import utils.ClientMessages.*
 import utils.ServerMessages.{AbortGame, ServerKey}
@@ -14,25 +14,34 @@ import scala.concurrent.duration.DurationInt
 
 object Client:
 
-  case class IWantToPlay(newPlayer: PlayerInLobby, reply: ActorRef[Message]) extends Message
+  trait ClientCommand extends Message
 
-  case class YouJoinedTheGame(game: GameInConstruction) extends Message
+  private case class ListingResponseListing(listing: Receptionist.Listing) extends ClientCommand
 
-  case class YouCanNotJoinTheGame(game: GameInConstruction) extends Message
+  // Commands about the state before joining/creating a game
+  case class IWantToPlay(newPlayer: PlayerInLobby, reply: ActorRef[Message]) extends ClientCommand
 
-  case class FailedToContactHost() extends Message
+  case class YouJoinedTheGame(game: GameInConstruction) extends ClientCommand
 
-  case class UpdateAboutGame(game: GameInConstruction) extends Message
+  case class YouCanNotJoinTheGame(game: GameInConstruction) extends ClientCommand
 
-  case class IWantToLeaveTheGame(player: PlayerInLobby) extends Message
+  case class FailedToContactHost() extends ClientCommand
 
-  case class GameCancelled() extends Message
+  case class UpdateAboutGame(game: GameInConstruction) extends ClientCommand
 
-  case class GameHasStarted() extends Message
+  case class IWantToLeaveTheGame(player: PlayerInLobby) extends ClientCommand
 
-  case class PlayerUnreachable(playerInLobby: PlayerInLobby) extends Message
+  case class GameCancelled() extends ClientCommand
+  
+  case class GameHasStarted() extends ClientCommand
 
-  private case class ListingResponseListing(listing: Receptionist.Listing) extends Message
+  case class PlayerUnreachable(playerInLobby: PlayerInLobby) extends ClientCommand
+
+  //Commands after the game has started
+  
+  case class SynchronizationAck() extends ClientCommand
+  
+  case class GameInProgressUpdate(game: GameInProgress) extends ClientCommand
   
   private def viewDefaultBehavior: Behavior[Message] = Behaviors.setup { ctx =>
     Behaviors.receiveMessagePartial {
@@ -289,7 +298,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
           (akka.actor.typed.receptionist.ServiceKey[Message](address))
           (_ ! IWantToPlay(PlayerInLobby(userId, name, ctx.self), ctx.self))
           //todo - add a specific message to viewActorRef
-            (() => viewActorRef ! ViewMessages.FailedToPublishToServer()))
+          (() => viewActorRef ! ViewMessages.FailedToPublishToServer()))
   
         responseForJoining()
   
