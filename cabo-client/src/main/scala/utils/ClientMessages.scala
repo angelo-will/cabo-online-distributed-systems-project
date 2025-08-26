@@ -1,8 +1,8 @@
 package utils
 
 import akka.actor.typed.ActorRef
-import model.Game.GameInConstruction
-import model.GameParameters
+import model.Game.{GameInConstruction, GameInProgress}
+import model.{GameParameters, TurnLog}
 
 object ClientMessages {
 
@@ -71,5 +71,9 @@ object ClientMessages {
    * Reply to provide player information
    */
   case class PlayerInfo(userID: String, name: String) extends ClientCommand
+  
+  case class TakeGetInProgressGame(game: GameInProgress) extends ClientCommand
+  
+  case class TurnEnded(game: GameInProgress, turnLog: TurnLog) extends ClientCommand
 
 }

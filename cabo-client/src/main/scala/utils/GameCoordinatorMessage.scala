@@ -3,6 +3,7 @@ package utils
 import akka.actor.typed.ActorRef
 import model.Card
 import model.Game
+import utils.ViewMessages.ViewCommand
 
 object GameCoordinatorMessage:
 
@@ -50,3 +51,6 @@ object GameCoordinatorMessage:
   case class GameInformation(game: Game.GameInProgress) extends PlayerCommand
 
   case class CardSeen(card: Card) extends PlayerCommand
+  
+  
+  case class PlayThisTurn(viewRef: ActorRef[ViewCommand]) extends PlayerCommand
