@@ -51,7 +51,7 @@ object ViewMessages {
    * Reply to the previous message sent by the client when the game has been started
    */
   case class GameStarted() extends ViewCommand
-  
+
   /**
    * Message sent by the client to the view when the game has been aborted
    */
