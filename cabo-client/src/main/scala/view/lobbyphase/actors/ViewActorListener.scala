@@ -3,7 +3,7 @@ package view.lobbyphase.actors
 import akka.actor.typed.ActorRef
 import model.Game
 import utils.{Message, ClientMessages}
-import view.lobbyphase.IViewListener
+import view.lobbyphase.ViewListener.IViewListener
 
 case class ViewActorListener(ref: ActorRef[Message]) extends IViewListener:
   override def createGame(isPublic: Boolean, maxTimeRound: Int, maxNumRound: Int, maxPlayers: Int): Unit =

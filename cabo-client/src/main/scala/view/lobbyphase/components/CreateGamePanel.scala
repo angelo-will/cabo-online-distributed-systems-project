@@ -1,6 +1,6 @@
 package view.lobbyphase.components
 
-import view.lobbyphase.{IViewListener, ScreenNavigator}
+import view.lobbyphase.ScreenNavigator
 
 import java.awt.Font
 import scala.swing.{Alignment, BoxPanel, Button, ButtonGroup, ComboBox, Dialog, Dimension, Label, MainFrame, Orientation, Panel, RadioButton, Swing, TextField}

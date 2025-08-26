@@ -1,7 +1,7 @@
 package view.lobbyphase.components
 
 import model.{Game, PlayerInLobby}
-import view.lobbyphase.IViewListener
+import view.lobbyphase.ViewListener.IViewListener
 
 import javax.swing.SwingUtilities
 import scala.swing.event.ButtonClicked

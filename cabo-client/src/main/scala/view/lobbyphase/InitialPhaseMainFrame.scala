@@ -6,6 +6,7 @@ import utils.Message
 import view.*
 import view.lobbyphase.components.{CreateGamePanel, GameListPanel, JoinGameWithLinkPanel, WelcomePanel}
 import view.lobbyphase.components.*
+import view.lobbyphase.ViewListener.IViewListener
 
 import java.awt
 import java.awt.event.WindowAdapter
