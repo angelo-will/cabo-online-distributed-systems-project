@@ -3,7 +3,7 @@ import akka.actor.typed.ActorRef
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.BeforeAndAfterEach
-import utils.{Message, ViewMessages}
+import utils.{Message, ClientMessages}
 import view.lobbyphase.ViewApplication
 import view.lobbyphase.actors.ViewActorListener
 
@@ -35,7 +35,7 @@ class ViewActorListenerSpec extends ScalaTestWithActorTestKit
           // User must create the game in ui
           // Then
           // User must insert data of game and send the request
-          val msg = probe.expectMessageType[ViewMessages.CreateNewGame](FiniteDuration(20, SECONDS))
+          val msg = probe.expectMessageType[ClientMessages.CreateNewGame](FiniteDuration(20, SECONDS))
           println(s"Received message: $msg")
         }
       }
@@ -43,7 +43,7 @@ class ViewActorListenerSpec extends ScalaTestWithActorTestKit
       "send the request to see list of games which are in construction" when {
         "join game button is pressed in view" in {
           // User must press the button to see the list of games
-          val msg = probe.expectMessageType[ViewMessages.JoinAGame](FiniteDuration(20, SECONDS))
+          val msg = probe.expectMessageType[ClientMessages.JoinAGame](FiniteDuration(20, SECONDS))
           println(s"Received message: $msg")
         }
       }
@@ -53,8 +53,8 @@ class ViewActorListenerSpec extends ScalaTestWithActorTestKit
           // User must press the button to see the list of games
           // Then
           // User must select the game to join and send request
-          val _ = probe.expectMessageType[ViewMessages.JoinAGame](FiniteDuration(5, SECONDS))
-          val msg = probe.expectMessageType[ViewMessages.JoinGame](FiniteDuration(20, SECONDS))
+          val _ = probe.expectMessageType[ClientMessages.JoinAGame](FiniteDuration(5, SECONDS))
+          val msg = probe.expectMessageType[ClientMessages.JoinGame](FiniteDuration(20, SECONDS))
           println(s"Received message: $msg")
         }
       }
@@ -64,7 +64,7 @@ class ViewActorListenerSpec extends ScalaTestWithActorTestKit
           // User must press the button to join a game with link
           // Then
           // User must enter the link a send the request
-          val msg = probe.expectMessageType[ViewMessages.JoinAGameWithAddress](FiniteDuration(20, SECONDS))
+          val msg = probe.expectMessageType[ClientMessages.JoinAddress](FiniteDuration(20, SECONDS))
           println(s"Received message: $msg")
         }
       }
