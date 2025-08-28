@@ -54,5 +54,4 @@ object GameCoordinatorMessage:
 
   case class CardSeen(card: Card) extends PlayerCommand
   
-  
   case class PlayThisTurn(viewRef: ActorRef[ViewCommand]) extends PlayerCommand
