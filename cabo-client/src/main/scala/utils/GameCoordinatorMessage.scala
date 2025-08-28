@@ -37,6 +37,8 @@ object GameCoordinatorMessage:
 
   case class EndTurn() extends PlayerCommand
 
+  case class CallCabo() extends PlayerCommand
+
   case class SendGameStatus(toWhoSend: ActorRef[Message]) extends PlayerCommand
 
   // Messages - command sent by the coordinator

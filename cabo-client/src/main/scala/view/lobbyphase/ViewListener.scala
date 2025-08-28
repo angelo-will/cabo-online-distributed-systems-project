@@ -6,7 +6,7 @@ import model.PlayerInLobby
 object ViewListener:
 
   trait IInitialViewListener:
-    def createGame(isPubblic: Boolean, maxTimeRound: Int, maxNumRound: Int, maxPlayers: Int): Unit
+    def createGame(isPublic: Boolean, maxTimeRound: Int, maxNumRound: Int, maxPlayers: Int): Unit
 
     def requestGames(): Unit
 
@@ -16,7 +16,22 @@ object ViewListener:
 
     def startGame(): Unit
 
+  trait IDuringGameViewListener:
+    
+    def showCardNth(cardIndex: Int): Unit
 
+    def drawFromDeck(): Unit
 
-  //  def playerCanJoinGame(player: PlayerInLobby): Unit
+    def drawFromDiscard(): Unit
 
+    def discardCardNth(carIndex: Int): Unit
+
+    def discardCardDrawn(): Unit
+
+    def showAdversaryNthCard(adversaryID: String, cardIndex: Int): Unit
+
+    def swapCardWithAdversaryNthCard(ownCardIndex: Int, adversaryID: String, adversaryCardIndex: Int): Unit
+
+    def endTurn(): Unit
+    
+    def callCabo(): Unit
