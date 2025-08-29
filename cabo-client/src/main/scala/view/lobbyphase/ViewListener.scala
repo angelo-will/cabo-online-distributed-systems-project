@@ -6,6 +6,9 @@ import model.PlayerInLobby
 object ViewListener:
 
   trait IInitialViewListener:
+    
+    def changeName(newName: String): Unit
+    
     def createGame(isPublic: Boolean, maxTimeRound: Int, maxNumRound: Int, maxPlayers: Int): Unit
 
     def requestGames(): Unit

@@ -122,6 +122,9 @@ class PlayerRowPanel(
 
 @main def testWaitingLobbyPanel(): Unit =
   val dummyListener = new IInitialViewListener {
+    override def changeName(newName: String): Unit =
+      println(s"DummyListener: changeName chiamato con newName = $newName (non fa nulla in questo test)")
+
     override def createGame(isPubblic: Boolean, maxTimeRound: Int, maxNumRound: Int, maxPlayers: Int): Unit =
       println("DummyListener: createGame chiamato (non fa nulla in questo test)")
 
@@ -137,8 +140,8 @@ class PlayerRowPanel(
     override def startGame(): Unit =
       println("DummyListener: startGame chiamato (non fa nulla in questo test)")
 
-//    override def playerCanJoinGame(player: PlayerInLobby): Unit =
-//      println(s"DummyListener: playerCanJoinGame chiamato per il giocatore ${player.name} (non fa nulla in questo test)")
+    //    override def playerCanJoinGame(player: PlayerInLobby): Unit =
+    //      println(s"DummyListener: playerCanJoinGame chiamato per il giocatore ${player.name} (non fa nulla in questo test)")
   }
 
   val dummyPlayers = List(

@@ -10,6 +10,7 @@ import view.lobbyphase.ViewListener.IInitialViewListener
 
 import java.awt
 import java.awt.event.WindowAdapter
+import java.awt.{Dimension, Toolkit}
 import javax.swing.SwingUtilities
 import scala.swing.*
 
@@ -21,9 +22,14 @@ enum DialogType:
   case WaitingAccessToGameFromServer extends DialogType
   case WaitingAccessToGameOfUser extends DialogType
 
-class InitialPhaseMainFrame(val viewListener: IInitialViewListener) extends MainFrame:
+class InitialPhaseMainFrame(val viewListener: IInitialViewListener, val playerName: String) extends MainFrame:
+  val screenSize: Dimension = Toolkit.getDefaultToolkit.getScreenSize
+  val screenWidth: Int = screenSize.getWidth.toInt
+  val screenHeight: Int = screenSize.getHeight.toInt
+  val appWidth: Int = (screenWidth * 0.5).toInt
+  val appHeight: Int = (screenHeight * 0.5).toInt
   title = "Cabo Online"
-  preferredSize = new Dimension(500, 400)
+  preferredSize = new Dimension(appWidth, appHeight)
   centerOnScreen()
   peer.setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE)
   peer.addWindowListener(new WindowAdapter {
@@ -90,7 +96,9 @@ class InitialPhaseMainFrame(val viewListener: IInitialViewListener) extends Main
       }
 
       override def showJoinGameWithLink(): Unit = setPanel(joinGameWithLinkPanel)
-    }
+    },
+    playerName,
+    newName => viewListener.changeName(newName)
   )
   contents = containerPanel
   setPanel(welcomePanel)
@@ -252,9 +260,10 @@ class InitialPhaseMainFrame(val viewListener: IInitialViewListener) extends Main
 
 object ViewApplication:
   def startView(viewListener: IInitialViewListener, afterCreation: (frame: InitialPhaseMainFrame) => Unit): Unit =
+    val playerName = "playerName_placeholder"
     var mainFrame: InitialPhaseMainFrame = null
     SwingUtilities.invokeLater(() =>
-      mainFrame = new InitialPhaseMainFrame(viewListener)
+      mainFrame = new InitialPhaseMainFrame(viewListener, playerName)
       mainFrame.open()
       mainFrame.visible = true
       afterCreation(mainFrame)
@@ -262,7 +271,12 @@ object ViewApplication:
 
 
 object AppMultiplePanel extends SimpleSwingApplication:
+  val playerName = "playerName_placeholder"
+
   def top: MainFrame = new InitialPhaseMainFrame(new IInitialViewListener {
+    override def changeName(newName: String): Unit =
+      println(s"Listener finto: Change name to $newName")
+
     override def createGame(isPubblic: Boolean, maxTimeRound: Int, maxNumRound: Int, maxPlayers: Int): Unit =
       println(s"Listener finto: Create game with these parameters: makePublic: $isPubblic, maxTimeRound: $maxTimeRound, maxNumRound: $maxNumRound, maxPlayers: $maxPlayers")
 
@@ -277,7 +291,8 @@ object AppMultiplePanel extends SimpleSwingApplication:
 
     override def startGame(): Unit =
       println("Listener finto: Start game button pressed, but no action defined in this test.")
-      
-//    override def playerCanJoinGame(player: PlayerInLobby): Unit =
-//      println(s"Listener finto: Player can join game: ${player.name}")
-  })
+
+    //    override def playerCanJoinGame(player: PlayerInLobby): Unit =
+    //      println(s"Listener finto: Player can join game: ${player.name}")
+  },
+    playerName)
