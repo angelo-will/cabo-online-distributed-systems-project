@@ -156,20 +156,6 @@ class WaitingFrame(
       )
     })
 
-//  def playerHasRequestedToJoinTheGame(player: PlayerInLobby): Unit = {
-//    SwingUtilities.invokeLater(() => {
-//      if Dialog.showConfirmation(
-//        this,
-//        s"Player ${player.name} has requested to join the game. Do you accept?",
-//        title = "Join Request",
-//        optionType = Dialog.Options.YesNo,
-//        Dialog.Message.Question
-//      ) == Dialog.Result.Yes then
-//        listener.playerCanJoinGame(player)
-//        this.updatePlayersList(players :+ player)
-//    })
-//  }
-
 class WaitingLobbyPlayersContainer(
                                     listener: IInitialViewListener,
                                     players: List[PlayerInLobby],
@@ -195,63 +181,3 @@ class PlayerRowPanel(
   }
 
   contents += playerNameLabel
-
-//@main def testWaitingLobbyPanel(): Unit =
-//  val dummyListener = new IInitialViewListener {
-//    override def changeName(newName: String): Unit =
-//      println(s"DummyListener: changeName chiamato con newName = $newName (non fa nulla in questo test)")
-//
-//    override def createGame(isPubblic: Boolean, maxTimeRound: Int, maxNumRound: Int, maxPlayers: Int): Unit =
-//      println("DummyListener: createGame chiamato (non fa nulla in questo test)")
-//
-//    override def requestGames(): Unit =
-//      println("DummyListener: requestGames chiamato (non fa nulla in questo test)")
-//
-//    override def joinGame(game: Game.GameInConstruction): Unit =
-//      println("DummyListener: joinGame chiamato (non fa nulla in questo test)")
-//
-//    override def joinWithAddress(address: String): Unit =
-//      println("DummyListener: joinWithAddress chiamato (non fa nulla in questo test)")
-//
-//    override def startGame(): Unit =
-//      println("DummyListener: startGame chiamato (non fa nulla in questo test)")
-//
-//    //    override def playerCanJoinGame(player: PlayerInLobby): Unit =
-//    //      println(s"DummyListener: playerCanJoinGame chiamato per il giocatore ${player.name} (non fa nulla in questo test)")
-//  }
-//
-////  val dummyGame = Game.GameInConstruction(
-////        code = "XYZ456",
-////        gameParameters = GameParameters(makePrivate = true, maxTimeRound = 30, roundLimitation = 0, maxPlayers = 4),
-////        players = List(
-////          PlayerInLobby("user_c", "Charlie", dummyProbe3.ref)
-////        )
-////      ),
-//  val dummyPlayers = List(
-//    PlayerInLobby("id1", "Alice", null),
-//    PlayerInLobby("id2", "Bob", null),
-//    PlayerInLobby("id3", "Charlie", null),
-//    PlayerInLobby("id4", "David", null),
-//    PlayerInLobby("id5", "Eve", null)
-//  )
-//
-//  val waitingLobbyPanel = new WaitingFrame(dummyListener, dummyPlayers, true)
-//  //  val waitingLobbyPanel = new WaitingFrame(dummyPlayers, true)
-//  waitingLobbyPanel.visible = true
-//
-//  val updatedPlayers: List[PlayerInLobby] = List(
-//    PlayerInLobby("id1", "Alice", null),
-//    PlayerInLobby("id2", "Bob", null),
-//    PlayerInLobby("id6", "Frank", null),
-//    PlayerInLobby("id7", "Grace", null),
-//    PlayerInLobby("id8", "Heidi", null),
-//    PlayerInLobby("id9", "Ivan", null),
-//    PlayerInLobby("id10", "Judy", null)
-//  )
-//
-//  scala.concurrent.ExecutionContext.global.execute(() => {
-//    Thread.sleep(3000)
-//    waitingLobbyPanel.updatePlayersList(updatedPlayers)
-//    println("Lista giocatori aggiornata dopo 10 secondi!")
-//
-//  })

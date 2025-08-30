@@ -25,6 +25,3 @@ case class ViewActorListener(ref: ActorRef[Message]) extends IInitialViewListene
 
   override def startGame(): Unit =
     ref ! ClientMessages.StartTheGame()
-
-//  override def playerCanJoinGame(player: model.PlayerInLobby): Unit =
-//    ref ! ClientMessages.PlayerCanJoinGame(player)

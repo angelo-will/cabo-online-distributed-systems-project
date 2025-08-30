@@ -152,17 +152,6 @@ object InitialPhaseViewActor:
   //      // TODO: change ending behavior
   //      Behaviors.same
 
-//  private def handlePlayerRequestToJoinTheGame(
-//                                                waitingFrame: WaitingFrame,
-//                                                whoToSendResponse: ActorRef[Message],
-//                                                nextBehavior: (WaitingFrame, ActorRef[Message]) => Behavior[Message]
-//                                              ):
-//  PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
-//    case (ctx, ViewMessages.PlayerRequestedToJoinGame(player)) =>
-//      ctx.log.info(s"Player requested to join the game: $player")
-//      waitingFrame.playerHasRequestedToJoinTheGame(player)
-//      nextBehavior(waitingFrame, whoToSendResponse)
-
 // TODO: delete remove this than -AAA- remove this in deploy phase
 // to use rename application.conf to something in common resources.
 // This allow to run the test without a full application configuration.
