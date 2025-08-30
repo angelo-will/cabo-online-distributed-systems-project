@@ -4,7 +4,7 @@ import view.lobbyphase.ViewListener.IInitialViewListener
 import view.lobbyphase.ScreenNavigator
 
 import java.awt.Font
-import scala.swing.{Alignment, BoxPanel, Button, Label, Orientation, Swing, TextField}
+import scala.swing.{Alignment, BoxPanel, Button, Dimension, Label, Orientation, Swing, TextField}
 import scala.swing.event.ButtonClicked
 
 trait IJoinGameWithLinkListener:
@@ -22,6 +22,7 @@ class JoinGameWithLinkPanel(navigator: ScreenNavigator, viewListener: IJoinGameW
   // TODO: in base a come si sarà scelto di fare (actorRef, adress, ecc.) modificare
   private val gameCodeField = new TextField("Link partita") {
     columns = 20
+    maximumSize = new Dimension(300, preferredSize.height)
   }
 
   private val joinButton = new Button("Unisciti")

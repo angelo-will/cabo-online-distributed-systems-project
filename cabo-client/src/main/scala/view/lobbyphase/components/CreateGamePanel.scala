@@ -33,13 +33,17 @@ class CreateGamePanel(navigator: ScreenNavigator, viewListener: ICreateGameListe
   visibilityPrivateRadioButton.selected = true
 
   private val numPlayerPossibilities = Seq(2, 3, 4, 5)
-  private val numPlayersSelected = new ComboBox(numPlayerPossibilities)
+  private val numPlayersSelected = new ComboBox(numPlayerPossibilities){
+    maximumSize = new Dimension(100, preferredSize.height)
+  }
   private val maxPlayersLabel = new Label("Numero massimo di giocatori: " + numPlayersSelected.selection.item)
 
   private var currentValidTurnDuration: Int = 60
   private val durationLabel = new Label("Durata massima di un turno (secondi): ")
   private val durationField = new TextField(currentValidTurnDuration.toString) {
     columns = 5
+    maximumSize = new Dimension(100, preferredSize.height)
+    horizontalAlignment = Alignment.Center
   }
 
   private val createGameButton = new Button("Crea Partita")

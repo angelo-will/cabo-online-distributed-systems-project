@@ -1,16 +1,22 @@
 package view.lobbyphase.components
 
+import model.Game.GameInConstruction
 import model.{Game, PlayerInLobby}
 import view.lobbyphase.ViewListener.IInitialViewListener
 
+import java.awt.GridBagConstraints
+import java.awt.GridBagConstraints.*
+import java.awt.Insets
+import java.awt.Font
 import javax.swing.SwingUtilities
 import scala.swing.event.ButtonClicked
-import scala.swing.{Alignment, BoxPanel, Button, Dialog, Dimension, Font, Label, MainFrame, Orientation, ScrollPane, Swing}
+//import scala.swing.{Alignment, BoxPanel, Button, Dialog, Dimension, Label, MainFrame, Orientation, ScrollPane, Swing}
+import scala.swing._
 import scala.util.Random
 
 class WaitingFrame(
                     listener: IInitialViewListener,
-                    private var players: List[PlayerInLobby],
+                    private var game: GameInConstruction,
                     isHost: Boolean
                   ) extends MainFrame:
   title = "Waiting Lobby"
@@ -22,14 +28,21 @@ class WaitingFrame(
   )
   private val playersListContainer = new WaitingLobbyPlayersContainer(
     listener,
-    players,
+    game.players,
     isHost
   )
 
   private val startGameButton = new Button("Start Game") {
     font = new Font("Arial", java.awt.Font.PLAIN, 16)
-    enabled = players.size >= 2 && isHost
-    horizontalAlignment = Alignment.Center
+    enabled = game.players.size >= 2 && isHost
+    // horizontalAlignment = Alignment.Center
+  }
+
+  private val exitButton = new Button("Exit") {
+    font = new Font("Arial", java.awt.Font.PLAIN, 16)
+    preferredSize = new Dimension(startGameButton.preferredSize.width, preferredSize.height)
+    // enabled = players.size >= 2 && isHost
+    // horizontalAlignment = Alignment.Center
   }
 
   listenTo(startGameButton)
@@ -40,30 +53,93 @@ class WaitingFrame(
       listener.startGame()
   }
 
-  contents = new BoxPanel(Orientation.Vertical) {
+  contents = new GridBagPanel {
     border = Swing.EmptyBorder(30, 30, 30, 30)
+
+    // Definisci le componenti
     private val waitingMessage = new Label("Waiting host to start the game.") {
       font = new Font("Arial", java.awt.Font.BOLD, 22)
       horizontalAlignment = Alignment.Center
     }
+    private val gameProperties = new Label("<html>" +
+      "<p>Game Properties</p>" +
+      "<br> Max players per game: " + game.gameParameters.maxPlayers +
+      "<br> Max time per round: " + game.gameParameters.maxTimeRound +
+      "<br> Max rounds per game: " + game.gameParameters.roundLimitation +
+      "</html>")
     private val introPlayersListLabel = new Label("Players in the game:") {
       font = new Font("Arial", java.awt.Font.BOLD, 16)
       horizontalAlignment = Alignment.Center
     }
 
-    contents += waitingMessage
-    contents += Swing.VGlue
-    contents += introPlayersListLabel
-    contents += Swing.VGlue
-    contents += playersListContainer
-    contents += Swing.VGlue
-    contents += startGameButton
+    // Definisci i vincoli per la griglia
+    val c = new Constraints
+    private var row: Int = 0
+    private var column: Int = 0
+    private def resetColumn (): Unit = column = 0
+    private def nextRow (): Unit =
+      row += 1
+      resetColumn()
+    c.fill = GridBagPanel.Fill.Horizontal // I componenti si espanderanno per riempire la loro cella
+    // c.insets = new Insets(10, 0, 10, 0) // Padding verticale
+
+    c.gridy = row
+    c.gridx = column
+    c.gridwidth = GridBagConstraints.REMAINDER
+    c.weighty = 1.0
+    layout(waitingMessage) = c
+
+    nextRow()
+
+    c.gridy = row
+    c.gridx = column
+    c.gridwidth = GridBagConstraints.REMAINDER
+    c.weighty = 0.0 // Non si espande verticalmente
+    layout(gameProperties) = c
+
+    nextRow()
+
+    // introPlayersListLabel (seconda riga)
+    c.gridy = row // Riga 1
+    c.gridx = 0 // Colonna 0
+    c.gridwidth = GridBagConstraints.REMAINDER
+    c.weighty = 0.0 // Non si espande verticalmente
+    layout(introPlayersListLabel) = c
+
+    nextRow()
+
+    // playersListContainer (terza riga)
+    c.gridy = row // Riga 2
+    c.gridx = 0
+    c.gridwidth = GridBagConstraints.REMAINDER
+    c.weighty = 1.0 // Si espande per assorbir
+    c.fill = GridBagPanel.Fill.Both
+    // e lo spazio
+    layout(playersListContainer) = c
+
+    nextRow()
+
+    // Reimposta i vincoli per i pulsanti
+    c.gridwidth = 2 // I pulsanti occuperanno solo una colonna
+    c.weighty = 0.0 // Non si espandono verticalmente
+    c.fill = GridBagPanel.Fill.Horizontal // Non si allungano per riempire lo spazio
+    c.anchor = GridBagPanel.Anchor.Center // Allineali al centro della loro cella
+
+    // exitButton
+    c.gridx = 0
+    c.gridy = row
+    layout(exitButton) = c
+
+    // startGameButton
+    c.gridx = 1
+    c.gridy = row
+    layout(startGameButton) = c
   }
 
   def updatePlayersList(newPlayers: List[PlayerInLobby]): Unit =
     println(s"Inside updatePlayerList, newPlayers = ${newPlayers}, isHost = ${isHost}")
-    players = newPlayers
-    startGameButton.enabled = players.size >= 2 && isHost
+    game = game.copy(players = newPlayers)
+    startGameButton.enabled = game.players.size >= 2 && isHost
     playersListContainer.updatePlayersList(newPlayers)
     playersListContainer.revalidate()
     playersListContainer.repaint()
@@ -120,55 +196,62 @@ class PlayerRowPanel(
 
   contents += playerNameLabel
 
-@main def testWaitingLobbyPanel(): Unit =
-  val dummyListener = new IInitialViewListener {
-    override def changeName(newName: String): Unit =
-      println(s"DummyListener: changeName chiamato con newName = $newName (non fa nulla in questo test)")
-
-    override def createGame(isPubblic: Boolean, maxTimeRound: Int, maxNumRound: Int, maxPlayers: Int): Unit =
-      println("DummyListener: createGame chiamato (non fa nulla in questo test)")
-
-    override def requestGames(): Unit =
-      println("DummyListener: requestGames chiamato (non fa nulla in questo test)")
-
-    override def joinGame(game: Game.GameInConstruction): Unit =
-      println("DummyListener: joinGame chiamato (non fa nulla in questo test)")
-
-    override def joinWithAddress(address: String): Unit =
-      println("DummyListener: joinWithAddress chiamato (non fa nulla in questo test)")
-
-    override def startGame(): Unit =
-      println("DummyListener: startGame chiamato (non fa nulla in questo test)")
-
-    //    override def playerCanJoinGame(player: PlayerInLobby): Unit =
-    //      println(s"DummyListener: playerCanJoinGame chiamato per il giocatore ${player.name} (non fa nulla in questo test)")
-  }
-
-  val dummyPlayers = List(
-    PlayerInLobby("id1", "Alice", null),
-    PlayerInLobby("id2", "Bob", null),
-    PlayerInLobby("id3", "Charlie", null),
-    PlayerInLobby("id4", "David", null),
-    PlayerInLobby("id5", "Eve", null)
-  )
-
-  val waitingLobbyPanel = new WaitingFrame(dummyListener, dummyPlayers, true)
-  //  val waitingLobbyPanel = new WaitingFrame(dummyPlayers, true)
-  waitingLobbyPanel.visible = true
-
-  val updatedPlayers: List[PlayerInLobby] = List(
-    PlayerInLobby("id1", "Alice", null),
-    PlayerInLobby("id2", "Bob", null),
-    PlayerInLobby("id6", "Frank", null),
-    PlayerInLobby("id7", "Grace", null),
-    PlayerInLobby("id8", "Heidi", null),
-    PlayerInLobby("id9", "Ivan", null),
-    PlayerInLobby("id10", "Judy", null)
-  )
-
-  scala.concurrent.ExecutionContext.global.execute(() => {
-    Thread.sleep(3000)
-    waitingLobbyPanel.updatePlayersList(updatedPlayers)
-    println("Lista giocatori aggiornata dopo 10 secondi!")
-
-  })
+//@main def testWaitingLobbyPanel(): Unit =
+//  val dummyListener = new IInitialViewListener {
+//    override def changeName(newName: String): Unit =
+//      println(s"DummyListener: changeName chiamato con newName = $newName (non fa nulla in questo test)")
+//
+//    override def createGame(isPubblic: Boolean, maxTimeRound: Int, maxNumRound: Int, maxPlayers: Int): Unit =
+//      println("DummyListener: createGame chiamato (non fa nulla in questo test)")
+//
+//    override def requestGames(): Unit =
+//      println("DummyListener: requestGames chiamato (non fa nulla in questo test)")
+//
+//    override def joinGame(game: Game.GameInConstruction): Unit =
+//      println("DummyListener: joinGame chiamato (non fa nulla in questo test)")
+//
+//    override def joinWithAddress(address: String): Unit =
+//      println("DummyListener: joinWithAddress chiamato (non fa nulla in questo test)")
+//
+//    override def startGame(): Unit =
+//      println("DummyListener: startGame chiamato (non fa nulla in questo test)")
+//
+//    //    override def playerCanJoinGame(player: PlayerInLobby): Unit =
+//    //      println(s"DummyListener: playerCanJoinGame chiamato per il giocatore ${player.name} (non fa nulla in questo test)")
+//  }
+//
+////  val dummyGame = Game.GameInConstruction(
+////        code = "XYZ456",
+////        gameParameters = GameParameters(makePrivate = true, maxTimeRound = 30, roundLimitation = 0, maxPlayers = 4),
+////        players = List(
+////          PlayerInLobby("user_c", "Charlie", dummyProbe3.ref)
+////        )
+////      ),
+//  val dummyPlayers = List(
+//    PlayerInLobby("id1", "Alice", null),
+//    PlayerInLobby("id2", "Bob", null),
+//    PlayerInLobby("id3", "Charlie", null),
+//    PlayerInLobby("id4", "David", null),
+//    PlayerInLobby("id5", "Eve", null)
+//  )
+//
+//  val waitingLobbyPanel = new WaitingFrame(dummyListener, dummyPlayers, true)
+//  //  val waitingLobbyPanel = new WaitingFrame(dummyPlayers, true)
+//  waitingLobbyPanel.visible = true
+//
+//  val updatedPlayers: List[PlayerInLobby] = List(
+//    PlayerInLobby("id1", "Alice", null),
+//    PlayerInLobby("id2", "Bob", null),
+//    PlayerInLobby("id6", "Frank", null),
+//    PlayerInLobby("id7", "Grace", null),
+//    PlayerInLobby("id8", "Heidi", null),
+//    PlayerInLobby("id9", "Ivan", null),
+//    PlayerInLobby("id10", "Judy", null)
+//  )
+//
+//  scala.concurrent.ExecutionContext.global.execute(() => {
+//    Thread.sleep(3000)
+//    waitingLobbyPanel.updatePlayersList(updatedPlayers)
+//    println("Lista giocatori aggiornata dopo 10 secondi!")
+//
+//  })

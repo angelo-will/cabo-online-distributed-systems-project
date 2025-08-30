@@ -28,9 +28,12 @@ class InitialPhaseMainFrame(val viewListener: IInitialViewListener, val playerNa
   val screenHeight: Int = screenSize.getHeight.toInt
   val appWidth: Int = (screenWidth * 0.5).toInt
   val appHeight: Int = (screenHeight * 0.5).toInt
+  val verticalPosition: Int = (screenHeight * 0.25).toInt
+  val horizontalPosition: Int = (screenWidth * 0.25).toInt
   title = "Cabo Online"
   preferredSize = new Dimension(appWidth, appHeight)
-  centerOnScreen()
+  location = new Point(horizontalPosition, verticalPosition)
+  //  centerOnScreen()
   peer.setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE)
   peer.addWindowListener(new WindowAdapter {
     override def windowClosed(e: awt.event.WindowEvent): Unit = {
@@ -260,7 +263,7 @@ class InitialPhaseMainFrame(val viewListener: IInitialViewListener, val playerNa
 
 object ViewApplication:
   def startView(viewListener: IInitialViewListener, afterCreation: (frame: InitialPhaseMainFrame) => Unit): Unit =
-    val playerName = "playerName_placeholder"
+    val playerName = "playerName"
     var mainFrame: InitialPhaseMainFrame = null
     SwingUtilities.invokeLater(() =>
       mainFrame = new InitialPhaseMainFrame(viewListener, playerName)
@@ -271,7 +274,7 @@ object ViewApplication:
 
 
 object AppMultiplePanel extends SimpleSwingApplication:
-  val playerName = "playerName_placeholder"
+  val playerName = "playerName"
 
   def top: MainFrame = new InitialPhaseMainFrame(new IInitialViewListener {
     override def changeName(newName: String): Unit =

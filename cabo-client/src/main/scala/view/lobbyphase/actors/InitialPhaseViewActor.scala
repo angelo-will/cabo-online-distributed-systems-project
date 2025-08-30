@@ -73,7 +73,7 @@ object InitialPhaseViewActor:
       //      whoToSendResponse ! ViewMessages.GameCreated(game)
       val waitingFrame = new WaitingFrame(
         initialPhaseMainFrame.viewListener,
-        game.players,
+        game,
         true
       )
       waitingFrame.open()
@@ -113,7 +113,7 @@ object InitialPhaseViewActor:
       initialPhaseMainFrame.dispose()
       val waitingFrame = new WaitingFrame(
         initialPhaseMainFrame.viewListener,
-        game.players,
+        game,
         false
       )
       waitingFrame.open()
