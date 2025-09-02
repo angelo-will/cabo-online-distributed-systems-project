@@ -1,7 +1,9 @@
 package utils
 
+import akka.actor.typed.ActorRef
 import model.Game.GameInConstruction
 import model.PlayerInLobby
+import utils.GameCoordinatorMessage.PlayerCommand
 
 object ViewMessages {
 
@@ -62,5 +64,11 @@ object ViewMessages {
    * @param player
    */
   case class PlayerLeftGame(player: PlayerInLobby) extends ViewCommand
+
+  /**
+   * Message sent to the view by the client when all the players a ready to play
+   * @param gameCoordinator
+   */
+  case class ReadyToPlay(gameCoordinator: ActorRef[PlayerCommand]) extends ViewCommand
 
 }
