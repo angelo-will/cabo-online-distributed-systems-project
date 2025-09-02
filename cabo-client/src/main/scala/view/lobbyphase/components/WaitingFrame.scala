@@ -25,15 +25,14 @@ class WaitingFrame(
                     listener: IWaitingToStartListener,
                     private var game: GameInConstruction,
                     isHost: Boolean
-                  ) extends MainFrame:
+                  ) extends Frame:
   title = "Waiting Lobby"
   preferredSize = new Dimension(600, 400)
   centerOnScreen()
   peer.setDefaultCloseOperation(
-    //TODO: Insert message to actor view to reopen first frame
-    javax.swing.WindowConstants.HIDE_ON_CLOSE
+    javax.swing.WindowConstants.DISPOSE_ON_CLOSE
   )
-  
+
   private val playersListContainer = new WaitingLobbyPlayersContainer(
     game.players,
     isHost
@@ -54,15 +53,19 @@ class WaitingFrame(
 
   listenTo(startGameButton, exitButton)
 
+  peer.addWindowListener(new java.awt.event.WindowAdapter() {
+    override def windowClosing(e: java.awt.event.WindowEvent): Unit =
+      println("Window closing, exiting from the game.")
+      listener.exitFromTheGame()
+      dispose()
+  })
   reactions += {
     case ButtonClicked(`startGameButton`) =>
       println("Start Game button clicked.")
       listener.startGame()
     case ButtonClicked(`exitButton`) =>
       println("Exit button clicked.")
-      // TODO: implementare in actor view l'invio del messaggio di uscita
       listener.exitFromTheGame()
-      // navigator.goToPreviousPanel()
       this.dispose()
   }
 
