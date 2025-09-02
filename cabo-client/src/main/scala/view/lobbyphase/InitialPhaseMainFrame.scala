@@ -198,5 +198,7 @@ object AppMultiplePanel extends SimpleSwingApplication:
     override def startGame(): Unit =
       println("Listener finto: Start game button pressed, but no action defined in this test.")
 
+    override def exitFromTheGame(): Unit =
+      println("Listener finto: Exit from the game button pressed, but no action defined in this test.")
   },
     playerName)
