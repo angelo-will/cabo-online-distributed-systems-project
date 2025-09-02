@@ -18,6 +18,8 @@ object ViewListener:
     def joinWithAddress(address: String): Unit
 
     def startGame(): Unit
+    
+    def exitFromTheGame(): Unit
 
   trait IDuringGameViewListener:
     
