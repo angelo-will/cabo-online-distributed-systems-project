@@ -47,6 +47,7 @@ object InitialPhaseViewActor:
       handleGameUpdate(frame, whoToSendResponse, lobbyWaitingRoom)
         //        .orElse(handlePlayerRequestToJoinTheGame(frame, whoToSendResponse, lobbyWaitingRoom))
         .orElse(handleFailedToPublishToServer(frame, whoToSendResponse, lobbyWaitingRoom))
+        .orElse(handleGameAborted(frame, whoToSendResponse, lobbyWaitingRoom))
         .orElse(handleRestartView(frame, whoToSendResponse, idle))
         .orElse({
           case _ => Behaviors.same

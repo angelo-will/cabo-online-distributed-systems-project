@@ -59,6 +59,7 @@ class WaitingFrame(
       listener.exitFromTheGame()
       dispose()
   })
+
   reactions += {
     case ButtonClicked(`startGameButton`) =>
       println("Start Game button clicked.")
