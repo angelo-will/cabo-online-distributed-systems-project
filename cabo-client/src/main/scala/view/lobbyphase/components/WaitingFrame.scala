@@ -2,6 +2,7 @@ package view.lobbyphase.components
 
 import model.Game.GameInConstruction
 import model.{Game, PlayerInLobby}
+import view.lobbyphase.ScreenNavigator
 import view.lobbyphase.ViewListener.IInitialViewListener
 
 import java.awt.GridBagConstraints
@@ -14,8 +15,14 @@ import scala.swing.event.ButtonClicked
 import scala.swing._
 import scala.util.Random
 
+trait IWaitingToStartListener:
+  def startGame(): Unit
+
+  def exitFromTheGame(): Unit
+
 class WaitingFrame(
-                    listener: IInitialViewListener,
+                    //                    navigator: ScreenNavigator,
+                    listener: IWaitingToStartListener,
                     private var game: GameInConstruction,
                     isHost: Boolean
                   ) extends MainFrame:
@@ -26,8 +33,8 @@ class WaitingFrame(
     //TODO: Insert message to actor view to reopen first frame
     javax.swing.WindowConstants.HIDE_ON_CLOSE
   )
+  
   private val playersListContainer = new WaitingLobbyPlayersContainer(
-    listener,
     game.players,
     isHost
   )
@@ -45,12 +52,18 @@ class WaitingFrame(
     // horizontalAlignment = Alignment.Center
   }
 
-  listenTo(startGameButton)
+  listenTo(startGameButton, exitButton)
 
   reactions += {
     case ButtonClicked(`startGameButton`) =>
       println("Start Game button clicked.")
       listener.startGame()
+    case ButtonClicked(`exitButton`) =>
+      println("Exit button clicked.")
+      // TODO: implementare in actor view l'invio del messaggio di uscita
+      listener.exitFromTheGame()
+      // navigator.goToPreviousPanel()
+      this.dispose()
   }
 
   contents = new GridBagPanel {
@@ -76,10 +89,13 @@ class WaitingFrame(
     val c = new Constraints
     private var row: Int = 0
     private var column: Int = 0
-    private def resetColumn (): Unit = column = 0
-    private def nextRow (): Unit =
+
+    private def resetColumn(): Unit = column = 0
+
+    private def nextRow(): Unit =
       row += 1
       resetColumn()
+
     c.fill = GridBagPanel.Fill.Horizontal // I componenti si espanderanno per riempire la loro cella
     // c.insets = new Insets(10, 0, 10, 0) // Padding verticale
 
@@ -157,7 +173,7 @@ class WaitingFrame(
     })
 
 class WaitingLobbyPlayersContainer(
-                                    listener: IInitialViewListener,
+                                    //                                    listener: IInitialViewListener,
                                     players: List[PlayerInLobby],
                                     canKickOut: Boolean
                                   ) extends ScrollPane:
