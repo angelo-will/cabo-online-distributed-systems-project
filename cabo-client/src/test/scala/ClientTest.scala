@@ -1,7 +1,7 @@
 import akka.actor.testkit.typed.scaladsl.{ScalaTestWithActorTestKit, TestProbe}
+import akka.actor.typed.ActorRef
 import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
 import akka.actor.typed.scaladsl.Behaviors
-import akka.actor.typed.{ActorRef, Behavior}
 import akka.cluster.typed.{Cluster, Join}
 import com.typesafe.config.ConfigFactory
 import controller.Client
@@ -13,6 +13,7 @@ import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import utils.ClientMessages.*
 import utils.Message
+import utils.ViewMessages.{GameAborted, GameCreated, GameInfoUpdate}
 
 class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString("""
     akka.actor.provider = "cluster"
@@ -56,19 +57,36 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString("""
     }
   }
 
+  def createClientAndProbeWithView(id: String = "ClientID", name: String = "ClientName"): (ActorRef[Message], TestProbe[Message], TestProbe[Message]) = {
+    val probe = testKit.createTestProbe[Message]()
+    val viewProbe = testKit.createTestProbe[Message]()
+    val client = testKit.spawn(Behaviors.monitor(probe.ref, Client(id, name, viewProbe.ref)), id)
+    (client, probe, viewProbe)
+  }
+
   def createClientAndProbe(id: String = "ClientID", name: String = "ClientName"): (ActorRef[Message], TestProbe[Message]) = {
     val probe = testKit.createTestProbe[Message]()
-    val client = testKit.spawn(Behaviors.monitor(probe.ref, Client(id, name)))
+    val client = testKit.spawn(Behaviors.monitor(probe.ref, Client(id, name)), id)
     (client, probe)
   }
 
-  def hostCreateGame(clientHost: ActorRef[Message], probeClientHost: TestProbe[Message],
+  def hostCreateGame(clientHost: ActorRef[Message], probeClientHost: TestProbe[Message], clientHostView: TestProbe[Message] = null,
                      makePublic: Boolean = false, maxTimeRound: Int = 10, maxNumRound: Int = 5, maxPlayers: Int = 4): Unit = {
 
     val (hostPlayerID, _) = retrieveClientIdAndName(clientHost, probeClientHost)
 
     clientHost ! CreateNewGame(makePublic, maxTimeRound, maxNumRound, maxPlayers)
     probeClientHost.expectMessage(CreateNewGame(makePublic, maxTimeRound, maxNumRound, maxPlayers))
+
+    clientHostView match {
+      case null => // do nothing
+      case vp =>
+        vp.receiveMessage() match {
+          case GameCreated(game) =>
+            assert(game.players.exists(p => p.userID == hostPlayerID))
+          case _ => fail("Expected GameCreated message")
+        }
+    }
 
     val listProbe = TestProbe[Receptionist.Listing]()
     eventually(timeout(3.seconds), interval(100.millis)) {
@@ -79,7 +97,8 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString("""
   }
 
   def joinHostGame(clientHost: ActorRef[Message], probeClientHost: TestProbe[Message],
-                   clientJoiner: ActorRef[Message], probeClientJoiner: TestProbe[Message]): Unit = {
+                   clientJoiner: ActorRef[Message], probeClientJoiner: TestProbe[Message],
+                   clientHostView: TestProbe[Message] = null, clientJoinerView: TestProbe[Message] = null): Unit = {
 
     val (hostPlayerID, _) = retrieveClientIdAndName(clientHost, probeClientHost)
 
@@ -92,6 +111,17 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString("""
     probeClientJoiner.expectMessage(JoinAddress(hostPlayerID + "game"))
 
     probeClientHost.expectMessage(IWantToPlay(PlayerInLobby(joinerPlayerID, joinerName, clientJoiner), clientJoiner))
+
+    clientHostView match {
+      case null => // do nothing
+      case vp =>
+        vp.receiveMessage() match {
+          case GameInfoUpdate(game) =>
+            assert(game.players.exists(p => p.userID == joinerPlayerID))
+            assert(game.players.exists(p => p.userID == hostPlayerID))
+          case _ => fail("Expected GameInfoUpdate message")
+        }
+    }
 
     probeClientJoiner.receiveMessage() match {
       case YouJoinedTheGame(game) =>
@@ -310,5 +340,40 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString("""
       probeClientHost.expectMessage(GetPlayerInfo(probe.ref))
 
       probe.expectMessage(PlayerInfo(hostId + clientHost.path.address.hashCode(), newCoolName))
+    }
+
+    "should be able to start a game" in {
+
+      val (clientHost, probeClientHost, clientHostView) = createClientAndProbeWithView(hostId, hostName)
+
+      val (clientJoiner, probeClientJoiner) = createClientAndProbe(joinerId, joinerName)
+
+      hostCreateGame(clientHost, probeClientHost, clientHostView = clientHostView)
+
+      joinHostGame(clientHost, probeClientHost, clientJoiner, probeClientJoiner, clientHostView)
+
+      clientHost ! StartTheGame()
+      probeClientHost.expectMessage(StartTheGame())
+
+      probeClientHost.receiveMessage() match {
+        case TakeGetInProgressGame(game) =>
+          assert(game.players.exists(p => p.userID == correctPlayerID(hostId, clientHost)))
+          assert(game.players.exists(p => p.userID == correctPlayerID(joinerId, clientJoiner)))
+        case _ => fail("Expected TakeGetInProgressGame message")
+      }
+
+      probeClientJoiner.receiveMessage() match {
+        case GameHasStarted(game) =>
+          assert(game.players.exists(p => p.userID == correctPlayerID(hostId, clientHost)))
+          assert(game.players.exists(p => p.userID == correctPlayerID(joinerId, clientJoiner)))
+        case _ => fail("Expected GameHasStarted message")
+      }
+
+      probeClientHost.expectMessage(15.seconds, FailedToSynchronize())
+
+      clientHostView.expectMessage(15.seconds, GameAborted())
+
+      probeClientJoiner.expectMessage(15.seconds, GameCancelled())
+
     }
   }
