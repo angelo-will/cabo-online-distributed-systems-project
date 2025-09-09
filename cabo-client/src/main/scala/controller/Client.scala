@@ -33,7 +33,7 @@ object Client:
 
   case class GameCancelled() extends ClientInternalCommand
   
-  case class GameHasStarted(gameInProgress: GameInProgress) extends ClientInternalCommand
+  case class GameHasStarted(hostRef: ActorRef[ClientInternalCommand], gameInProgress: GameInProgress) extends ClientInternalCommand
 
   case class PlayerUnreachable(playerInLobby: PlayerInLobby) extends ClientInternalCommand
 
@@ -52,18 +52,6 @@ object Client:
         Behaviors.same
     }
   }
-  
-//  def apply(userId: String = "Player", name: String = "defaultCoolName"): Behavior[Message] = Behaviors.setup { ctx =>
-//
-//    apply(userId, name, )
-//    
-//    //todo - create a view actor
-//    val viewActorRef = ctx.spawnAnonymous(viewDefaultBehavior)
-//
-//    val connectionHandler = ctx.spawn(ConnectionHandler[MemberExited](ctx.self), "ConnectionHandler")
-//
-//    new Client(userId+ctx.self.path.address.hashCode(), name, viewActorRef, connectionHandler).start
-//  }
   
   def apply(userId: String = "Player", name: String = "defaultCoolName", optionalViewActor: ActorRef[Message] = null): Behavior[Message] = Behaviors.setup { ctx =>
     
@@ -299,8 +287,8 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
         Behaviors.receiveMessagePartial {
           case TakeGetInProgressGame(gameInProgress) =>
             ctx.log.info(s"Game in progress received: ${gameInProgress.code}")
-            game.players.filter(!_.address.equals(ctx.self)).foreach(_.address ! GameHasStarted(gameInProgress))
-            awaitSynchronization(ctx, game.players.map(_.userID), () => {
+            game.players.filter(!_.address.equals(ctx.self)).foreach(_.address ! GameHasStarted(ctx.self, gameInProgress))
+            awaitSynchronization(ctx, game.players.filter(!_.address.equals(ctx.self)).map(_.userID), () => {
               ctx.log.info(s"All players synchronized, starting the game: ${gameInProgress.code}")
               viewActorRef ! ViewMessages.ReadyToPlay(gameCoordinator)
               inGameBehavior(gameInProgress, game.players.map(p => p -> true).toMap)
@@ -423,10 +411,12 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
           connectionHandler ! ConnectionHandler.UpdateList(List())
           start
 
-        case (ctx, GameHasStarted(gameInProgress)) =>
+        case (ctx, GameHasStarted(hostRef, gameInProgress)) =>
           ctx.log.info(s"Game has started: ${game.code}")
-          //todo - Go into game
-          Behaviors.empty
+          val gameCoordinator = ctx.spawn(GameCoordinatorActor(ctx.self, viewActorRef, 0, gameInProgress), "GameCoordinatorActor")
+          viewActorRef ! ViewMessages.ReadyToPlay(gameCoordinator)
+          hostRef ! SynchronizationAck(userId)
+          inGameBehavior(gameInProgress, game.players.map(p => p -> true).toMap)
     })
   }
 

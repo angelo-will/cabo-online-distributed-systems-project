@@ -75,29 +75,28 @@ object GameCoordinatorActor:
   def apply(client: ActorRef[ClientCommand], viewToContact: ActorRef[Message], playerRank: Int, gameToStart: GameInConstruction): Behavior[Message] = {
 
     val game = generateGameInProgressFromInConstruction(gameToStart)
-    val ownCode = game.players(playerRank).userID
 
+    client ! ClientMessages.TakeGetInProgressGame(game)
+    
+    apply(client, viewToContact, playerRank, game)
+  }
+  
+  def apply(client: ActorRef[ClientCommand], viewToContact: ActorRef[Message], playerRank: Int, gameInProgress: GameInProgress): Behavior[Message] = {
+
+    val ownCode = gameInProgress.players(playerRank).userID
+    
     val gameData = GameData(
       client,
       viewToContact,
       playerRank,
       ownCode,
-      game,
+      gameInProgress,
       new InitialPhaseTurnLog(ownCode),
-      game.deckStack,
-      game.discardDeckStack
+      gameInProgress.deckStack,
+      gameInProgress.discardDeckStack
     )
 
-    client ! ClientMessages.TakeGetInProgressGame(game)
-
     watchOwnCardsPhase(gameData, cardSeenRemaining = Game.cardsInitialVisible)
-
-//    Behaviors.receivePartial {
-//      // return the game with a message
-//      case (ctx, msg) =>
-//        ctx.log.info(s"GameCoordinatorActor received a message $msg but it was not initialized with apply(whoToSendResponse, playerRank)")
-//        Behaviors.same
-//    }
   }
 
   private def generateGameInProgressFromInConstruction(gameInConstruction: GameInConstruction): GameInProgress = {

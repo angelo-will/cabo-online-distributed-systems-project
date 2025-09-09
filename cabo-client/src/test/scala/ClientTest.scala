@@ -13,7 +13,7 @@ import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import utils.ClientMessages.*
 import utils.Message
-import utils.ViewMessages.{GameAborted, GameCreated, GameInfoUpdate}
+import utils.ViewMessages.*
 
 class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString("""
     akka.actor.provider = "cluster"
@@ -127,6 +127,22 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString("""
       case YouJoinedTheGame(game) =>
         assert(game.players.exists(p => p.userID == hostPlayerID))
       case _ => fail("Expected YouJoinedTheGame message")
+    }
+
+    clientJoinerView.receiveMessage() match {
+      case FailedToPublishToServer() => // trying to find games
+      case _ => fail("Joiner View expected ReadyToPlay message")
+    }
+
+    clientJoinerView match {
+      case null => // do nothing
+      case vp =>
+        vp.receiveMessage() match {
+          case GameJoined(game) =>
+            assert(game.players.exists(p => p.userID == joinerPlayerID))
+            assert(game.players.exists(p => p.userID == hostPlayerID))
+          case _ => fail("Expected GameJoined message")
+        }
     }
 
   }
@@ -346,11 +362,11 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString("""
 
       val (clientHost, probeClientHost, clientHostView) = createClientAndProbeWithView(hostId, hostName)
 
-      val (clientJoiner, probeClientJoiner) = createClientAndProbe(joinerId, joinerName)
+      val (clientJoiner, probeClientJoiner, clientJoinerView) = createClientAndProbeWithView(joinerId, joinerName)
 
       hostCreateGame(clientHost, probeClientHost, clientHostView = clientHostView)
 
-      joinHostGame(clientHost, probeClientHost, clientJoiner, probeClientJoiner, clientHostView)
+      joinHostGame(clientHost, probeClientHost, clientJoiner, probeClientJoiner, clientHostView, clientJoinerView)
 
       clientHost ! StartTheGame()
       probeClientHost.expectMessage(StartTheGame())
@@ -363,17 +379,25 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString("""
       }
 
       probeClientJoiner.receiveMessage() match {
-        case GameHasStarted(game) =>
+        case GameHasStarted(host, game) =>
           assert(game.players.exists(p => p.userID == correctPlayerID(hostId, clientHost)))
           assert(game.players.exists(p => p.userID == correctPlayerID(joinerId, clientJoiner)))
         case _ => fail("Expected GameHasStarted message")
       }
 
-      probeClientHost.expectMessage(15.seconds, FailedToSynchronize())
+      clientJoinerView.receiveMessage() match {
+        case ReadyToPlay(gameCoordinator) => // ok
+        case _ => fail("Joiner View expected ReadyToPlay message")
+      }
 
-      clientHostView.expectMessage(15.seconds, GameAborted())
+      probeClientHost.receiveMessage() match {
+        case SynchronizationAck(id) if id.contains(joinerId) => // ok
+        case _ => fail("Host probe expected SynchronizationAck message")
+      }
 
-      probeClientJoiner.expectMessage(15.seconds, GameCancelled())
-
+      clientHostView.receiveMessage(15.seconds) match {
+        case ReadyToPlay(gameCoordinator) => // ok
+        case _ => fail("Host view expected ReadyToPlay message")
+      }
     }
   }
