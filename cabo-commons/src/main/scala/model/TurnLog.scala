@@ -5,22 +5,6 @@ import model.TurnEvent.*
 import model.TurnPhase.*
 import model.PhaseEvents.*
 
-object TurnPhase:
-  sealed trait TurnPhase extends Message
-
-  case class AwaitingFirstShow() extends TurnPhase
-
-  case class AwaitingSecondShowShow() extends TurnPhase
-
-  case class AwaitDrawCard() extends TurnPhase
-
-  case class AwaitUsePower() extends TurnPhase
-
-  case class AwaitDiscardCard() extends TurnPhase
-
-  case class EndedTurn() extends TurnPhase
-
-
 object TurnEvent:
   sealed trait TurnEvent extends Message
 
@@ -105,7 +89,7 @@ class DuringGameTurnLog(val ofUserID: String) extends TurnLog with Message:
     phaseEvents = new PhaseEvents(newPhase, phaseEvents.events :+ event)
 
 class InitialPhaseTurnLog(userID: String) extends TurnLog with Message:
-  
+
   private var phaseEvents: PhaseEvents = new PhaseEvents(AwaitingFirstShow(), List())
 
   override def events: List[TurnEvent] = phaseEvents.events
