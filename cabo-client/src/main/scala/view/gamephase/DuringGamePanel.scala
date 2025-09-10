@@ -1,0 +1,396 @@
+package view.gamephase
+
+import model.Game.GameInProgress
+import view.lobbyphase.ViewListener.IDuringGameViewListener
+
+import scala.swing.*
+import scala.swing.event.*
+import scala.swing.GridBagPanel.Fill
+import scala.swing.GridBagPanel.Anchor
+import java.awt.{Color, GridBagConstraints, GridBagLayout, Insets, Font as AwtFont}
+import javax.swing.{BorderFactory, ImageIcon, UIManager}
+
+class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: GameInProgress, userID: String) extends GridBagPanel {
+  
+  private val PLAYER_CARDS = 4
+  private val MIN_CENTER_FIELD_ROWS = 10
+  private val NORTH_OFFSET_CENTER_FIELDS_ROWS = 2
+  private var centerFieldRows = MIN_CENTER_FIELD_ROWS
+  peer.setBorder(BorderFactory.createLineBorder(Color.CYAN, 3))
+
+  val c = new Constraints
+
+  val playersPanelMap: Map[String, AdversaryPanel] = gameInProgress.players
+    .filter(p => p.userID != userID)
+    .map(p => p.userID -> new AdversaryPanel(p.name)).toMap
+
+  private def spacePanel = new Panel {
+    preferredSize = new Dimension(this.preferredSize.width, 1)
+    peer.setBorder(BorderFactory.createLineBorder(Color.GREEN, 3))
+  }
+
+  c.gridx = 0
+  c.gridy = 0
+  c.gridwidth = 9
+  c.weightx = 1.0
+  c.fill = Fill.Horizontal
+  layout(spacePanel) = c
+  resetConstraintsValues()
+
+  // CREAZIONE GIOCATORI -- INIZIO
+  private val columnAdversariesIndex = 1
+  //  private var columnAdversariesIndex = columnAdversariesStartIndex
+  private val rowAdversaryStartIndex = NORTH_OFFSET_CENTER_FIELDS_ROWS
+  private var rowAdversaryIndex = rowAdversaryStartIndex
+
+//  private def nextAdversaryRow() =
+//    rowAdversaryIndex += 2
+//    rowAdversaryIndex
+
+  playersPanelMap.foreach { (id, panel) =>
+    c.gridy = rowAdversaryIndex
+    c.gridx = columnAdversariesIndex
+    layout(panel) = c
+    val emptyRow = rowAdversaryIndex + 1
+    addEmptyRow(emptyRow, 50)
+    rowAdversaryIndex = emptyRow + 1
+  }
+
+  // For correct positioning the center field need 6 rows at least
+  if (rowAdversaryIndex - rowAdversaryStartIndex) > centerFieldRows then
+    centerFieldRows = rowAdversaryIndex - rowAdversaryStartIndex
+
+  // BOTTONE USCITA DAL GIOCO - INIZIO
+  private val exitButton = new Button("Exit Game") {
+    font = new AwtFont("Arial", AwtFont.BOLD, 12)
+    reactions += {
+      case ButtonClicked(_) =>
+        println("Exit Game button clicked")
+    }
+  }
+  private val exitButtonRowIndex = NORTH_OFFSET_CENTER_FIELDS_ROWS + centerFieldRows +1
+  c.gridy = exitButtonRowIndex
+  c.gridx = columnAdversariesIndex
+  layout(exitButton) = c
+  // BOTTONE USCITA DAL GIOCO - FINE
+
+  // COLONNA VUOTA DI RIEMPIMENTO
+  addEmptyColumn(2, 50)
+  ////////////////////
+
+  // CREAZIONE SCHERMATA DATI PARTITA E TURNO - INIZIO
+  private val gameInfoPanel = new BoxPanel(Orientation.Vertical) {
+    peer.setBorder(BorderFactory.createLineBorder(Color.RED, 3))
+    //    border = Swing.EmptyBorder(10, 10, 10, 10)
+    private val gameCodeLabel = new Label(s"Game Code: ${gameInProgress.code}") {
+      font = new AwtFont("Arial", AwtFont.BOLD, 16)
+      horizontalAlignment = Alignment.Center
+    }
+
+    private val numMaxTurnsLabel = new Label(s"Rounds ${gameInProgress.gameParameters.roundLimitation}") {
+      font = new AwtFont("Arial", AwtFont.BOLD, 12)
+      horizontalAlignment = Alignment.Center
+    }
+
+    private val currentTurnLabel = new Label(s"Round N: ${gameInProgress.currentRound}") {
+      font = new AwtFont("Arial", AwtFont.BOLD, 12)
+      horizontalAlignment = Alignment.Center
+    }
+    contents += gameCodeLabel
+    contents += Swing.VStrut(5)
+    contents += numMaxTurnsLabel
+    contents += Swing.VStrut(5)
+    contents += currentTurnLabel
+  }
+
+  private val rowInfoGameIndex = 1
+  c.gridx = 3
+  c.gridy = rowInfoGameIndex
+  c.gridwidth = 3
+  c.fill = Fill.Both
+  //  c.weightx = 1.0
+  layout(gameInfoPanel) = c
+  resetConstraintsValues()
+  // CREAZIONE SCHERMATA DATI PARTITA E TURNO - FINE
+
+  // CREAZIONE MAZZO PRINCIPALE - INIZIO
+  private val deckPanel = new BoxPanel(Orientation.Vertical) {
+    border = Swing.EmptyBorder(10, 10, 10, 10)
+    private val deckLabel = new Label("Deck") {
+      font = new AwtFont("Arial", AwtFont.BOLD, 14)
+      horizontalAlignment = Alignment.Center
+    }
+
+    private val deckButton = new Button("Deck") {
+      font = new AwtFont("Arial", AwtFont.PLAIN, 24)
+      border = Swing.EmptyBorder(5, 5, 5, 5)
+    }
+
+    contents += deckLabel
+    contents += Swing.VStrut(5)
+    contents += deckButton
+  }
+  private val deckPanelRowIndex = NORTH_OFFSET_CENTER_FIELDS_ROWS + 2
+  private val deckPanelColumnIndex = 3
+  private val deckHeight = 2
+  c.gridx = deckPanelColumnIndex
+  c.gridy = deckPanelRowIndex
+  c.gridheight = deckHeight
+  layout(deckPanel) = c
+  resetConstraintsValues()
+  // CREAZIONE MAZZO PRINCIPALE - FINE
+
+  // CREAZIONE MAZZO SCARTI - INIZIO
+  private val discardPanel = new BoxPanel(Orientation.Vertical) {
+    border = Swing.EmptyBorder(10, 10, 10, 10)
+    private val discardLabel = new Label("Discards") {
+      font = new AwtFont("Arial", AwtFont.BOLD, 14)
+      horizontalAlignment = Alignment.Center
+    }
+
+    private val discardButton = new Button("Discards") {
+      font = new AwtFont("Arial", AwtFont.PLAIN, 24)
+      border = Swing.EmptyBorder(5, 5, 5, 5)
+    }
+
+    contents += discardLabel
+    contents += Swing.VStrut(5)
+    contents += discardButton
+  }
+  private val discardPanelColumnIndex = deckPanelColumnIndex + 2
+  c.gridx = discardPanelColumnIndex
+  c.gridy = deckPanelRowIndex
+  c.gridheight = deckHeight
+  layout(discardPanel) = c
+  resetConstraintsValues()
+  // CREAZIONE MAZZO SCARTI - FINE
+
+  // CREAZIONE CARTA PESCATA - INIZIO
+  private val drawnCardPanel = new BoxPanel(Orientation.Vertical) {
+    border = Swing.EmptyBorder(10, 10, 10, 10)
+    private val drawnCardLabel = new Label("Drawn Card") {
+      font = new AwtFont("Arial", AwtFont.BOLD, 14)
+      horizontalAlignment = Alignment.Center
+    }
+
+    private val drawnCardButton = new Button("Nascosta") {
+      font = new AwtFont("Arial", AwtFont.PLAIN, 24)
+      border = Swing.EmptyBorder(5, 5, 5, 5)
+    }
+
+    contents += drawnCardLabel
+    contents += Swing.VStrut(5)
+    contents += drawnCardButton
+  }
+  private val drawnCardPanelColumnIndex = deckPanelColumnIndex + 1
+  c.gridx = drawnCardPanelColumnIndex
+  c.gridy = deckPanelRowIndex + deckHeight + 1
+  c.gridheight = deckHeight
+  layout(drawnCardPanel) = c
+  resetConstraintsValues()
+  // CREAZIONE CARTA PESCATA - FINE
+
+  // CRAZIONE PANNELLO GIOCATORE SE STESSO - INIZIO
+  private val playerPanel = new BoxPanel(Orientation.Vertical) {
+    //    border = Swing.EmptyBorder(10, 10, 10, 10)
+    peer.setBorder(BorderFactory.createLineBorder(Color.GREEN, 3))
+    private val nameLabel = new Label("YOU") {
+      font = new AwtFont("Arial", AwtFont.BOLD, 14)
+      horizontalAlignment = Alignment.Center
+    }
+
+    private val cards = new BoxPanel(Orientation.Horizontal) {
+      for i <- 1 to PLAYER_CARDS do
+        contents += new Button(s"$i") {
+          font = new AwtFont("Arial", AwtFont.PLAIN, 24)
+          border = Swing.EmptyBorder(5, 5, 5, 5)
+        }
+    }
+
+    contents += nameLabel
+    contents += Swing.VStrut(5)
+    contents += cards
+  }
+
+
+  c.gridx = 3
+  c.gridy = exitButtonRowIndex
+  c.gridwidth = 3
+  c.fill = Fill.Both
+  //  c.weightx = 1.0
+  layout(playerPanel) = c
+  resetConstraintsValues()
+
+  // CRAZIONE PANNELLO GIOCATORE SE STESSO - FINE
+
+  // COLONNA VUOTA DI RIEMPIMENTO
+  addEmptyColumn(6, 50)
+  ////////////////////
+
+  // CREAZIONE TEXT AREA LOG - INIZIO
+  private val logTextArea = new TextArea {
+    editable = false
+    lineWrap = true
+    wordWrap = true
+    font = new AwtFont("Arial", AwtFont.PLAIN, 12)
+    text = "ULTIMO TURNO GIOCATO:"
+  }
+  private val logScrollPane = new ScrollPane(logTextArea) {
+    verticalScrollBarPolicy = ScrollPane.BarPolicy.Always
+    horizontalScrollBarPolicy = ScrollPane.BarPolicy.Never
+    //    preferredSize = new Dimension(1, 100)
+    peer.setBorder(BorderFactory.createLineBorder(Color.MAGENTA, 3))
+  }
+
+  c.gridy = NORTH_OFFSET_CENTER_FIELDS_ROWS
+  c.gridx = 7
+  c.gridheight = 6
+//  c.gridwidth = 2
+  c.fill = Fill.Vertical
+//  c.weighty =
+  layout(logScrollPane) = c
+
+  resetConstraintsValues()
+
+  // CREAZIONE TEXT AREA LOG - FINE
+
+  // CREAZIONE TASTI END TURN E CALL CABO - INIZIO
+
+  private val endTurnButton = new Button("End Turn") {
+    font = new AwtFont("Arial", AwtFont.BOLD, 12)
+    reactions += {
+      case ButtonClicked(_) =>
+        println("End Turn button clicked")
+      // viewListener.endTurn()
+    }
+  }
+
+  c.gridy = exitButtonRowIndex
+  c.gridx = 7
+  layout(endTurnButton) = c
+
+  private val callCaboButton = new Button("Call CABO") {
+    font = new AwtFont("Arial", AwtFont.BOLD, 12)
+    reactions += {
+      case ButtonClicked(_) =>
+        println("Call CABO button clicked")
+      // viewListener.callCabo()
+    }
+  }
+  c.gridy = exitButtonRowIndex + 1
+  c.gridx = 7
+  layout(callCaboButton) = c
+  // CREAZIONE TASTI END TURN E CALL CABO - FINE
+
+
+  // FUNZIONI DI SUPPORTO - INIZIO
+  override def paintComponent(g: Graphics2D): Unit = {
+    super.paintComponent(g)
+
+    peer.getLayout match {
+      case gbl: GridBagLayout =>
+        val widths = gbl.getLayoutDimensions()(0) // array delle larghezze delle colonne
+        val heights = gbl.getLayoutDimensions()(1) // array delle altezze delle righe
+
+        var x = 0
+        g.setColor(Color.LIGHT_GRAY)
+        for (w <- widths) {
+          g.drawLine(x, 0, x, size.height)
+          x += w
+        }
+        g.drawLine(x, 0, x, size.height) // bordo destro
+
+        var y = 0
+        for (h <- heights) {
+          g.drawLine(0, y, size.width, y)
+          y += h
+        }
+        g.drawLine(0, y, size.width, y) // bordo inferiore
+    }
+  }
+
+
+  private def resetConstraintsValues(): Unit = {
+    c.gridwidth = 1
+    c.gridheight = 1
+    c.fill = Fill.None
+    c.weightx = 0.0
+    c.weighty = 0.0
+  }
+
+  private def addEmptyColumn(colIndex: Int, width: Int): Unit = {
+    val emptyColumn = new Panel {
+      peer.setBorder(BorderFactory.createLineBorder(Color.BLACK, 3))
+      preferredSize = new Dimension(width, 1)
+    }
+    c.gridy = 1
+    c.gridx = colIndex
+    layout(emptyColumn) = c
+  }
+
+  private def addEmptyRow(rowIndex: Int, height: Int): Unit = {
+    val emptyRow = new Panel {
+      peer.setBorder(BorderFactory.createLineBorder(Color.BLACK, 3))
+      preferredSize = new Dimension(1, height)
+    }
+    c.gridy = rowIndex
+    c.gridx = 1
+    layout(emptyRow) = c
+  }
+
+  private def createCardToggleButton(cardText: String, isMainPlayer: Boolean): ToggleButton = new ToggleButton {
+    this.text = cardText // Inizialmente potrebbe essere "Nascosta" o il dorso
+    //    margin = new Insets(2, 2, 2, 2)
+    font = new AwtFont("Arial", AwtFont.PLAIN, if (isMainPlayer) 12 else 10)
+    // icon = new ImageIcon(getClass.getResource("/images/card_back.png")) // Esempio
+    // selectedIcon = new ImageIcon(getClass.getResource("/images/card_front_selected.png")) // Esempio
+
+    reactions += {
+      case ButtonClicked(_) =>
+        if (selected) {
+          background = Color.CYAN // Evidenzia se selezionata
+          println(s"Carta '${this.text}' selezionata: $selected")
+        } else {
+          background = UIManager.getColor("Button.background") // Ripristina colore default
+          println(s"Carta '${this.text}' deselezionata: $selected")
+        }
+    }
+    listenTo(this)
+  }
+
+}
+
+private class AdversaryPanel(playerName: String) extends BoxPanel(Orientation.Vertical):
+  //  border = Swing.EmptyBorder(10, 10, 10, 10)
+  peer.setBorder(BorderFactory.createLineBorder(Color.BLUE, 3))
+  private val nameLabel = new Label(playerName) {
+    font = new AwtFont("Arial", AwtFont.BOLD, 14)
+    horizontalAlignment = Alignment.Center
+  }
+
+  private val seqButtonCards: IndexedSeq[Button] = for (i <- 1 to 4) yield {
+    //      contents += new Button(s"$i") {
+    new Button(s"$i") {
+      font = new AwtFont("Arial", AwtFont.PLAIN, 24)
+      border = Swing.EmptyBorder(0, 5, 0, 5)
+      enabled = false
+    }
+  }
+
+  private val cards: BoxPanel = new BoxPanel(Orientation.Horizontal) {
+    seqButtonCards.foreach(b => contents += b)
+  }
+
+  def enableCardsButton(): Unit = {
+    seqButtonCards.foreach(b => b.enabled = true)
+  }
+
+  def disableCardsButton(): Unit = {
+    seqButtonCards.foreach(b => b.enabled = false)
+  }
+
+  contents += nameLabel
+  contents += Swing.VStrut(5)
+  contents += cards
+
+
