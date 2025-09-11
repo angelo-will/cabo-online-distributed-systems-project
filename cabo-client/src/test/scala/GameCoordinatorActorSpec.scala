@@ -7,7 +7,7 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import utils.GameCoordinatorMessage.{CardDrawn, DiscardYourNthCard, DrawCardFromDeck, NewTopCardDiscardStack}
-import utils.{GameCoordinatorMessage, Message}
+import utils.{ClientMessages, GameCoordinatorMessage, Message}
 
 class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
   with AnyWordSpecLike
@@ -51,7 +51,7 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
         commands.foreach(_())
 
         val messages = gameCoordinatorProbe.receiveMessages(commands.size)
-        messages.last mustBe a[GameCoordinatorMessage.GameInformation]
+        messages.last mustBe a[ClientMessages.TurnEnded]
       }
     }
 
@@ -103,7 +103,7 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
         skipDrawCardFromDeckPhase()
         skipDiscardCardDrawnPhase()
         endTurn()
-        val newGameState = gameCoordinatorProbe.expectMessageType[GameCoordinatorMessage.GameInformation].game
+        val newGameState = gameCoordinatorProbe.expectMessageType[ClientMessages.TurnEnded].game
         val (topCardDiscardStack, _) = newGameState.discardDeckStack.drawFirstCard
         topCardDiscardStack mustBe cardDrawn
       }
@@ -208,7 +208,7 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
     discardCardDrawn()
     discardMessage()
     endTurn()
-    val gameInformation = gameCoordinatorProbe.expectMessageType[GameCoordinatorMessage.GameInformation].game
+    val gameInformation = gameCoordinatorProbe.expectMessageType[ClientMessages.TurnEnded].game
     newTurn(gameInformation)
 
   private def skipRoundsUntilDrawThisPower(power: Power, stringToUseToSkipPower: String): (Card, Game.GameInProgress) =

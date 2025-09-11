@@ -303,6 +303,8 @@ object GameCoordinatorActor:
     // TODO: implementare l'arrivo delle nuove informazioni e la sequenza dei passaggi fatti in un turno.
     //       Se un giocatore per problemi o altro non gioca non fa andare avanti il mazzo, quindi può arrivarmi un messaggio con niente
     case (ctx, GameCoordinatorMessage.NewTurn(game)) =>
+      //todo - check if it's my turn or wait another one
+      //todo - send ack beck to client and update the view
       myTurnBeforeDraw(gameData.copy(game = game, turnLog = new DuringGameTurnLog(gameData.playerOwnUserID)))
 
   // POWERS implementation

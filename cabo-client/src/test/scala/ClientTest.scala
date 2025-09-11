@@ -60,13 +60,13 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString("""
   def createClientAndProbeWithView(id: String = "ClientID", name: String = "ClientName"): (ActorRef[Message], TestProbe[Message], TestProbe[Message]) = {
     val probe = testKit.createTestProbe[Message]()
     val viewProbe = testKit.createTestProbe[Message]()
-    val client = testKit.spawn(Behaviors.monitor(probe.ref, Client(id, name, viewProbe.ref)), id)
+    val client = testKit.spawn(Behaviors.monitor(probe.ref, Client(id, name, viewProbe.ref)))
     (client, probe, viewProbe)
   }
 
   def createClientAndProbe(id: String = "ClientID", name: String = "ClientName"): (ActorRef[Message], TestProbe[Message]) = {
     val probe = testKit.createTestProbe[Message]()
-    val client = testKit.spawn(Behaviors.monitor(probe.ref, Client(id, name)), id)
+    val client = testKit.spawn(Behaviors.monitor(probe.ref, Client(id, name)))
     (client, probe)
   }
 
@@ -129,9 +129,13 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString("""
       case _ => fail("Expected YouJoinedTheGame message")
     }
 
-    clientJoinerView.receiveMessage() match {
-      case FailedToPublishToServer() => // trying to find games
-      case _ => fail("Joiner View expected ReadyToPlay message")
+    clientJoinerView match {
+      case null => // do nothing
+      case vp =>
+        vp.receiveMessage() match {
+          case FailedToPublishToServer() => // trying to find games
+          case _ => fail("Joiner View expected ReadyToPlay message")
+        }
     }
 
     clientJoinerView match {
