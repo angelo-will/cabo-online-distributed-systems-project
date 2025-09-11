@@ -5,8 +5,9 @@ import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.cluster.ClusterEvent.MemberExited
 import model.Game.{GameInConstruction, GameInProgress}
-import model.{GameParameters, PlayerInLobby}
+import model.{GameParameters, PlayerInLobby, TurnLog}
 import utils.ClientMessages.*
+import utils.GameCoordinatorMessage.{NewTurn, PlayerCommand}
 import utils.ServerMessages.{AbortGame, ServerKey}
 import utils.{Message, ServerMessages, ViewMessages}
 
@@ -43,7 +44,7 @@ object Client:
 
   case class FailedToSynchronize() extends ClientInternalCommand
 
-  case class GameInProgressUpdate(game: GameInProgress) extends ClientInternalCommand
+  case class GameInProgressUpdate(game: GameInProgress, turnLog: TurnLog) extends ClientInternalCommand
   
   private def viewDefaultBehavior: Behavior[Message] = Behaviors.setup { ctx =>
     Behaviors.receiveMessagePartial {
@@ -291,7 +292,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
             awaitSynchronization(ctx, game.players.filter(!_.address.equals(ctx.self)).map(_.userID), () => {
               ctx.log.info(s"All players synchronized, starting the game: ${gameInProgress.code}")
               viewActorRef ! ViewMessages.ReadyToPlay(gameCoordinator)
-              inGameBehavior(gameInProgress, game.players.map(p => p -> true).toMap)
+              inGameBehavior(gameCoordinator, game.players.map(p => p -> true).toMap)
             }, () => {
               //If failed to synchronize
               //Brutal policy, we abort the game
@@ -413,31 +414,46 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
 
         case (ctx, GameHasStarted(hostRef, gameInProgress)) =>
           ctx.log.info(s"Game has started: ${game.code}")
-          val gameCoordinator = ctx.spawn(GameCoordinatorActor(ctx.self, viewActorRef, 0, gameInProgress), "GameCoordinatorActor")
+          val index = gameInProgress.players.indexWhere(p => p.userID == userId && p.name == name)
+          val gameCoordinator = ctx.spawn(GameCoordinatorActor(ctx.self, viewActorRef, index, gameInProgress), "GameCoordinatorActor")
           viewActorRef ! ViewMessages.ReadyToPlay(gameCoordinator)
           hostRef ! SynchronizationAck(userId)
-          inGameBehavior(gameInProgress, game.players.map(p => p -> true).toMap)
+          //todo - a joiner initially check connection only with the host, in the game he should check also with other players?
+          connectionHandler ! ConnectionHandler.UpdateList(game.players)
+          inGameBehavior(gameCoordinator, game.players.map(p => p -> true).toMap)
     })
   }
 
-  //todo - create a map for player and if their still online
-  private def inGameBehavior(game: GameInProgress, playerOnline: Map[PlayerInLobby, Boolean]): Behavior[Message] = {
+  //todo - add to the map the rank of the player?
+  private def inGameBehavior(gameCoordinator: ActorRef[PlayerCommand], playerOnline: Map[PlayerInLobby, Boolean]): Behavior[Message] = {
     withShared( {
+      case (ctx, TurnEnded(game, log)) =>
+        ctx.log.info(s"My turn ended: ${game.code}")
+        playerOnline.toList.filter((p,o) => !p.address.equals(ctx.self) && o).map(_._1.address).foreach(_ ! GameInProgressUpdate(game, log))
+        //todo - sync to all the players
+        Behaviors.same
+
       case (ctx, LeaveTheGame()) =>
         //todo
-        ctx.log.info(s"Leaving game: ${game.code}")
+        ctx.stop(gameCoordinator)
         connectionHandler ! ConnectionHandler.UpdateList(List())
         start
 
       case (ctx, PlayerUnreachable(playerInLobby)) =>
-        //todo
-        ctx.log.info(s"Game: ${game.code} has been aborted")
-        viewActorRef ! ViewMessages.GameAborted()
-        connectionHandler ! ConnectionHandler.UpdateList(List())
-        start
+        //todo - host management
+        val onlineUpdate = playerOnline.updatedWith(playerInLobby) {
+          case None => None
+          case Some(v) => Some(false)
+        }
+        //todo - add a specific message to the view
+//        viewActorRef ! ViewMessages.GameAborted()
+        inGameBehavior(gameCoordinator, onlineUpdate)
 
-      case (ctx, GameInProgressUpdate(game)) =>
+      case (ctx, GameInProgressUpdate(game, log)) =>
+        //todo - update gameCoordinator
         ctx.log.info(s"Game info update: ${game.code}")
-        inGameBehavior(game, playerOnline)
+        gameCoordinator ! NewTurn(game)
+        //todo - sync to all the players, wait for gameCoordinator ack?
+        Behaviors.same
     })
   }
