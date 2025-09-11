@@ -1,6 +1,7 @@
 package view.gamephase
 
 import model.Game.GameInProgress
+import model.TurnPhase.TurnPhase
 import view.lobbyphase.ViewListener.IDuringGameViewListener
 
 import scala.swing.*
@@ -10,8 +11,12 @@ import scala.swing.GridBagPanel.Anchor
 import java.awt.{Color, GridBagConstraints, GridBagLayout, Insets, Font as AwtFont}
 import javax.swing.{BorderFactory, ImageIcon, UIManager}
 
+//class DuringGamePanelLogic(viewListener: IDuringGameViewListener, gameInProgress: GameInProgress, userID: String) extends GridBagPanel {
+//  val duringGamePanel: DuringGamePanel = new DuringGamePanel(viewListener, gameInProgress, userID).revealingInitialCardsPhase()
+//}
+
 class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: GameInProgress, userID: String) extends GridBagPanel {
-  
+
   private val PLAYER_CARDS = 4
   private val MIN_CENTER_FIELD_ROWS = 10
   private val NORTH_OFFSET_CENTER_FIELDS_ROWS = 2
@@ -20,9 +25,11 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
 
   val c = new Constraints
 
-  val playersPanelMap: Map[String, AdversaryPanel] = gameInProgress.players
+  private val adversariesPanelMap: Map[String, PlayerPanel] = gameInProgress.players
     .filter(p => p.userID != userID)
-    .map(p => p.userID -> new AdversaryPanel(p.name)).toMap
+    .map(p => p.userID -> new PlayerPanel(p.name)).toMap
+
+  private val playerPanel = new PlayerPanel("YOU")
 
   private def spacePanel = new Panel {
     preferredSize = new Dimension(this.preferredSize.width, 1)
@@ -43,11 +50,11 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
   private val rowAdversaryStartIndex = NORTH_OFFSET_CENTER_FIELDS_ROWS
   private var rowAdversaryIndex = rowAdversaryStartIndex
 
-//  private def nextAdversaryRow() =
-//    rowAdversaryIndex += 2
-//    rowAdversaryIndex
+  //  private def nextAdversaryRow() =
+  //    rowAdversaryIndex += 2
+  //    rowAdversaryIndex
 
-  playersPanelMap.foreach { (id, panel) =>
+  adversariesPanelMap.foreach { (id, panel) =>
     c.gridy = rowAdversaryIndex
     c.gridx = columnAdversariesIndex
     layout(panel) = c
@@ -68,7 +75,7 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
         println("Exit Game button clicked")
     }
   }
-  private val exitButtonRowIndex = NORTH_OFFSET_CENTER_FIELDS_ROWS + centerFieldRows +1
+  private val exitButtonRowIndex = NORTH_OFFSET_CENTER_FIELDS_ROWS + centerFieldRows + 1
   c.gridy = exitButtonRowIndex
   c.gridx = columnAdversariesIndex
   layout(exitButton) = c
@@ -114,22 +121,7 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
   // CREAZIONE SCHERMATA DATI PARTITA E TURNO - FINE
 
   // CREAZIONE MAZZO PRINCIPALE - INIZIO
-  private val deckPanel = new BoxPanel(Orientation.Vertical) {
-    border = Swing.EmptyBorder(10, 10, 10, 10)
-    private val deckLabel = new Label("Deck") {
-      font = new AwtFont("Arial", AwtFont.BOLD, 14)
-      horizontalAlignment = Alignment.Center
-    }
-
-    private val deckButton = new Button("Deck") {
-      font = new AwtFont("Arial", AwtFont.PLAIN, 24)
-      border = Swing.EmptyBorder(5, 5, 5, 5)
-    }
-
-    contents += deckLabel
-    contents += Swing.VStrut(5)
-    contents += deckButton
-  }
+  private val deckPanel = new DeckPanel("Deck")
   private val deckPanelRowIndex = NORTH_OFFSET_CENTER_FIELDS_ROWS + 2
   private val deckPanelColumnIndex = 3
   private val deckHeight = 2
@@ -141,22 +133,7 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
   // CREAZIONE MAZZO PRINCIPALE - FINE
 
   // CREAZIONE MAZZO SCARTI - INIZIO
-  private val discardPanel = new BoxPanel(Orientation.Vertical) {
-    border = Swing.EmptyBorder(10, 10, 10, 10)
-    private val discardLabel = new Label("Discards") {
-      font = new AwtFont("Arial", AwtFont.BOLD, 14)
-      horizontalAlignment = Alignment.Center
-    }
-
-    private val discardButton = new Button("Discards") {
-      font = new AwtFont("Arial", AwtFont.PLAIN, 24)
-      border = Swing.EmptyBorder(5, 5, 5, 5)
-    }
-
-    contents += discardLabel
-    contents += Swing.VStrut(5)
-    contents += discardButton
-  }
+  private val discardPanel = new DeckPanel("Discards")
   private val discardPanelColumnIndex = deckPanelColumnIndex + 2
   c.gridx = discardPanelColumnIndex
   c.gridy = deckPanelRowIndex
@@ -191,28 +168,6 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
   // CREAZIONE CARTA PESCATA - FINE
 
   // CRAZIONE PANNELLO GIOCATORE SE STESSO - INIZIO
-  private val playerPanel = new BoxPanel(Orientation.Vertical) {
-    //    border = Swing.EmptyBorder(10, 10, 10, 10)
-    peer.setBorder(BorderFactory.createLineBorder(Color.GREEN, 3))
-    private val nameLabel = new Label("YOU") {
-      font = new AwtFont("Arial", AwtFont.BOLD, 14)
-      horizontalAlignment = Alignment.Center
-    }
-
-    private val cards = new BoxPanel(Orientation.Horizontal) {
-      for i <- 1 to PLAYER_CARDS do
-        contents += new Button(s"$i") {
-          font = new AwtFont("Arial", AwtFont.PLAIN, 24)
-          border = Swing.EmptyBorder(5, 5, 5, 5)
-        }
-    }
-
-    contents += nameLabel
-    contents += Swing.VStrut(5)
-    contents += cards
-  }
-
-
   c.gridx = 3
   c.gridy = exitButtonRowIndex
   c.gridwidth = 3
@@ -245,9 +200,9 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
   c.gridy = NORTH_OFFSET_CENTER_FIELDS_ROWS
   c.gridx = 7
   c.gridheight = 6
-//  c.gridwidth = 2
+  //  c.gridwidth = 2
   c.fill = Fill.Vertical
-//  c.weighty =
+  //  c.weighty =
   layout(logScrollPane) = c
 
   resetConstraintsValues()
@@ -358,9 +313,50 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
     listenTo(this)
   }
 
+  // Defining the phases of the game panel - start
+  def revealingInitialCardsPhase(): DuringGamePanel = {
+    this.disableAll()
+    this.exitButton.enabled = true
+    this.playerPanel.enableCardsButton()
+    this
+  }
+  
+  def beforeDrawPhase(): DuringGamePanel = {
+    this.disableAll()
+    this.deckPanel.enabled = true
+    this.discardPanel.enabled = true
+    this.exitButton.enabled = true
+    this
+  }
+
+  //  def beforeDrawPhase(): DuringGamePanel = {
+  //    this.exitButton.enabled = true
+  //    this.callCaboButton.enabled = false
+  //    this.endTurnButton.enabled = false
+  //    this.adversariesPanelMap.foreach((k, v) => v.disableCardsButton())
+  //  }
+
+  def notMyTurnPhase(): DuringGamePanel = {
+    this.disableAll()
+    this.exitButton.enabled = true
+    this
+  }
+
+  private def disableAll(): Unit = {
+    this.exitButton.enabled = false
+    this.callCaboButton.enabled = false
+    this.endTurnButton.enabled = false
+    this.adversariesPanelMap.foreach((k, v) => v.disableCardsButton())
+    this.playerPanel.disableCardsButton()
+    this.deckPanel.deckButton.enabled = false
+    this.discardPanel.deckButton.enabled = false
+  }
+  // Defining the phases of the game panel - end
+
+
 }
 
-private class AdversaryPanel(playerName: String) extends BoxPanel(Orientation.Vertical):
+private class PlayerPanel(playerName: String) extends BoxPanel(Orientation.Vertical):
   //  border = Swing.EmptyBorder(10, 10, 10, 10)
   peer.setBorder(BorderFactory.createLineBorder(Color.BLUE, 3))
   private val nameLabel = new Label(playerName) {
@@ -392,5 +388,22 @@ private class AdversaryPanel(playerName: String) extends BoxPanel(Orientation.Ve
   contents += nameLabel
   contents += Swing.VStrut(5)
   contents += cards
+
+private class DeckPanel(name: String) extends BoxPanel(Orientation.Vertical) {
+  border = Swing.EmptyBorder(10, 10, 10, 10)
+  private val discardLabel = new Label(name) {
+    font = new AwtFont("Arial", AwtFont.BOLD, 14)
+    horizontalAlignment = Alignment.Center
+  }
+
+  val deckButton: Button = new Button(name) {
+    font = new AwtFont("Arial", AwtFont.PLAIN, 24)
+    border = Swing.EmptyBorder(5, 5, 5, 5)
+  }
+
+  contents += discardLabel
+  contents += Swing.VStrut(5)
+  contents += deckButton
+} 
 
 
