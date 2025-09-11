@@ -283,7 +283,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
         //todo - check if we need to keep it for re-entering the game
         ctx.system.receptionist ! Receptionist.deregister(akka.actor.typed.receptionist.ServiceKey[Message](game.code), ctx.self)
 
-        val gameCoordinator = ctx.spawn(GameCoordinatorActor(ctx.self, viewActorRef, 0, game), "GameCoordinatorActor")
+        val gameCoordinator = ctx.spawn(GameCoordinatorActor(ctx.self, viewActorRef, userId, game), "GameCoordinatorActor")
 
         Behaviors.receiveMessagePartial {
           case TakeGetInProgressGame(gameInProgress) =>
@@ -414,8 +414,8 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
 
         case (ctx, GameHasStarted(hostRef, gameInProgress)) =>
           ctx.log.info(s"Game has started: ${game.code}")
-          val index = gameInProgress.players.indexWhere(p => p.userID == userId && p.name == name)
-          val gameCoordinator = ctx.spawn(GameCoordinatorActor(ctx.self, viewActorRef, index, gameInProgress), "GameCoordinatorActor")
+//          val index = gameInProgress.players.indexWhere(p => p.userID == userId && p.name == name)
+          val gameCoordinator = ctx.spawn(GameCoordinatorActor(ctx.self, viewActorRef, userId, gameInProgress), "GameCoordinatorActor")
           viewActorRef ! ViewMessages.ReadyToPlay(gameCoordinator)
           hostRef ! SynchronizationAck(userId)
           //todo - a joiner initially check connection only with the host, in the game he should check also with other players?
@@ -424,7 +424,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
     })
   }
 
-  //todo - add to the map the rank of the player?
+  //todo - retrieve who am i, so the rank, by id from the game players?
   private def inGameBehavior(gameCoordinator: ActorRef[PlayerCommand], playerOnline: Map[PlayerInLobby, Boolean]): Behavior[Message] = {
     withShared( {
       case (ctx, TurnEnded(game, log)) =>

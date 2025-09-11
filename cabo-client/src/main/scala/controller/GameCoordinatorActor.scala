@@ -72,26 +72,30 @@ object GameCoordinatorActor:
         //myTurnBeforeDraw(generateGameData(whoToSendResponse, playerRank))
       }
 
-  def apply(client: ActorRef[ClientCommand], viewToContact: ActorRef[Message], playerRank: Int, gameToStart: GameInConstruction): Behavior[Message] = {
+  def apply(client: ActorRef[ClientCommand], viewToContact: ActorRef[Message], userId: String, gameToStart: GameInConstruction): Behavior[Message] = {
 
     val game = generateGameInProgressFromInConstruction(gameToStart)
 
     client ! ClientMessages.TakeGetInProgressGame(game)
     
-    apply(client, viewToContact, playerRank, game)
+    apply(client, viewToContact, userId, game)
   }
   
-  def apply(client: ActorRef[ClientCommand], viewToContact: ActorRef[Message], playerRank: Int, gameInProgress: GameInProgress): Behavior[Message] = {
+  def apply(client: ActorRef[ClientCommand], viewToContact: ActorRef[Message], userId: String, gameInProgress: GameInProgress): Behavior[Message] = {
 
-    val ownCode = gameInProgress.players(playerRank).userID
+    val playerRank = gameInProgress.players.find(_.userID == userId) match {
+      case Some(player) => player.rank
+      //todo - remove exception
+      case None => throw new IllegalArgumentException(s"User ID $userId not found in the game players")
+    }
     
     val gameData = GameData(
       client,
       viewToContact,
       playerRank,
-      ownCode,
+      userId,
       gameInProgress,
-      new InitialPhaseTurnLog(ownCode),
+      new InitialPhaseTurnLog(userId),
       gameInProgress.deckStack,
       gameInProgress.discardDeckStack
     )
@@ -107,11 +111,11 @@ object GameCoordinatorActor:
       gameInConstruction.code,
       gameInConstruction.gameParameters,
       GameStatus.InProgress(),
-      gameInConstruction.players.map(p => {
+      gameInConstruction.players.zipWithIndex.map((p, index) => {
         //test if it works
         val (hand, remainingDeck) = fullDeckShuffled.drawNCards(4)
         fullDeckShuffled = remainingDeck
-        PlayerPlaying(p.userID, p.name, Hand(hand))
+        PlayerPlaying(p.userID, p.name, index, Hand(hand))
       }),
       fullDeckShuffled,
       CardStack.buildEmptyDeck,
@@ -141,8 +145,8 @@ object GameCoordinatorActor:
         GameParameters(maxTimeRound = 5),
         GameStatus.InProgress(),
         List(
-          PlayerPlaying("player01", "name01", Hand(handPlayer01)),
-          PlayerPlaying("player02", "name02", Hand(handPlayer02)),
+          PlayerPlaying("player01", "name01", 0, Hand(handPlayer01)),
+          PlayerPlaying("player02", "name02", 1, Hand(handPlayer02)),
         ),
         deckToStartTheGame,
         discardStack,
