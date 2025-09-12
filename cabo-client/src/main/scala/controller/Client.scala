@@ -9,7 +9,7 @@ import model.{GameParameters, PlayerInLobby, TurnLog}
 import utils.ClientMessages.*
 import utils.GameCoordinatorMessage.{NewTurn, PlayerCommand}
 import utils.ServerMessages.{AbortGame, ServerKey}
-import utils.{Message, ServerMessages, ViewMessages}
+import utils.{Message, ServerMessages, InitialViewMessages}
 
 import scala.concurrent.duration.DurationInt
 
@@ -150,14 +150,14 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
           ctx.spawnAnonymous(contactInReceptionistAndAsk
             (ServerKey)
             (_ ! ServerMessages.RegisterGame(game, ctx.self))
-            (() => viewActorRef ! ViewMessages.FailedToPublishToServer()))
+            (() => viewActorRef ! InitialViewMessages.FailedToPublishToServer()))
         }
 
         ctx.system.receptionist ! Receptionist.register(akka.actor.typed.receptionist.ServiceKey[Message](game.code), ctx.self)
 
         connectionHandler ! ConnectionHandler.UpdateList(game.players)
 
-        viewActorRef ! ViewMessages.GameCreated(game)
+        viewActorRef ! InitialViewMessages.GameCreated(game)
 
         hostBehavior(game)
 
@@ -166,7 +166,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
         ctx.spawnAnonymous(contactInReceptionistAndAsk
           (ServerKey)
           (_ ! ServerMessages.GetGames(ctx.self))
-          (() => viewActorRef ! ViewMessages.FailedToPublishToServer()))
+          (() => viewActorRef ! InitialViewMessages.FailedToPublishToServer()))
         joiningAGame
 
       case (ctx, ChangePlayerName(newName, replyTo)) =>
@@ -186,13 +186,13 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
         ctx.spawnAnonymous(contactInReceptionistAndAsk
           (ServerKey)
           (_ ! ServerMessages.UpdateGame(game, ctx.self))
-          (() => viewActorRef ! ViewMessages.FailedToPublishToServer()))
+          (() => viewActorRef ! InitialViewMessages.FailedToPublishToServer()))
 
       gameUpdated.players.filter(!_.address.equals(ctx.self)).foreach(_.address ! UpdateAboutGame(gameUpdated))
 
       connectionHandler ! ConnectionHandler.UpdateList(gameUpdated.players)
 
-      viewActorRef ! ViewMessages.GameInfoUpdate(gameUpdated)
+      viewActorRef ! InitialViewMessages.GameInfoUpdate(gameUpdated)
 
       ctx.log.info(s"Player: ${playerInLobby.userID} removed the game, now the players are: ${gameUpdated.players.map(_.userID).mkString(", ")}")
 
@@ -209,7 +209,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
       case (ctx, ServerMessages.FailedToRegisterGame(game, server)) =>
         //The server has failed to register the game
         ctx.log.error(s"Failed to register game: ${game.code}")
-        viewActorRef ! ViewMessages.FailedToPublishToServer()
+        viewActorRef ! InitialViewMessages.FailedToPublishToServer()
         //Go into lobby
         Behaviors.same
 
@@ -226,7 +226,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
             ctx.spawnAnonymous(contactInReceptionistAndAsk
               (ServerKey)
               (_ ! ServerMessages.UpdateGame(game, ctx.self))
-              (() => viewActorRef ! ViewMessages.FailedToPublishToServer()))
+              (() => viewActorRef ! InitialViewMessages.FailedToPublishToServer()))
 
           replyTo ! YouJoinedTheGame(gameUpdated)
 
@@ -234,7 +234,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
 
           gameUpdated.players.filter(p => !p.address.equals(ctx.self) & !p.address.equals(newPlayer.address)).foreach(_.address ! UpdateAboutGame(gameUpdated))
 
-          viewActorRef ! ViewMessages.GameInfoUpdate(gameUpdated)
+          viewActorRef ! InitialViewMessages.GameInfoUpdate(gameUpdated)
 
           hostBehavior(gameUpdated)
         } else {
@@ -262,10 +262,10 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
           ctx.spawnAnonymous(contactInReceptionistAndAsk
             (ServerKey)
             (_ ! ServerMessages.AbortGame(game, ctx.self))
-            (() => viewActorRef ! ViewMessages.FailedToPublishToServer()))
+            (() => viewActorRef ! InitialViewMessages.FailedToPublishToServer()))
         game.players.filter(!_.address.equals(ctx.self)).foreach(_.address ! GameCancelled())
         ctx.system.receptionist ! Receptionist.deregister(akka.actor.typed.receptionist.ServiceKey[Message](game.code), ctx.self)
-        viewActorRef ! ViewMessages.GameAborted()
+        viewActorRef ! InitialViewMessages.GameAborted()
         //todo - if we use the variable argument this has to be changed
         connectionHandler ! ConnectionHandler.UpdateList(List())
         start
@@ -278,7 +278,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
           ctx.spawnAnonymous(contactInReceptionistAndAsk
             (ServerKey)
             (_ ! ServerMessages.StartGame(game, ctx.self))
-            (() => viewActorRef ! ViewMessages.FailedToPublishToServer()))
+            (() => viewActorRef ! InitialViewMessages.FailedToPublishToServer()))
 
         //todo - check if we need to keep it for re-entering the game
         ctx.system.receptionist ! Receptionist.deregister(akka.actor.typed.receptionist.ServiceKey[Message](game.code), ctx.self)
@@ -291,7 +291,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
             game.players.filter(!_.address.equals(ctx.self)).foreach(_.address ! GameHasStarted(ctx.self, gameInProgress))
             awaitSynchronization(ctx, game.players.filter(!_.address.equals(ctx.self)).map(_.userID), () => {
               ctx.log.info(s"All players synchronized, starting the game: ${gameInProgress.code}")
-              viewActorRef ! ViewMessages.ReadyToPlay(gameCoordinator)
+              viewActorRef ! InitialViewMessages.ReadyToPlay(gameCoordinator)
               inGameBehavior(gameCoordinator, game.players.map(p => p -> true).toMap)
             }, () => {
               //If failed to synchronize
@@ -300,7 +300,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
               //todo - check if this is ok
               ctx.stop(gameCoordinator)
               game.players.filter(!_.address.equals(ctx.self)).foreach(_.address ! GameCancelled())
-              viewActorRef ! ViewMessages.GameAborted()
+              viewActorRef ! InitialViewMessages.GameAborted()
               //todo - if we use the variable argument this has to be changed
               connectionHandler ! ConnectionHandler.UpdateList(List())
               start
@@ -335,13 +335,13 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
           case (ctx, YouJoinedTheGame(game)) =>
             ctx.log.info(s"Joined game: $game")
             connectionHandler ! ConnectionHandler.UpdateList(List(game.players.head))
-            viewActorRef ! ViewMessages.GameJoined(game)
+            viewActorRef ! InitialViewMessages.GameJoined(game)
             //Joined a game
             gameJoined(game)
 
           case (ctx, YouCanNotJoinTheGame(game)) =>
             ctx.log.warn("Could not join game")
-            viewActorRef ! ViewMessages.GameJoinedFailed(game)
+            viewActorRef ! InitialViewMessages.GameJoinedFailed(game)
             //Failed to join, waiting for other commands from the user
             joiningAGame
 
@@ -359,10 +359,10 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
       case (ctx, ServerMessages.GamesList(games)) =>
         if games.nonEmpty then {
           ctx.log.info(s"Games found: $games")
-          viewActorRef ! ViewMessages.GameList(games.toList)
+          viewActorRef ! InitialViewMessages.GameList(games.toList)
         } else {
           ctx.log.warn("No games found")
-          viewActorRef ! ViewMessages.GameList(List())
+          viewActorRef ! InitialViewMessages.GameList(List())
         }
         Behaviors.same
   
@@ -372,7 +372,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
           (akka.actor.typed.receptionist.ServiceKey[Message](address))
           (_ ! IWantToPlay(PlayerInLobby(userId, name, ctx.self), ctx.self))
           //todo - add a specific message to viewActorRef
-          (() => viewActorRef ! ViewMessages.FailedToPublishToServer()))
+          (() => viewActorRef ! InitialViewMessages.FailedToPublishToServer()))
   
         responseForJoining()
   
@@ -389,7 +389,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
 
         case (ctx, UpdateAboutGame(game)) =>
           ctx.log.info(s"Game info update: ${game.code}")
-          viewActorRef ! ViewMessages.GameInfoUpdate(game)
+          viewActorRef ! InitialViewMessages.GameInfoUpdate(game)
           gameJoined(game)
 
         case (ctx, LeaveTheGame()) =>
@@ -401,14 +401,14 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
 
         case (ctx, GameCancelled()) =>
           ctx.log.info(s"Game: ${game.code} has been aborted")
-          viewActorRef ! ViewMessages.GameAborted()
+          viewActorRef ! InitialViewMessages.GameAborted()
           connectionHandler ! ConnectionHandler.UpdateList(List())
           start
 
         case (ctx, PlayerUnreachable(playerInLobby)) =>
           //todo - for now the same as above, but we could wait some time before assume the game is aborted
           ctx.log.info(s"Game: ${game.code} has been aborted")
-          viewActorRef ! ViewMessages.GameAborted()
+          viewActorRef ! InitialViewMessages.GameAborted()
           connectionHandler ! ConnectionHandler.UpdateList(List())
           start
 
@@ -416,7 +416,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
           ctx.log.info(s"Game has started: ${game.code}")
 //          val index = gameInProgress.players.indexWhere(p => p.userID == userId && p.name == name)
           val gameCoordinator = ctx.spawn(GameCoordinatorActor(ctx.self, viewActorRef, userId, gameInProgress), "GameCoordinatorActor")
-          viewActorRef ! ViewMessages.ReadyToPlay(gameCoordinator)
+          viewActorRef ! InitialViewMessages.ReadyToPlay(gameCoordinator)
           hostRef ! SynchronizationAck(userId)
           //todo - a joiner initially check connection only with the host, in the game he should check also with other players?
           connectionHandler ! ConnectionHandler.UpdateList(game.players)

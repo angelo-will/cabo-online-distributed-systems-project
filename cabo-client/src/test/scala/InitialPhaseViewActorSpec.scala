@@ -5,7 +5,7 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.matchers.must.Matchers.mustBe
-import utils.{Message, ViewMessages}
+import utils.{Message, InitialViewMessages}
 import view.lobbyphase.ViewApplication
 import utils.ClientMessages
 import view.lobbyphase.actors.InitialPhaseViewActor.ViewCreated
@@ -54,7 +54,7 @@ class InitialPhaseViewActorSpec extends ScalaTestWithActorTestKit
         probe.expectMessageType[ViewCreated]
         val newGame = probe.expectMessageType[ClientMessages.CreateNewGame](FiniteDuration(20, SECONDS))
         Thread.sleep(3000)
-        actorView ! ViewMessages.GameCreated(Game.GameInConstruction(
+        actorView ! InitialViewMessages.GameCreated(Game.GameInConstruction(
           code = "testGame",
           GameParameters(!newGame.makePublic, newGame.maxTimeRound, newGame.maxNumRound, newGame.maxPlayers),
           players = List(PlayerInLobby("user1", "User One", probe.ref))
@@ -74,7 +74,7 @@ class InitialPhaseViewActorSpec extends ScalaTestWithActorTestKit
         probe.expectMessageType[ClientMessages.JoinAGame](FiniteDuration(5, SECONDS))
         // Simulate the game list being sent after some delay
         Thread.sleep(3000)
-        actorView ! ViewMessages.GameList(List(
+        actorView ! InitialViewMessages.GameList(List(
           Game.GameInConstruction(
             code = "testGame001",
             GameParameters(maxTimeRound = 60, roundLimitation = 10, maxPlayers = 4),
@@ -94,7 +94,7 @@ class InitialPhaseViewActorSpec extends ScalaTestWithActorTestKit
         val gameToJoin = probe.expectMessageType[ClientMessages.JoinGame](FiniteDuration(20, SECONDS))
         // Simulate the game being joined after some delay
         Thread.sleep(3000)
-        actorView ! ViewMessages.GameJoined(gameToJoin.game)
+        actorView ! InitialViewMessages.GameJoined(gameToJoin.game)
         probe.expectMessage(FiniteDuration(30, SECONDS), Passed())
       }
     }
@@ -117,15 +117,15 @@ class InitialPhaseViewActorSpec extends ScalaTestWithActorTestKit
 //        Thread.sleep(3000)
 //
 //        // send the game created message
-//        actorView ! ViewMessages.GameCreated(gameInConstruction)
+//        actorView ! InitialViewMessages.GameCreated(gameInConstruction)
 //
 //        Thread.sleep(3000)
 //
 //        // send a request to join the game
 //        val playerWhoWantToJoin = PlayerInLobby("user2", "User Two", probe.ref)
-//        actorView ! ViewMessages.PlayerRequestedToJoinGame(playerWhoWantToJoin)
+//        actorView ! InitialViewMessages.PlayerRequestedToJoinGame(playerWhoWantToJoin)
 //
-//        val playerWhoJoined = probe.expectMessageType[ViewMessages.PlayerCanJoinGame](FiniteDuration(10, SECONDS)).player
+//        val playerWhoJoined = probe.expectMessageType[InitialViewMessages.PlayerCanJoinGame](FiniteDuration(10, SECONDS)).player
 //
 //        playerWhoJoined mustBe playerWhoWantToJoin
 //
@@ -159,7 +159,7 @@ class InitialPhaseViewActorSpec extends ScalaTestWithActorTestKit
           GameParameters(true, 60, 30, 4),
           players = List(playerHost, playerJoiner)
         )
-        actorViewPlayerJoiner ! ViewMessages.GameJoined(gameInConstruction)
+        actorViewPlayerJoiner ! InitialViewMessages.GameJoined(gameInConstruction)
 
         probe.expectMessage(FiniteDuration(40, SECONDS), Passed())
       }
@@ -180,12 +180,12 @@ class InitialPhaseViewActorSpec extends ScalaTestWithActorTestKit
         GameParameters(newGame.makePublic, newGame.maxTimeRound, newGame.maxNumRound, newGame.maxPlayers),
         players = List(PlayerInLobby("host", "Host Player", probe.ref))
       )
-      actorViewHost ! ViewMessages.GameCreated(gameBuilt)
+      actorViewHost ! InitialViewMessages.GameCreated(gameBuilt)
 
       // joiner request to join the game
       val _ = probe.expectMessageType[ClientMessages.JoinAGame](FiniteDuration(20,SECONDS))
       Thread.sleep(3000)
-      actorViewJoiner ! ViewMessages.GameList(List(gameBuilt))
+      actorViewJoiner ! InitialViewMessages.GameList(List(gameBuilt))
 
       val gameToJoin = probe.expectMessageType[ClientMessages.JoinGame](FiniteDuration(20, SECONDS))
 
@@ -194,8 +194,8 @@ class InitialPhaseViewActorSpec extends ScalaTestWithActorTestKit
       // the host see changing of the players in list
       val gameAfterJoin = gameBuilt.copy(
         players = gameBuilt.players :+ PlayerInLobby("joiner", "Joiner Player", probe.ref))
-      actorViewHost ! ViewMessages.GameInfoUpdate(gameAfterJoin)
-      actorViewJoiner ! ViewMessages.GameJoined(gameAfterJoin)
+      actorViewHost ! InitialViewMessages.GameInfoUpdate(gameAfterJoin)
+      actorViewJoiner ! InitialViewMessages.GameJoined(gameAfterJoin)
       Thread.sleep(20000)
     }
   }
@@ -212,14 +212,14 @@ class InitialPhaseViewActorSpec extends ScalaTestWithActorTestKit
       val newGame = probe.expectMessageType[ClientMessages.CreateNewGame](FiniteDuration(20, SECONDS))
       // Simulate the game creation
       Thread.sleep(3000)
-      actorView ! ViewMessages.GameCreated(Game.GameInConstruction(
+      actorView ! InitialViewMessages.GameCreated(Game.GameInConstruction(
         code = "testGame",
         GameParameters(newGame.makePublic, newGame.maxTimeRound, newGame.maxNumRound, newGame.maxPlayers),
         players = List(PlayerInLobby("user1", "User One", probe.ref))
       ))
       Thread.sleep(2000)
       // Simulate the error from server
-      actorView ! ViewMessages.FailedToPublishToServer()
+      actorView ! InitialViewMessages.FailedToPublishToServer()
       probe.expectMessage(FiniteDuration(20, SECONDS), Passed())
     }
   }

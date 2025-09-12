@@ -12,7 +12,7 @@ import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import utils.ClientMessages.{CreateNewGame, StartTheGame}
 import utils.Message
 import utils.ServerMessages.{GamesList, GetGames, RegisterGame, ServerKey, StartGame}
-import utils.ViewMessages.*
+import utils.InitialViewMessages.*
 
 import scala.concurrent.duration.DurationInt
 

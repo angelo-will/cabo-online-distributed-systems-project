@@ -4,7 +4,7 @@ import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
 import com.typesafe.config.ConfigFactory
 import model.Game
-import utils.{Message, ViewMessages}
+import utils.{Message, InitialViewMessages}
 import view.lobbyphase.{InitialPhaseMainFrame, ViewApplication}
 import view.*
 import view.lobbyphase.components.{IWaitingToStartListener, WaitingFrame}
@@ -93,11 +93,11 @@ object InitialPhaseViewActor:
                                  nextBehavior: (WaitingFrame, ActorRef[Message]) => Behavior[Message]
                                ):
   PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
-    case (ctx, ViewMessages.GameCreated(game)) =>
+    case (ctx, InitialViewMessages.GameCreated(game)) =>
       ctx.log.info("Game created successfully")
       ctx.log.info(s"Game created at context $ctx")
       initialPhaseMainFrame.dispose()
-      //      whoToSendResponse ! ViewMessages.GameCreated(game)
+      //      whoToSendResponse ! InitialViewMessages.GameCreated(game)
       val waitingFrame = new WaitingFrame(
         new IWaitingToStartListener {
           override def startGame(): Unit =
@@ -123,7 +123,7 @@ object InitialPhaseViewActor:
                                              nextBehavior: (WaitingFrame, ActorRef[Message]) => Behavior[Message]
                                            ):
   PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
-    case (ctx, ViewMessages.FailedToPublishToServer()) =>
+    case (ctx, InitialViewMessages.FailedToPublishToServer()) =>
       ctx.log.error(s"Failed to publish to server the game created")
       waitingFrame.openErrorPubOnServerDialog()
       nextBehavior(waitingFrame, whoToSendResponse)
@@ -134,7 +134,7 @@ object InitialPhaseViewActor:
                                         nextBehavior: (InitialPhaseMainFrame, ActorRef[Message]) => Behavior[Message]
                                       ):
   PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
-    case (ctx, ViewMessages.GameList(games)) =>
+    case (ctx, InitialViewMessages.GameList(games)) =>
       initialPhaseMainFrame.updateGameList(games)
       ctx.log.info(s"Received game list from server: $games")
       nextBehavior(initialPhaseMainFrame, whoToSendResponse)
@@ -145,7 +145,7 @@ object InitialPhaseViewActor:
                                               nextBehavior: (WaitingFrame, ActorRef[Message]) => Behavior[Message]
                                             ):
   PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
-    case (ctx, ViewMessages.GameJoined(game)) =>
+    case (ctx, InitialViewMessages.GameJoined(game)) =>
       ctx.log.info(s"Successfully joined game: $game")
       initialPhaseMainFrame.dispose()
       val waitingFrame = new WaitingFrame(
@@ -170,7 +170,7 @@ object InitialPhaseViewActor:
   //                                              nextBehavior: (InitialPhaseMainFrame, ActorRef[Message]) => Behavior[Message]
   //                                            ):
   //  PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
-  //    case (ctx, ViewMessages.GameJoinedFailed(game)) =>
+  //    case (ctx, InitialViewMessages.GameJoinedFailed(game)) =>
   //      ctx.log.info(s"Unsuccessfully joined game: $game")
   //      // initialPhaseMainFrame.userFailedToEnterInTheGame(game)
   //      // T ODO: inform the view
@@ -184,14 +184,14 @@ object InitialPhaseViewActor:
                                 nextBehavior: (WaitingFrame, ActorRef[Message]) => Behavior[Message]
                               ):
   PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
-    case (ctx, ViewMessages.GameInfoUpdate(game)) =>
+    case (ctx, InitialViewMessages.GameInfoUpdate(game)) =>
       ctx.log.info(s"Arrived new info about the game: $game")
       waitingFrame.updatePlayersList(game.players)
       nextBehavior(waitingFrame, whoToSendResponse)
   //
   //  private def handleGameStarted(info: ViewActorInfoWaitingRoom):
   //  PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
-  //    case (ctx, ViewMessages.GameStarted()) =>
+  //    case (ctx, InitialViewMessages.GameStarted()) =>
   //      ctx.log.info(s"Received message to start the game: GameStarted")
   //      // TODO: inform the view to start the game
   //      // TODO: change ending behavior
@@ -203,7 +203,7 @@ object InitialPhaseViewActor:
                                  nextBehavior: (WaitingFrame, ActorRef[Message]) => Behavior[Message]
                                ):
   PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
-    case (ctx, ViewMessages.GameAborted()) =>
+    case (ctx, InitialViewMessages.GameAborted()) =>
       ctx.log.info(s"Arrived message that the game has been aborted")
       waitingFrame.dispose()
       startInitialViewBehavior(ctx, whoToSendResponse)

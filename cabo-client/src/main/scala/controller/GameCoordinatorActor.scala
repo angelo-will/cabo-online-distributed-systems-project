@@ -8,7 +8,8 @@ import model.Game.{GameInConstruction, GameInProgress}
 import model.TurnEvent.CardDiscarded
 import utils.ClientMessages
 import utils.ClientMessages.*
-import utils.ViewMessages.ViewCommand
+import utils.InitialViewMessages.ViewCommand
+import utils.DuringGameViewMessages
 
 object GameCoordinatorActor:
 
@@ -239,7 +240,7 @@ object GameCoordinatorActor:
       val (topCard, newDeck) = gameData.game.deckStack.drawFirstCard
       ctx.log.info(s"I draw $topCard from deck")
       gameData.turnLog.addEvent(TurnEvent.DrawCardFromDeck(topCard))
-      gameData.viewReference ! GameCoordinatorMessage.CardDrawn(topCard)
+      gameData.viewReference ! DuringGameViewMessages.CardDrawn(topCard)
       if topCard.power != Power.NoPower() then
         myTurnAfterDrawWithPower(gameData.copy(temporaryDeck = newDeck), cardInHand = topCard)
       else
@@ -253,7 +254,7 @@ object GameCoordinatorActor:
 
       val (topCard, newDiscardStack) = gameData.game.discardDeckStack.drawFirstCard
       gameData.turnLog.addEvent(TurnEvent.DrawCardFromDiscardStack(topCard))
-      gameData.viewReference ! GameCoordinatorMessage.CardDrawn(topCard)
+      gameData.viewReference ! DuringGameViewMessages.CardDrawn(topCard)
       myTurnAfterDrawFromDiscard(gameData.copy(temporaryDiscardDeck = newDiscardStack), topCard)
 
   private def handleDiscardCardDrawn(
@@ -270,7 +271,7 @@ object GameCoordinatorActor:
 
       println(s"New game state: $newGameState")
 
-      gameData.viewReference ! GameCoordinatorMessage.NewTopCardDiscardStack(cardInHand)
+      gameData.viewReference ! DuringGameViewMessages.NewTopCardDiscardStack(cardInHand)
       myTurnAfterDiscard(gameData.copy(game = newGameState, temporaryDiscardDeck = newGameState.discardDeckStack))
 
   private def handleDiscardOwnNthCard(
@@ -291,7 +292,7 @@ object GameCoordinatorActor:
       )
       ctx.log.info(s"New game state: $newGameState")
 
-      gameData.viewReference ! GameCoordinatorMessage.NewTopCardDiscardStack(oldHand.cards(index))
+      gameData.viewReference ! DuringGameViewMessages.NewTopCardDiscardStack(oldHand.cards(index))
 
       myTurnAfterDiscard(gameData.copy(game = newGameState))
 
@@ -300,7 +301,7 @@ object GameCoordinatorActor:
                                     nextBehaviors: GameData => Behavior[Message]
                                   ): PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
     case (ctx, GameCoordinatorMessage.SendGameStatus(ref)) =>
-      ref ! GameCoordinatorMessage.GameInformation(gameData.game)
+      ref ! DuringGameViewMessages.GameInformation(gameData.game)
       nextBehaviors(gameData)
 
   private def handleNewTurn(gameData: GameData): PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
@@ -332,7 +333,7 @@ object GameCoordinatorActor:
       baseShowCard(gameData, gameData.getHandOPlayerWithID(playerID).cards(cardIndex), nextBehaviors(gameData))
 
   private def baseShowCard(gameData: GameData, card: Card, behavior: Behavior[Message]) =
-    gameData.viewReference ! GameCoordinatorMessage.CardSeen(card)
+    gameData.viewReference ! DuringGameViewMessages.CardSeen(card)
     behavior
 
 
