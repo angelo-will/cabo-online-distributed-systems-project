@@ -70,7 +70,7 @@ object PlayerPlaying:
     players.map(p => if p.userID == userID then p.copy(hand = Hand(p.hand.cards.updated(index, card))) else p)
 
 
-case class PlayerPlaying(userID: String, name: String, hand: Hand) extends WithHand with User:
+case class PlayerPlaying(userID: String, name: String, rank: Int, hand: Hand) extends WithHand with User:
   override def userId: String = userID
 
   override def nome: String = name

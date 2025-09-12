@@ -3,9 +3,12 @@ package controller
 import akka.actor.typed.Behavior
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import model.Suit.Spades
-import model.{Card, DuringGameTurnLog, InitialPhaseTurnLog, GameParameters, Hand, PlayerPlaying, Power, TurnEvent, TurnLog}
-import model.Game.GameInProgress
+import model.{Card, DuringGameTurnLog, GameParameters, Hand, InitialPhaseTurnLog, PlayerPlaying, Power, TurnEvent, TurnLog}
+import model.Game.{GameInConstruction, GameInProgress}
 import model.TurnEvent.CardDiscarded
+import utils.ClientMessages
+import utils.ClientMessages.*
+import utils.ViewMessages.ViewCommand
 
 object GameCoordinatorActor:
 
@@ -18,14 +21,16 @@ object GameCoordinatorActor:
   import model.Game
 
   private case class GameData(
-                               whoToSendResponse: ActorRef[Message],
+                               clientReference: ActorRef[ClientCommand],
+                             // todo: change type in ViewCommand moving the messages of GameCoordinatorMessage in ViewMessages?
+                               viewReference: ActorRef[Message],
                                playerOwnRank: Int,
                                playerOwnUserID: String,
                                game: GameInProgress,
                                turnLog: TurnLog,
                                temporaryDeck: CardStack,
                                temporaryDiscardDeck: CardStack
-                             ):
+                              ):
     def getOurHand: Hand = this.getSelfPlayer.hand
 
     def getHandOPlayerWithID(playerID: String): Hand = this.getPlayerWithID(playerID).hand
@@ -40,7 +45,7 @@ object GameCoordinatorActor:
 
     override def toString: String =
       "GameData: \n" +
-        "whoToSendResponse=" + whoToSendResponse + "\n" +
+        "whoToSendResponse=" + viewReference + "\n" +
         "playerRank=" + playerOwnRank + "\n" +
         "game=" + game + "\n" +
         "temporaryDeck=" + temporaryDeck + "\n" +
@@ -54,6 +59,7 @@ object GameCoordinatorActor:
    * @return the behavior of the GameCoordinatorActor
    * @throws IllegalArgumentException if 0 < playerRank < max player per game          
    */
+  //todo - remove
   def apply(whoToSendResponse: ActorRef[Message], playerRank: Int): Behavior[Message] =
     if (playerRank < 0 || playerRank > Game.maxPlayersPerGame)
       throw new IllegalArgumentException(s"Player rank $playerRank is not valid, it must be between 0 and ${Game.maxPlayersPerGame}")
@@ -66,8 +72,60 @@ object GameCoordinatorActor:
         //myTurnBeforeDraw(generateGameData(whoToSendResponse, playerRank))
       }
 
+  def apply(client: ActorRef[ClientCommand], viewToContact: ActorRef[Message], userId: String, gameToStart: GameInConstruction): Behavior[Message] = {
+
+    val game = generateGameInProgressFromInConstruction(gameToStart)
+
+    client ! ClientMessages.TakeGetInProgressGame(game)
+    
+    apply(client, viewToContact, userId, game)
+  }
+  
+  def apply(client: ActorRef[ClientCommand], viewToContact: ActorRef[Message], userId: String, gameInProgress: GameInProgress): Behavior[Message] = {
+
+    val playerRank = gameInProgress.players.find(_.userID == userId) match {
+      case Some(player) => player.rank
+      //todo - remove exception
+      case None => throw new IllegalArgumentException(s"User ID $userId not found in the game players")
+    }
+    
+    val gameData = GameData(
+      client,
+      viewToContact,
+      playerRank,
+      userId,
+      gameInProgress,
+      new InitialPhaseTurnLog(userId),
+      gameInProgress.deckStack,
+      gameInProgress.discardDeckStack
+    )
+
+    watchOwnCardsPhase(gameData, cardSeenRemaining = Game.cardsInitialVisible)
+  }
+
+  private def generateGameInProgressFromInConstruction(gameInConstruction: GameInConstruction): GameInProgress = {
+
+    var fullDeckShuffled = CardStack.buildShuffledFullDeck
+
+    GameInProgress(
+      gameInConstruction.code,
+      gameInConstruction.gameParameters,
+      GameStatus.InProgress(),
+      gameInConstruction.players.zipWithIndex.map((p, index) => {
+        //test if it works
+        val (hand, remainingDeck) = fullDeckShuffled.drawNCards(4)
+        fullDeckShuffled = remainingDeck
+        PlayerPlaying(p.userID, p.name, index, Hand(hand))
+      }),
+      fullDeckShuffled,
+      CardStack.buildEmptyDeck,
+      0
+    )
+  }
+
   // Behaviors during player turn
 
+  //todo - remove
   private def generateGameData(whoToSendResponse: ActorRef[Message], playerRank: Int) = {
     // debug values, emulate shuffled deck and the use of the first card as firs of discard stack
     //    val fullDeckShuffled = CardStack.buildShuffledFullDeck
@@ -79,6 +137,7 @@ object GameCoordinatorActor:
     val discardStack = CardStack(List(topCardDiscardStack))
     GameData(
       whoToSendResponse,
+      whoToSendResponse,
       playerRank,
       ownCode,
       GameInProgress(
@@ -86,8 +145,8 @@ object GameCoordinatorActor:
         GameParameters(maxTimeRound = 5),
         GameStatus.InProgress(),
         List(
-          PlayerPlaying("player01", "name01", Hand(handPlayer01)),
-          PlayerPlaying("player02", "name02", Hand(handPlayer02)),
+          PlayerPlaying("player01", "name01", 0, Hand(handPlayer01)),
+          PlayerPlaying("player02", "name02", 1, Hand(handPlayer02)),
         ),
         deckToStartTheGame,
         discardStack,
@@ -155,7 +214,8 @@ object GameCoordinatorActor:
         // send to other atcual status
         // [...]
         // to change then
-        gameData.whoToSendResponse ! GameCoordinatorMessage.GameInformation(gameData.game)
+//        gameData.whoToSendResponse ! GameCoordinatorMessage.GameInformation(gameData.game)
+        gameData.clientReference ! ClientMessages.TurnEnded(gameData.syncAllTemporaryDecks.game, gameData.turnLog)
         notMyTurn(gameData)
       })
   }
@@ -179,7 +239,7 @@ object GameCoordinatorActor:
       val (topCard, newDeck) = gameData.game.deckStack.drawFirstCard
       ctx.log.info(s"I draw $topCard from deck")
       gameData.turnLog.addEvent(TurnEvent.DrawCardFromDeck(topCard))
-      gameData.whoToSendResponse ! GameCoordinatorMessage.CardDrawn(topCard)
+      gameData.viewReference ! GameCoordinatorMessage.CardDrawn(topCard)
       if topCard.power != Power.NoPower() then
         myTurnAfterDrawWithPower(gameData.copy(temporaryDeck = newDeck), cardInHand = topCard)
       else
@@ -193,7 +253,7 @@ object GameCoordinatorActor:
 
       val (topCard, newDiscardStack) = gameData.game.discardDeckStack.drawFirstCard
       gameData.turnLog.addEvent(TurnEvent.DrawCardFromDiscardStack(topCard))
-      gameData.whoToSendResponse ! GameCoordinatorMessage.CardDrawn(topCard)
+      gameData.viewReference ! GameCoordinatorMessage.CardDrawn(topCard)
       myTurnAfterDrawFromDiscard(gameData.copy(temporaryDiscardDeck = newDiscardStack), topCard)
 
   private def handleDiscardCardDrawn(
@@ -210,7 +270,7 @@ object GameCoordinatorActor:
 
       println(s"New game state: $newGameState")
 
-      gameData.whoToSendResponse ! GameCoordinatorMessage.NewTopCardDiscardStack(cardInHand)
+      gameData.viewReference ! GameCoordinatorMessage.NewTopCardDiscardStack(cardInHand)
       myTurnAfterDiscard(gameData.copy(game = newGameState, temporaryDiscardDeck = newGameState.discardDeckStack))
 
   private def handleDiscardOwnNthCard(
@@ -231,7 +291,7 @@ object GameCoordinatorActor:
       )
       ctx.log.info(s"New game state: $newGameState")
 
-      gameData.whoToSendResponse ! GameCoordinatorMessage.NewTopCardDiscardStack(oldHand.cards(index))
+      gameData.viewReference ! GameCoordinatorMessage.NewTopCardDiscardStack(oldHand.cards(index))
 
       myTurnAfterDiscard(gameData.copy(game = newGameState))
 
@@ -247,6 +307,8 @@ object GameCoordinatorActor:
     // TODO: implementare l'arrivo delle nuove informazioni e la sequenza dei passaggi fatti in un turno.
     //       Se un giocatore per problemi o altro non gioca non fa andare avanti il mazzo, quindi può arrivarmi un messaggio con niente
     case (ctx, GameCoordinatorMessage.NewTurn(game)) =>
+      //todo - check if it's my turn or wait another one
+      //todo - send ack beck to client and update the view
       myTurnBeforeDraw(gameData.copy(game = game, turnLog = new DuringGameTurnLog(gameData.playerOwnUserID)))
 
   // POWERS implementation
@@ -270,7 +332,7 @@ object GameCoordinatorActor:
       baseShowCard(gameData, gameData.getHandOPlayerWithID(playerID).cards(cardIndex), nextBehaviors(gameData))
 
   private def baseShowCard(gameData: GameData, card: Card, behavior: Behavior[Message]) =
-    gameData.whoToSendResponse ! GameCoordinatorMessage.CardSeen(card)
+    gameData.viewReference ! GameCoordinatorMessage.CardSeen(card)
     behavior
 
 

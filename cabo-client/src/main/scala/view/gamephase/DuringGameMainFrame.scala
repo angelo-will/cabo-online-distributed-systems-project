@@ -127,8 +127,8 @@ private class WaitingToStartGamePanel extends BorderPanel:
     //    val (hand3Cards, deckAfterHand3) = deckAfterHand2.drawNCards(4)
     //    val (hand4Cards, deckAfterHand4) = deckAfterHand3.drawNCards(4)
 
-    val player1 = PlayerPlaying(userID, "Alice", Hand(hand1Cards))
-    val player2 = PlayerPlaying("user2", "Bob", Hand(hand2Cards))
+    val player1 = PlayerPlaying(userID, "Alice", 1, Hand(hand1Cards))
+    val player2 = PlayerPlaying("user2", "Bob", 2, Hand(hand2Cards))
     //    val player3 = PlayerPlaying("user3", "Charlie", Hand(hand3Cards))
     //    val player4 = PlayerPlaying("user4", "Diana", Hand(hand4Cards))
 
