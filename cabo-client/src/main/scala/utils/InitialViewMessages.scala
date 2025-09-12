@@ -5,7 +5,7 @@ import model.Game.GameInConstruction
 import model.PlayerInLobby
 import utils.GameCoordinatorMessage.PlayerCommand
 
-object ViewMessages {
+object InitialViewMessages {
 
   trait ViewCommand extends Message
 

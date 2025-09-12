@@ -3,7 +3,7 @@ package utils
 import akka.actor.typed.ActorRef
 import model.Card
 import model.Game
-import utils.ViewMessages.ViewCommand
+import utils.InitialViewMessages.ViewCommand
 
 object GameCoordinatorMessage:
 
@@ -38,19 +38,3 @@ object GameCoordinatorMessage:
   case class EndTurn() extends PlayerCommand
 
   case class SendGameStatus(toWhoSend: ActorRef[Message]) extends PlayerCommand
-
-  // Messages - command sent by the coordinator
-
-  /**
-   * Represents a message send by the coordinator with the card drawn.
-   */
-  case class CardDrawn(card: Card) extends PlayerCommand
-
-  case class NewTopCardDiscardStack(card: Card) extends PlayerCommand
-
-  case class GameInformation(game: Game.GameInProgress) extends PlayerCommand
-
-  case class CardSeen(card: Card) extends PlayerCommand
-  
-  
-  case class PlayThisTurn(viewRef: ActorRef[ViewCommand]) extends PlayerCommand

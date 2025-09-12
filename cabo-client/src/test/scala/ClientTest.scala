@@ -13,7 +13,7 @@ import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import utils.ClientMessages.*
 import utils.Message
-import utils.ViewMessages.*
+import utils.InitialViewMessages.*
 
 class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString("""
     akka.actor.provider = "cluster"
