@@ -1,6 +1,7 @@
 package view.gamephase
 
 import model.Game.GameInProgress
+import model.{Card, PlayerPlaying, TurnLog}
 import model.TurnPhase.TurnPhase
 import view.lobbyphase.ViewListener.IDuringGameViewListener
 
@@ -15,7 +16,7 @@ import javax.swing.{BorderFactory, ImageIcon, UIManager}
 //  val duringGamePanel: DuringGamePanel = new DuringGamePanel(viewListener, gameInProgress, userID).revealingInitialCardsPhase()
 //}
 
-class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: GameInProgress, userID: String) extends GridBagPanel {
+class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: GameInProgress, userID: String) extends GridBagPanel with IDuringGameInterface {
 
   private val PLAYER_CARDS = 4
   private val MIN_CENTER_FIELD_ROWS = 10
@@ -27,9 +28,10 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
 
   val adversariesPanelMap: Map[String, PlayerPanel] = gameInProgress.players
     .filter(p => p.userID != userID)
-    .map(p => p.userID -> new PlayerPanel(p.name)).toMap
+    .map(p => p.userID -> new PlayerPanel(p.name, index => viewListener.adversaryCardSelected(p.userID, index))).toMap
 
-  val playerPanel = new PlayerPanel("YOU")
+  val playerPanel = new PlayerPanel("YOU", n => viewListener.ownCardSelected(n))
+  playerPanel.enableCardsButton(true)
 
   private def spacePanel = new Panel {
     preferredSize = new Dimension(this.preferredSize.width, 1)
@@ -122,7 +124,7 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
 
   // CREAZIONE MAZZO PRINCIPALE - INIZIO
   val deckPanel = new DeckPanel("Deck")
-  private val deckPanelRowIndex = NORTH_OFFSET_CENTER_FIELDS_ROWS + 2
+  private val deckPanelRowIndex = NORTH_OFFSET_CENTER_FIELDS_ROWS + 1
   private val deckPanelColumnIndex = 3
   private val deckHeight = 2
   c.gridx = deckPanelColumnIndex
@@ -160,16 +162,48 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
     contents += drawnCardButton
   }
   private val drawnCardPanelColumnIndex = deckPanelColumnIndex + 1
+  private val drawnCardPanelRowIndex = deckPanelRowIndex + deckHeight + 1
   c.gridx = drawnCardPanelColumnIndex
-  c.gridy = deckPanelRowIndex + deckHeight + 1
+  c.gridy = drawnCardPanelRowIndex
   c.gridheight = deckHeight
   layout(drawnCardPanel) = c
   resetConstraintsValues()
   // CREAZIONE CARTA PESCATA - FINE
 
+  // CREAZIONE PANNELLO AZIONI COMPIUTE - INIZIO
+
+  private val myTurnActionsLog = new TextArea {
+    editable = false
+    lineWrap = true
+    wordWrap = true
+    font = new AwtFont("Arial", AwtFont.PLAIN, 12)
+    text = "AZIONI COMPIUTE NEL TURNO:"
+  }
+  private val myTurnScrollPane = new ScrollPane(myTurnActionsLog) {
+    preferredSize = new Dimension(this.preferredSize.width, 100)
+    verticalScrollBarPolicy = ScrollPane.BarPolicy.Always
+    horizontalScrollBarPolicy = ScrollPane.BarPolicy.Never
+    //    preferredSize = new Dimension(1, 100)
+    peer.setBorder(BorderFactory.createLineBorder(Color.MAGENTA, 3))
+  }
+
+  c.gridx = 3
+  private val myTurnLogRowIndex = drawnCardPanelRowIndex + deckHeight + 1
+  private val myTurnLogHeight = 2
+  c.gridy = myTurnLogRowIndex
+  //  c.gridy = exitButtonRowIndex
+  c.gridwidth = 3
+  c.gridheight = 2
+  c.fill = Fill.Both
+  //  c.weightx = 1.0
+  layout(myTurnScrollPane) = c
+  resetConstraintsValues()
+  // CREAZIONE PANNELLO AZIONI COMPIUTE - FINE
+
   // CRAZIONE PANNELLO GIOCATORE SE STESSO - INIZIO
   c.gridx = 3
-  c.gridy = exitButtonRowIndex
+  //  c.gridy = exitButtonRowIndex
+  c.gridy = myTurnLogRowIndex + myTurnLogHeight + 1
   c.gridwidth = 3
   c.fill = Fill.Both
   //  c.weightx = 1.0
@@ -354,9 +388,30 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
   // Defining the phases of the game panel - end
 
 
+  override def setLastTurnLog(turnLog: TurnLog): Unit = ???
+
+  override def setNewGameInfo(gameInfo: GameInProgress): Unit = ???
+
+  override def showCardDrawnFromDeck(cardDrawn: Card): Unit = ???
+
+  override def showCardDrawnFromDiscards(cardDrawn: Card): Unit = ???
+
+  override def newDiscardsTopCard(card: Card): Unit = ???
+
+  override def showYourNthCard(card: Card): Unit =
+    println(s"DuringGamePanel - showYourNthCard: $card")
+    this.myTurnActionsLog.text = s"YOUR CARD SELECTED HAS VALUE $card"
+
+  override def showAdversaryNthCard(adversaryName: String, n: Int, card: Card): Unit = ???
+
+  override def changeCardWithAdversaryIsDone(): Unit = ???
+
+  override def playerIsDisconnected(player: PlayerPlaying): Unit = ???
+
+  override def lostYourConnection(): Unit = ???
 }
 
-private class PlayerPanel(playerName: String) extends BoxPanel(Orientation.Vertical):
+private class PlayerPanel(playerName: String, f: (index: Int) => Unit) extends BoxPanel(Orientation.Vertical):
   //  border = Swing.EmptyBorder(10, 10, 10, 10)
   peer.setBorder(BorderFactory.createLineBorder(Color.BLUE, 3))
   private val nameLabel = new Label(playerName) {
@@ -370,6 +425,12 @@ private class PlayerPanel(playerName: String) extends BoxPanel(Orientation.Verti
       font = new AwtFont("Arial", AwtFont.PLAIN, 24)
       border = Swing.EmptyBorder(0, 5, 0, 5)
       enabled = false
+      reactions += {
+        case ButtonClicked(_) =>
+          println(s"Player '$playerName' card $i clicked")
+          f(i)
+        //          f(i - 1) // Call the function with the index (0-based)
+      }
     }
   }
 

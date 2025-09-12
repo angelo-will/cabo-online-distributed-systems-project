@@ -6,6 +6,12 @@ import utils.Message
 import view.lobbyphase.ViewListener.IDuringGameViewListener
 
 case class DuringGameViewListener(whoToResponse: ActorRef[Message]) extends IDuringGameViewListener:
+  override def ownCardSelected(cardIndex: Int): Unit =
+    whoToResponse ! utils.DuringGameViewMessages.OwnCardSelected(cardIndex)
+
+  override def adversaryCardSelected(adversaryID: String, cardIndex: Int): Unit =
+    {}
+
   override def showCardNth(cardIndex: Int): Unit =
     whoToResponse ! ShowYourNthCard(cardIndex)
 
@@ -30,5 +36,5 @@ case class DuringGameViewListener(whoToResponse: ActorRef[Message]) extends IDur
   override def endTurn(): Unit =
     whoToResponse ! EndTurn()
 
-  override def callCabo(): Unit = 
+  override def callCabo(): Unit =
     whoToResponse ! CallCabo()

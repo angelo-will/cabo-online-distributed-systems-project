@@ -44,11 +44,12 @@ class DuringGameMainFrame(val viewListener: IDuringGameViewListener) extends Mai
     containerPanel.revalidate()
     containerPanel.repaint()
 
-  def startGame(game: GameInProgress, userID: String): Unit = {
+  def startGame(game: GameInProgress, userID: String): IDuringGameInterface = {
     println("Starting game...")
     duringGamePanel = Some(new DuringGamePanel(viewListener, game, userID))
     //    duringGamePanel.get.peer.putClientProperty("JComponent.outline", "true")
     setPanel(duringGamePanel.get)
+    duringGamePanel.get
   }
 
   def setAdversariesCardsButton(enabled: Boolean): Unit =
@@ -88,6 +89,10 @@ private class WaitingToStartGamePanel extends BorderPanel:
   // Assicura che la UI sia creata e manipolata sull'Event Dispatch Thread di Swing
   Swing.onEDT {
     val ui = new DuringGameMainFrame(new IDuringGameViewListener {
+      override def ownCardSelected(cardIndex: Int): Unit = println(s"ownCardSelected($cardIndex)")
+
+      override def adversaryCardSelected(adversaryID: String, cardIndex: Int): Unit = println(s"adversaryCardSelected($adversaryID, $cardIndex)")
+
       override def showCardNth(cardIndex: Int): Unit = println(s"showCardNth($cardIndex)")
 
       override def drawFromDeck(): Unit = println("drawFromDeck()")

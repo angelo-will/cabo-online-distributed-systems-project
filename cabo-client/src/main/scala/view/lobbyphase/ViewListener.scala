@@ -23,6 +23,10 @@ object ViewListener:
 
   trait IDuringGameViewListener:
     
+    def ownCardSelected(cardIndex: Int): Unit
+    
+    def adversaryCardSelected(adversaryID: String, cardIndex: Int): Unit
+    
     def showCardNth(cardIndex: Int): Unit
 
     def drawFromDeck(): Unit
