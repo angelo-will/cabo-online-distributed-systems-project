@@ -25,11 +25,11 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
 
   val c = new Constraints
 
-  private val adversariesPanelMap: Map[String, PlayerPanel] = gameInProgress.players
+  val adversariesPanelMap: Map[String, PlayerPanel] = gameInProgress.players
     .filter(p => p.userID != userID)
     .map(p => p.userID -> new PlayerPanel(p.name)).toMap
 
-  private val playerPanel = new PlayerPanel("YOU")
+  val playerPanel = new PlayerPanel("YOU")
 
   private def spacePanel = new Panel {
     preferredSize = new Dimension(this.preferredSize.width, 1)
@@ -68,7 +68,7 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
     centerFieldRows = rowAdversaryIndex - rowAdversaryStartIndex
 
   // BOTTONE USCITA DAL GIOCO - INIZIO
-  private val exitButton = new Button("Exit Game") {
+  val exitButton: Button = new Button("Exit Game") {
     font = new AwtFont("Arial", AwtFont.BOLD, 12)
     reactions += {
       case ButtonClicked(_) =>
@@ -121,7 +121,7 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
   // CREAZIONE SCHERMATA DATI PARTITA E TURNO - FINE
 
   // CREAZIONE MAZZO PRINCIPALE - INIZIO
-  private val deckPanel = new DeckPanel("Deck")
+  val deckPanel = new DeckPanel("Deck")
   private val deckPanelRowIndex = NORTH_OFFSET_CENTER_FIELDS_ROWS + 2
   private val deckPanelColumnIndex = 3
   private val deckHeight = 2
@@ -133,7 +133,7 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
   // CREAZIONE MAZZO PRINCIPALE - FINE
 
   // CREAZIONE MAZZO SCARTI - INIZIO
-  private val discardPanel = new DeckPanel("Discards")
+  val discardPanel = new DeckPanel("Discards")
   private val discardPanelColumnIndex = deckPanelColumnIndex + 2
   c.gridx = discardPanelColumnIndex
   c.gridy = deckPanelRowIndex
@@ -211,7 +211,7 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
 
   // CREAZIONE TASTI END TURN E CALL CABO - INIZIO
 
-  private val endTurnButton = new Button("End Turn") {
+  val endTurnButton: Button = new Button("End Turn") {
     font = new AwtFont("Arial", AwtFont.BOLD, 12)
     reactions += {
       case ButtonClicked(_) =>
@@ -224,7 +224,7 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
   c.gridx = 7
   layout(endTurnButton) = c
 
-  private val callCaboButton = new Button("Call CABO") {
+  val callCaboButton: Button = new Button("Call CABO") {
     font = new AwtFont("Arial", AwtFont.BOLD, 12)
     reactions += {
       case ButtonClicked(_) =>
@@ -317,10 +317,10 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
   def revealingInitialCardsPhase(): DuringGamePanel = {
     this.disableAll()
     this.exitButton.enabled = true
-    this.playerPanel.enableCardsButton()
+    this.playerPanel.enableCardsButton(true)
     this
   }
-  
+
   def beforeDrawPhase(): DuringGamePanel = {
     this.disableAll()
     this.deckPanel.enabled = true
@@ -346,8 +346,8 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
     this.exitButton.enabled = false
     this.callCaboButton.enabled = false
     this.endTurnButton.enabled = false
-    this.adversariesPanelMap.foreach((k, v) => v.disableCardsButton())
-    this.playerPanel.disableCardsButton()
+    this.adversariesPanelMap.foreach((k, v) => v.enableCardsButton(false))
+    this.playerPanel.enableCardsButton(false)
     this.deckPanel.deckButton.enabled = false
     this.discardPanel.deckButton.enabled = false
   }
@@ -377,12 +377,8 @@ private class PlayerPanel(playerName: String) extends BoxPanel(Orientation.Verti
     seqButtonCards.foreach(b => contents += b)
   }
 
-  def enableCardsButton(): Unit = {
-    seqButtonCards.foreach(b => b.enabled = true)
-  }
-
-  def disableCardsButton(): Unit = {
-    seqButtonCards.foreach(b => b.enabled = false)
+  def enableCardsButton(enable: Boolean): Unit = {
+    seqButtonCards.foreach(b => b.enabled = enable)
   }
 
   contents += nameLabel

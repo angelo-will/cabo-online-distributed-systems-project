@@ -47,9 +47,37 @@ class DuringGameMainFrame(val viewListener: IDuringGameViewListener) extends Mai
   def startGame(game: GameInProgress, userID: String): Unit = {
     println("Starting game...")
     duringGamePanel = Some(new DuringGamePanel(viewListener, game, userID))
-//    duringGamePanel.get.peer.putClientProperty("JComponent.outline", "true")
+    //    duringGamePanel.get.peer.putClientProperty("JComponent.outline", "true")
     setPanel(duringGamePanel.get)
   }
+
+  def setAdversariesCardsButton(enabled: Boolean): Unit =
+    if duringGamePanel.isDefined then
+      duringGamePanel.get.adversariesPanelMap.foreach((k, v) => v.enableCardsButton(enabled))
+
+  def setExitButton(enabled: Boolean): Unit =
+    if duringGamePanel.isDefined then
+      duringGamePanel.get.exitButton.enabled = enabled
+
+  def setDeckButton(enabled: Boolean): Unit =
+    if duringGamePanel.isDefined then
+      duringGamePanel.get.deckPanel.deckButton.enabled = enabled
+
+  def setDiscardDeck(enabled: Boolean): Unit =
+    if duringGamePanel.isDefined then
+      duringGamePanel.get.discardPanel.deckButton.enabled = enabled
+
+  def setPlayerCardsButton(enabled: Boolean): Unit =
+    if duringGamePanel.isDefined then
+      duringGamePanel.get.playerPanel.enableCardsButton(enabled)
+
+  def setEndTurnButton(enable: Boolean): Unit =
+    if duringGamePanel.isDefined then
+      duringGamePanel.get.endTurnButton.enabled = enable
+
+  def setCallCaboButton(enable: Boolean): Unit =
+    if duringGamePanel.isDefined then
+      duringGamePanel.get.callCaboButton.enabled = enable
 
 
 private class WaitingToStartGamePanel extends BorderPanel:
@@ -84,37 +112,37 @@ private class WaitingToStartGamePanel extends BorderPanel:
     timer.schedule(new TimerTask {
       override def run(): Unit = {
         println("Timer finished!")
-        val userID= "player1"
+        val userID = "player1"
         ui.startGame(generateGameInProgress(userID), userID)
         timer.cancel() // Stops the timer after execution
       }
     }, 3000) // 3000 milliseconds = 3 seconds
   }
 
-  def generateGameInProgress(userID:String): GameInProgress = {
+  def generateGameInProgress(userID: String): GameInProgress = {
     // 1. Creazione dei giocatori e delle loro mani
     val fullDeck = CardStack.buildShuffledFullDeck
     val (hand1Cards, deckAfterHand1) = fullDeck.drawNCards(4)
     val (hand2Cards, deckAfterHand2) = deckAfterHand1.drawNCards(4)
-//    val (hand3Cards, deckAfterHand3) = deckAfterHand2.drawNCards(4)
-//    val (hand4Cards, deckAfterHand4) = deckAfterHand3.drawNCards(4)
+    //    val (hand3Cards, deckAfterHand3) = deckAfterHand2.drawNCards(4)
+    //    val (hand4Cards, deckAfterHand4) = deckAfterHand3.drawNCards(4)
 
     val player1 = PlayerPlaying(userID, "Alice", Hand(hand1Cards))
     val player2 = PlayerPlaying("user2", "Bob", Hand(hand2Cards))
-//    val player3 = PlayerPlaying("user3", "Charlie", Hand(hand3Cards))
-//    val player4 = PlayerPlaying("user4", "Diana", Hand(hand4Cards))
+    //    val player3 = PlayerPlaying("user3", "Charlie", Hand(hand3Cards))
+    //    val player4 = PlayerPlaying("user4", "Diana", Hand(hand4Cards))
 
 
     val playersList = List(
       player1,
       player2,
-//      player3,
-//      player4
+      //      player3,
+      //      player4
     )
 
     // 2. Creazione del mazzo e del mazzo degli scarti
     val gameDeck = deckAfterHand2
-//    val gameDeck = deckAfterHand4
+    //    val gameDeck = deckAfterHand4
     val discardDeck = CardStack.buildEmptyDeck
 
     // 3. Creazione dei parametri del gioco e dello stato

@@ -1,9 +1,9 @@
-package view.lobbyphase.actors
+package view.gamephase
 
 import akka.actor.typed.ActorRef
+import utils.GameCoordinatorMessage.*
 import utils.Message
 import view.lobbyphase.ViewListener.IDuringGameViewListener
-import utils.GameCoordinatorMessage.*
 
 case class DuringGameViewListener(whoToResponse: ActorRef[Message]) extends IDuringGameViewListener:
   override def showCardNth(cardIndex: Int): Unit =

@@ -5,8 +5,8 @@ import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatest.wordspec.AnyWordSpecLike
 import utils.Message
 import view.lobbyphase.ViewListener.IDuringGameViewListener
-import view.lobbyphase.actors.DuringGameViewListener
 import utils.GameCoordinatorMessage
+import view.gamephase.DuringGameViewListener
 
 import scala.concurrent.duration.{FiniteDuration, SECONDS}
 
