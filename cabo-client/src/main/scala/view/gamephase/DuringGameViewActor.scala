@@ -2,7 +2,7 @@ package view.gamephase
 
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
-import utils.Message
+import utils.{GameCoordinatorMessage, Message}
 
 object DuringGameViewActor {
   def apply(clientRef: ActorRef[Message]): Behavior[Message] = {
@@ -12,23 +12,23 @@ object DuringGameViewActor {
 }
 
 class DuringGameViewActor private(val clientRef: ActorRef[Message]) {
-
-  private var frame = Option.empty[DuringGameMainFrame]
-  private var coordinator = ???
+  private case class Properties(
+                                 gameCoordinatorRef: ActorRef[GameCoordinatorMessage.PlayerCommand],
+                                 frame: DuringGameMainFrame
+                               )
 
   def start(): Behavior[Message] = Behaviors.setup { ctx =>
     ctx.log.info("DuringGameViewActor started")
-    frame = Some(new DuringGameMainFrame(DuringGameViewListener(ctx.self)))
-    frame.get.open()
-
-    frame.get.visible = true
+    val frame = new DuringGameMainFrame(DuringGameViewListener(ctx.self))
+    frame.open()
+    frame.visible = true
 
     clientRef ! utils.ClientMessages.DuringGameViewReady(ctx.self)
 
-    waitingGameCreated()
+    waitingGameCreated(Properties(gameCoordinatorRef = null, frame = frame))
   }
 
-  def waitingGameCreated(): Behavior[Message] = {
+  private def waitingGameCreated(properties: Properties): Behavior[Message] = {
     Behaviors.receivePartial {
       handleGameStarted()
         .orElse({
