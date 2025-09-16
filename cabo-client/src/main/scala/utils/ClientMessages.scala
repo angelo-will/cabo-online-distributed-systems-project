@@ -75,5 +75,7 @@ object ClientMessages {
   case class TakeGetInProgressGame(game: GameInProgress) extends ClientCommand
   
   case class TurnEnded(game: GameInProgress, turnLog: TurnLog) extends ClientCommand
+  
+  case class TurnUpdated() extends ClientCommand
 
 }

@@ -310,6 +310,8 @@ object GameCoordinatorActor:
     case (ctx, GameCoordinatorMessage.NewTurn(game)) =>
       //todo - check if it's my turn or wait another one
       //todo - send ack beck to client and update the view
+      ctx.log.info(s"New turn arrived, game = $game")
+      gameData.clientReference ! ClientMessages.TurnUpdated()
       myTurnBeforeDraw(gameData.copy(game = game, turnLog = new DuringGameTurnLog(gameData.playerOwnUserID)))
 
   // POWERS implementation

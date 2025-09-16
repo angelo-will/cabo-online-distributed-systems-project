@@ -44,7 +44,7 @@ object Client:
 
   case class FailedToSynchronize() extends ClientInternalCommand
 
-  case class GameInProgressUpdate(game: GameInProgress, turnLog: TurnLog) extends ClientInternalCommand
+  case class GameInProgressUpdate(replyTo: ActorRef[ClientInternalCommand],game: GameInProgress, turnLog: TurnLog) extends ClientInternalCommand
   
   private def viewDefaultBehavior: Behavior[Message] = Behaviors.setup { ctx =>
     Behaviors.receiveMessagePartial {
@@ -292,7 +292,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
             awaitSynchronization(ctx, game.players.filter(!_.address.equals(ctx.self)).map(_.userID), () => {
               ctx.log.info(s"All players synchronized, starting the game: ${gameInProgress.code}")
               viewActorRef ! InitialViewMessages.ReadyToPlay(gameCoordinator)
-              inGameBehavior(gameCoordinator, game.players.map(p => p -> true).toMap)
+              inGameBehavior(gameCoordinator, game.players.map(p => p -> true).toMap, ctx.self)
             }, () => {
               //If failed to synchronize
               //Brutal policy, we abort the game
@@ -420,17 +420,24 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
           hostRef ! SynchronizationAck(userId)
           //todo - a joiner initially check connection only with the host, in the game he should check also with other players?
           connectionHandler ! ConnectionHandler.UpdateList(game.players)
-          inGameBehavior(gameCoordinator, game.players.map(p => p -> true).toMap)
+          inGameBehavior(gameCoordinator, game.players.map(p => p -> true).toMap, hostRef)
     })
   }
 
   //todo - retrieve who am i, so the rank, by id from the game players?
-  private def inGameBehavior(gameCoordinator: ActorRef[PlayerCommand], playerOnline: Map[PlayerInLobby, Boolean]): Behavior[Message] = {
+  private def inGameBehavior(gameCoordinator: ActorRef[PlayerCommand], playerOnline: Map[PlayerInLobby, Boolean], hostRef: ActorRef[ClientInternalCommand]): Behavior[Message] = {
     withShared( {
       case (ctx, TurnEnded(game, log)) =>
         ctx.log.info(s"My turn ended: ${game.code}")
-        playerOnline.toList.filter((p,o) => !p.address.equals(ctx.self) && o).map(_._1.address).foreach(_ ! GameInProgressUpdate(game, log))
+        playerOnline.toList.filter((p,o) => !p.address.equals(ctx.self) && o).map(_._1.address).foreach(_ ! GameInProgressUpdate(ctx.self, game, log))
         //todo - sync to all the players
+        awaitSynchronization(ctx, playerOnline.filter(p => !p._1.address.equals(ctx.self) && p._2).keys.map(_.userID).toList, () => {
+          ctx.log.info(s"All players synchronized after my turn, waiting for my turn again: ${game.code}")
+          Behaviors.same
+        }, () => {
+          //todo - what to do if not all the players have synchronized?
+          Behaviors.same
+        })
         Behaviors.same
 
       case (ctx, LeaveTheGame()) =>
@@ -447,13 +454,18 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
         }
         //todo - add a specific message to the view
 //        viewActorRef ! ViewMessages.GameAborted()
-        inGameBehavior(gameCoordinator, onlineUpdate)
+        inGameBehavior(gameCoordinator, onlineUpdate, hostRef)
 
-      case (ctx, GameInProgressUpdate(game, log)) =>
+      case (ctx, GameInProgressUpdate(replyTo, game, log)) =>
         //todo - update gameCoordinator
         ctx.log.info(s"Game info update: ${game.code}")
         gameCoordinator ! NewTurn(game)
         //todo - sync to all the players, wait for gameCoordinator ack?
-        Behaviors.same
+        withShared( {
+          case (ctx, TurnUpdated()) =>
+            ctx.log.info(s"GameCoordinator updated the turn")
+            replyTo ! SynchronizationAck(userId)
+            inGameBehavior(gameCoordinator, playerOnline, hostRef)
+        })
     })
   }
