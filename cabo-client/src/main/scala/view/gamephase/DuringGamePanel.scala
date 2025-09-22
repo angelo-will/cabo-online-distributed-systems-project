@@ -384,25 +384,31 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
     this.playerPanel.enabled = false
 
     this.deckPanel.deckButton.enabled = false
-//    this.deckPanel.enabled = false
+    //    this.deckPanel.enabled = false
     this.discardPanel.deckButton.enabled = false
-//    this.discardPanel.enabled = false
+    //    this.discardPanel.enabled = false
 
     this.drawnCardButton.enabled = false
-//    this.drawnCardPanel.enabled = false
+    //    this.drawnCardPanel.enabled = false
   }
   // Defining the phases of the game panel - end
 
 
-  override def updateLastTurnLog(turnLog: TurnLog): Unit = ???
+  override def updateLastTurnLog(turnLog: TurnLog): Unit = {
+    println(s"DuringGamePanel - updateLastTurnLog: $turnLog")
+  }
 
-  override def updateGameInfo(gameInfo: GameInProgress): Unit = ???
+  override def updateGameInfo(gameInfo: GameInProgress): Unit = {
+    println(s"DuringGamePanel - updateGameInfo: $gameInfo")
+  }
 
   override def showCardDrawnFromDeck(cardDrawn: Card): Unit = ???
 
   override def showCardDrawnFromDiscards(cardDrawn: Card): Unit = ???
 
-  override def newDiscardsTopCard(card: Card): Unit = ???
+  override def updateDiscardsTopCard(card: Card): Unit = {
+    println(s"DuringGamePanel - updateDiscardsTopCard $card")
+  }
 
   override def showYourNthCard(card: Card): Unit =
     println(s"DuringGamePanel - showYourNthCard: $card")

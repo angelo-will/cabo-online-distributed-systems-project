@@ -12,7 +12,7 @@ trait IDuringGameInterface {
 
   def showCardDrawnFromDiscards(cardDrawn: Card): Unit
 
-  def newDiscardsTopCard(card: Card): Unit
+  def updateDiscardsTopCard(card: Card): Unit
 
   def showYourNthCard(card: Card): Unit
 
@@ -30,6 +30,6 @@ trait IDuringGameInterface {
   def enterWaitingPhase(): Unit
 
   def enterRevealingInitialCardsPhase(): Unit
-  
+
   def startTurn(): Unit
 }
