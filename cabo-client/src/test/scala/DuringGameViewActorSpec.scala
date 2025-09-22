@@ -1,11 +1,12 @@
 import akka.actor.testkit.typed.scaladsl.{ScalaTestWithActorTestKit, TestProbe}
+import akka.actor.typed.ActorRef
 import model.Game.GameInProgress
 import model.{CardStack, Game, GameParameters, GameStatus, Hand, IGameParameters, PlayerPlaying}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.matchers.must.Matchers.mustBe
-import utils.{ClientMessages, DuringGameViewMessages, InitialViewMessages, GameCoordinatorMessage, Message}
+import utils.{ClientMessages, DuringGameViewMessages, GameCoordinatorMessage, InitialViewMessages, Message}
 import view.lobbyphase.ViewApplication
 import view.lobbyphase.actors.InitialPhaseViewActor.ViewCreated
 import view.lobbyphase.actors.{InitialPhaseViewActor, ViewActorListener}
@@ -78,22 +79,38 @@ class DuringGameViewActorSpec extends ScalaTestWithActorTestKit
     }
     "notify end view card phase" when {
       "quantity of cards visible has been seen" in {
+        val game = generateGameInProgress(userID)
         val duringGameViewActor = testKit.spawn(view.gamephase.DuringGameViewActor(userID, probeAsClient.ref, probeAsMainMenu.ref))
         probeAsClient.receiveMessages(1)
-        val game = generateGameInProgress(userID)
-        val player = game.players.filter(_.userID.equals(userID)).head
-        duringGameViewActor ! DuringGameViewMessages.StartGame(game, probeAsGameCoordinator.ref)
-        val showYourFirstNthCard = probeAsGameCoordinator.expectMessageType[GameCoordinatorMessage.ShowYourNthCard](FiniteDuration(5, SECONDS))
-        val firstCardRequested = player.hand.cards(showYourFirstNthCard.index)
-        duringGameViewActor ! DuringGameViewMessages.CardSeen(firstCardRequested)
-        val showYourSecondNthCard = probeAsGameCoordinator.expectMessageType[GameCoordinatorMessage.ShowYourNthCard](FiniteDuration(5, SECONDS))
-        val secondCardRequested = player.hand.cards(showYourSecondNthCard.index)
-        duringGameViewActor ! DuringGameViewMessages.CardSeen(secondCardRequested)
+        revealingFirstTwoCardsPhase(duringGameViewActor, game)
         duringGameViewActor ! DuringGameViewMessages.StartPlayPhase()
-        Thread.sleep(10000) // wait for the view to update        
+        Thread.sleep(10000) // wait for the view to update
       }
     }
 
+    "let the player start his turn" when {
+      "receive StartPlayPhase message and then LastTurnPlayed message with isMyTurn true" in {
+        val game = generateGameInProgress(userID)
+        val duringGameViewActor = testKit.spawn(view.gamephase.DuringGameViewActor(userID, probeAsClient.ref, probeAsMainMenu.ref))
+        probeAsClient.receiveMessages(1)
+        revealingFirstTwoCardsPhase(duringGameViewActor, game)
+        duringGameViewActor ! DuringGameViewMessages.StartPlayPhase()
+        duringGameViewActor ! DuringGameViewMessages.FirstTurn()        
+        Thread.sleep(10000) // wait for the view to update
+      }
+    }
+
+  }
+
+  private def revealingFirstTwoCardsPhase(duringGameViewActor: ActorRef[Message], game: GameInProgress): Unit = {
+    val player = game.players.filter(_.userID.equals(userID)).head
+    duringGameViewActor ! DuringGameViewMessages.StartGame(game, probeAsGameCoordinator.ref)
+    val showYourFirstNthCard = probeAsGameCoordinator.expectMessageType[GameCoordinatorMessage.ShowYourNthCard](FiniteDuration(5, SECONDS))
+    val firstCardRequested = player.hand.cards(showYourFirstNthCard.index)
+    duringGameViewActor ! DuringGameViewMessages.CardSeen(firstCardRequested)
+    val showYourSecondNthCard = probeAsGameCoordinator.expectMessageType[GameCoordinatorMessage.ShowYourNthCard](FiniteDuration(5, SECONDS))
+    val secondCardRequested = player.hand.cards(showYourSecondNthCard.index)
+    duringGameViewActor ! DuringGameViewMessages.CardSeen(secondCardRequested)
   }
 
   def generateGameInProgress(userID: String): GameInProgress = {

@@ -28,6 +28,8 @@ trait IDuringGameInterface {
    * Notify to interface to enter in waiting phase. Games button are disbled during this phase except the one for exit.
    */
   def enterWaitingPhase(): Unit
+
+  def enterRevealingInitialCardsPhase(): Unit
   
   def startTurn(): Unit
 }

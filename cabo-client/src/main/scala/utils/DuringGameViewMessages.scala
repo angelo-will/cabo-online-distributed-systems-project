@@ -15,6 +15,11 @@ object DuringGameViewMessages {
   
   case class StartPlayPhase() extends DuringGameViewMessage
 
+  /**
+   * Send when i have to play first turn of the game.
+   */
+  case class FirstTurn() extends DuringGameViewCommand
+
   case class LastTurnPlayed(turnLog: TurnLog, game: GameInProgress, isMyTurn: Boolean) extends DuringGameViewCommand
   
 //  case class MyTurn(lastTurnPlayed: LastTurnPlayed) extends DuringGameViewCommand

@@ -73,6 +73,7 @@ class DuringGameViewActor private(
   private def waitMyTurn(properties: PropertiesAfterInitialization): Behavior[Message] = {
     Behaviors.receivePartial {
       handleUpdateLastTurnPlayed(properties)
+        .orElse(handleFirstTurn(properties))
         .orElse({
           case msg =>
             println(s"DuringGameViewActor in waitMyTurn received message: $msg")
@@ -80,7 +81,7 @@ class DuringGameViewActor private(
         })
     }
   }
-  
+
   private def myTurn(properties: PropertiesAfterInitialization): Behavior[Message] = {
     properties.userInterface.startTurn()
     Behaviors.receivePartial {
@@ -112,6 +113,7 @@ class DuringGameViewActor private(
     case (ctx, StartGame(game, gameCoordinatorRef)) =>
       ctx.log.info(s"DuringGameViewActor handling game started with message: ${StartGame(game, gameCoordinatorRef)}")
       val userInterface = properties.frame.startGame(game, userID)
+      userInterface.enterRevealingInitialCardsPhase()
       lastGameUpdate = game
       watchYourCards(PropertiesAfterInitialization(gameCoordinatorRef, properties.frame, userInterface))
   }
@@ -143,6 +145,20 @@ class DuringGameViewActor private(
       lastTurnLog = turnLog
       properties.userInterface.updateLastTurnLog(turnLog)
       properties.userInterface.updateGameInfo(game)
-      if isMyTurn then myTurn(properties) else waitMyTurn(properties) 
+      if isMyTurn then myTurn(properties) else waitMyTurn(properties)
   }
+
+  private def handleFirstTurn(properties: PropertiesAfterInitialization):
+  PartialFunction[(ActorContext[Message], Message), Behavior[Message]] = {
+    case (ctx, FirstTurn()) =>
+      ctx.log.info(s"DuringGameViewActor handling FirstTurn with message: ${FirstTurn()}")
+      myTurn(properties)
+      // next behave
+  }
+//  private def handle(properties: PropertiesAfterInitialization):
+//  PartialFunction[(ActorContext[Message], Message), Behavior[Message]] = {
+//    case (ctx, _()) =>
+//      ctx.log.info(s"DuringGameViewActor handling _ with message: ${}")
+//      // next behave
+//  }
 }

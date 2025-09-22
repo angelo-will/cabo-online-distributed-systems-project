@@ -145,6 +145,12 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
   // CREAZIONE MAZZO SCARTI - FINE
 
   // CREAZIONE CARTA PESCATA - INIZIO
+
+  private val drawnCardButton = new Button("Nascosta") {
+    font = new AwtFont("Arial", AwtFont.PLAIN, 24)
+    border = Swing.EmptyBorder(5, 5, 5, 5)
+  }
+
   private val drawnCardPanel = new BoxPanel(Orientation.Vertical) {
     border = Swing.EmptyBorder(10, 10, 10, 10)
     private val drawnCardLabel = new Label("Drawn Card") {
@@ -152,10 +158,6 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
       horizontalAlignment = Alignment.Center
     }
 
-    private val drawnCardButton = new Button("Nascosta") {
-      font = new AwtFont("Arial", AwtFont.PLAIN, 24)
-      border = Swing.EmptyBorder(5, 5, 5, 5)
-    }
 
     contents += drawnCardLabel
     contents += Swing.VStrut(5)
@@ -348,12 +350,7 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
   }
 
   // Defining the phases of the game panel - start
-  def revealingInitialCardsPhase(): DuringGamePanel = {
-    this.disableAll()
-    this.exitButton.enabled = true
-    this.playerPanel.enableCardsButton(true)
-    this
-  }
+
 
   def beforeDrawPhase(): DuringGamePanel = {
     this.disableAll()
@@ -380,10 +377,19 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
     this.exitButton.enabled = false
     this.callCaboButton.enabled = false
     this.endTurnButton.enabled = false
+
     this.adversariesPanelMap.foreach((k, v) => v.enableCardsButton(false))
+
     this.playerPanel.enableCardsButton(false)
+    this.playerPanel.enabled = false
+
     this.deckPanel.deckButton.enabled = false
+//    this.deckPanel.enabled = false
     this.discardPanel.deckButton.enabled = false
+//    this.discardPanel.enabled = false
+
+    this.drawnCardButton.enabled = false
+//    this.drawnCardPanel.enabled = false
   }
   // Defining the phases of the game panel - end
 
@@ -410,11 +416,22 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
 
   override def lostYourConnection(): Unit = ???
 
-  override def startTurn(): Unit = ???
-
-  override def enterWaitingPhase(): Unit = 
+  override def startTurn(): Unit =
     this.disableAll()
     this.exitButton.enabled = true
+    this.deckPanel.deckButton.enabled = true
+    this.discardPanel.deckButton.enabled = true
+
+  override def enterWaitingPhase(): Unit = {
+    this.disableAll()
+    this.exitButton.enabled = true
+  }
+
+  override def enterRevealingInitialCardsPhase(): Unit = {
+    this.disableAll()
+    this.exitButton.enabled = true
+    this.playerPanel.enableCardsButton(true)
+  }
 }
 
 private class PlayerPanel(playerName: String, f: (index: Int) => Unit) extends BoxPanel(Orientation.Vertical):
