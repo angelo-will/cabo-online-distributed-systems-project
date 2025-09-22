@@ -388,9 +388,9 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
   // Defining the phases of the game panel - end
 
 
-  override def setLastTurnLog(turnLog: TurnLog): Unit = ???
+  override def updateLastTurnLog(turnLog: TurnLog): Unit = ???
 
-  override def setNewGameInfo(gameInfo: GameInProgress): Unit = ???
+  override def updateGameInfo(gameInfo: GameInProgress): Unit = ???
 
   override def showCardDrawnFromDeck(cardDrawn: Card): Unit = ???
 
@@ -409,6 +409,12 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
   override def playerIsDisconnected(player: PlayerPlaying): Unit = ???
 
   override def lostYourConnection(): Unit = ???
+
+  override def startTurn(): Unit = ???
+
+  override def enterWaitingPhase(): Unit = 
+    this.disableAll()
+    this.exitButton.enabled = true
 }
 
 private class PlayerPanel(playerName: String, f: (index: Int) => Unit) extends BoxPanel(Orientation.Vertical):

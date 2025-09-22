@@ -76,6 +76,23 @@ class DuringGameViewActorSpec extends ScalaTestWithActorTestKit
         Thread.sleep(10000) // wait for the view to update
       }
     }
+    "notify end view card phase" when {
+      "quantity of cards visible has been seen" in {
+        val duringGameViewActor = testKit.spawn(view.gamephase.DuringGameViewActor(userID, probeAsClient.ref, probeAsMainMenu.ref))
+        probeAsClient.receiveMessages(1)
+        val game = generateGameInProgress(userID)
+        val player = game.players.filter(_.userID.equals(userID)).head
+        duringGameViewActor ! DuringGameViewMessages.StartGame(game, probeAsGameCoordinator.ref)
+        val showYourFirstNthCard = probeAsGameCoordinator.expectMessageType[GameCoordinatorMessage.ShowYourNthCard](FiniteDuration(5, SECONDS))
+        val firstCardRequested = player.hand.cards(showYourFirstNthCard.index)
+        duringGameViewActor ! DuringGameViewMessages.CardSeen(firstCardRequested)
+        val showYourSecondNthCard = probeAsGameCoordinator.expectMessageType[GameCoordinatorMessage.ShowYourNthCard](FiniteDuration(5, SECONDS))
+        val secondCardRequested = player.hand.cards(showYourSecondNthCard.index)
+        duringGameViewActor ! DuringGameViewMessages.CardSeen(secondCardRequested)
+        duringGameViewActor ! DuringGameViewMessages.StartPlayPhase()
+        Thread.sleep(10000) // wait for the view to update        
+      }
+    }
 
   }
 

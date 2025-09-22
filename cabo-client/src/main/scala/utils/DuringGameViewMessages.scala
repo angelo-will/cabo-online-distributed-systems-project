@@ -12,8 +12,12 @@ object DuringGameViewMessages {
   trait DuringGameViewCommand extends DuringGameViewMessage
 
   case class StartGame(game: GameInProgress, gameCoordinatorRef: ActorRef[GameCoordinatorMessage.PlayerCommand]) extends DuringGameViewCommand
+  
+  case class StartPlayPhase() extends DuringGameViewMessage
 
-  case class NewTurn(turnLog: TurnLog, game: GameInProgress, isMyTurn: Boolean) extends DuringGameViewCommand
+  case class LastTurnPlayed(turnLog: TurnLog, game: GameInProgress, isMyTurn: Boolean) extends DuringGameViewCommand
+  
+//  case class MyTurn(lastTurnPlayed: LastTurnPlayed) extends DuringGameViewCommand
 
   // To use when an adversary is unreachable, POSSIAMO USARLO O MENO 
   case class AdversaryIsDisconnected(playerPlaying: PlayerPlaying) extends DuringGameViewCommand
