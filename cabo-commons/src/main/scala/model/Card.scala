@@ -116,7 +116,8 @@ case class Card(rank: Rank, suit: Suit):
     if (rank == Rank.Jack()) true
     else this == other
 
-  override def toString: String = name
+//  override def toString: String = name
+  override def toString: String = shortName
 
 object CardStack:
   /**
