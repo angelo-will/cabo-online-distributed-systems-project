@@ -24,6 +24,8 @@ object PhaseEvents:
   case class PhaseEvents(phase: TurnPhase, events: List[TurnEvent]) extends Message
 
 trait TurnLog:
+  def playerName: String
+
   def addEvent(event: TurnEvent): Unit
 
   def events: List[TurnEvent]
@@ -36,6 +38,8 @@ class InvalidTurnEventException(event: TurnEvent.TurnEvent)
 class DuringGameTurnLog(val ofUserID: String) extends TurnLog with Message:
 
   private var phaseEvents: PhaseEvents = new PhaseEvents(AwaitDrawCard(), List())
+
+  override def playerName: String = ofUserID
 
   override def events: List[TurnEvent] = phaseEvents.copy().events
 
@@ -88,9 +92,15 @@ class DuringGameTurnLog(val ofUserID: String) extends TurnLog with Message:
   private def passToNewPhaseWithEvent(newPhase: TurnPhase, event: TurnEvent): Unit =
     phaseEvents = new PhaseEvents(newPhase, phaseEvents.events :+ event)
 
-class InitialPhaseTurnLog(userID: String) extends TurnLog with Message:
+  override def toString: String = {
+    s"DuringGameTurnLog\n\tuserID=$ofUserID,\n\tactual phase = ${phaseEvents.phase} \n\tevents = $events"
+  }
+
+class InitialPhaseTurnLog(val userID: String) extends TurnLog with Message:
 
   private var phaseEvents: PhaseEvents = new PhaseEvents(AwaitingFirstShow(), List())
+
+  override def playerName: String = userID
 
   override def events: List[TurnEvent] = phaseEvents.events
 

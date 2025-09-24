@@ -22,6 +22,10 @@ class DuringGameTurnLogSpec extends AnyWordSpec
     super.beforeEach()
     turnLog = new DuringGameTurnLog("Player01")
 
+  override def afterEach(): Unit = 
+    super.afterEach()
+    println(s"Final turn log events: ${turnLog}")
+
   "A TurnLog" when {
     "initially created" must {
       "be no events" in {

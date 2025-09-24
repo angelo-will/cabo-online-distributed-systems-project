@@ -88,29 +88,7 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
   ////////////////////
 
   // CREAZIONE SCHERMATA DATI PARTITA E TURNO - INIZIO
-  private val gameInfoPanel = new BoxPanel(Orientation.Vertical) {
-    peer.setBorder(BorderFactory.createLineBorder(Color.RED, 3))
-    //    border = Swing.EmptyBorder(10, 10, 10, 10)
-    private val gameCodeLabel = new Label(s"Game Code: ${gameInProgress.code}") {
-      font = new AwtFont("Arial", AwtFont.BOLD, 16)
-      horizontalAlignment = Alignment.Center
-    }
-
-    private val numMaxTurnsLabel = new Label(s"Rounds ${gameInProgress.gameParameters.roundLimitation}") {
-      font = new AwtFont("Arial", AwtFont.BOLD, 12)
-      horizontalAlignment = Alignment.Center
-    }
-
-    private val currentTurnLabel = new Label(s"Round N: ${gameInProgress.currentRound}") {
-      font = new AwtFont("Arial", AwtFont.BOLD, 12)
-      horizontalAlignment = Alignment.Center
-    }
-    contents += gameCodeLabel
-    contents += Swing.VStrut(5)
-    contents += numMaxTurnsLabel
-    contents += Swing.VStrut(5)
-    contents += currentTurnLabel
-  }
+  private val gameInfoPanel = new GameInfoPanel(gameInProgress)
 
   private val rowInfoGameIndex = 1
   c.gridx = 3
@@ -219,19 +197,19 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
   ////////////////////
 
   // CREAZIONE TEXT AREA LOG - INIZIO
-  private val logTextArea = new TextArea {
-    editable = false
-    lineWrap = true
-    wordWrap = true
-    font = new AwtFont("Arial", AwtFont.PLAIN, 12)
-    text = "ULTIMO TURNO GIOCATO:"
-  }
-  private val logScrollPane = new ScrollPane(logTextArea) {
-    verticalScrollBarPolicy = ScrollPane.BarPolicy.Always
-    horizontalScrollBarPolicy = ScrollPane.BarPolicy.Never
-    //    preferredSize = new Dimension(1, 100)
-    peer.setBorder(BorderFactory.createLineBorder(Color.MAGENTA, 3))
-  }
+  //  private val logTextArea = new TextArea {
+  //    editable = false
+  //    lineWrap = true
+  //    wordWrap = true
+  //    font = new AwtFont("Arial", AwtFont.PLAIN, 12)
+  //    text = "ULTIMO TURNO GIOCATO:"
+  //  }
+  //  private val logScrollPane = new ScrollPane(logTextArea) {
+  //    verticalScrollBarPolicy = ScrollPane.BarPolicy.Always
+  //    horizontalScrollBarPolicy = ScrollPane.BarPolicy.Never
+  //    //    preferredSize = new Dimension(1, 100)
+  //  }
+  private val logPanel = new LogPanel()
 
   c.gridy = NORTH_OFFSET_CENTER_FIELDS_ROWS
   c.gridx = 7
@@ -239,7 +217,7 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
   //  c.gridwidth = 2
   c.fill = Fill.Vertical
   //  c.weighty =
-  layout(logScrollPane) = c
+  layout(logPanel) = c
 
   resetConstraintsValues()
 
@@ -394,12 +372,18 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
   // Defining the phases of the game panel - end
 
 
-  override def updateLastTurnLog(turnLog: TurnLog): Unit = {
-    println(s"DuringGamePanel - updateLastTurnLog: $turnLog")
+  override def updateLastTurnLog(playerName: String, round: Int, turnLog: TurnLog): Unit = {
+    Swing.onEDT {
+      println(s"DuringGamePanel - updateLastTurnLog: $turnLog")
+      logPanel.updateLastTurnLog(TurnLogsWriter.simpleTurnLog(playerName, round, turnLog))
+    }
   }
 
   override def updateGameInfo(gameInfo: GameInProgress): Unit = {
-    println(s"DuringGamePanel - updateGameInfo: $gameInfo")
+    Swing.onEDT {
+      println(s"DuringGamePanel - updateGameInfo: $gameInfo")
+      this.gameInfoPanel.updateCurrentTurn(gameInfo)
+    }
   }
 
   override def showCardDrawnFromDeck(cardDrawn: Card): Unit = ???
@@ -407,12 +391,17 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
   override def showCardDrawnFromDiscards(cardDrawn: Card): Unit = ???
 
   override def updateDiscardsTopCard(card: Card): Unit = {
-    println(s"DuringGamePanel - updateDiscardsTopCard $card")
+    Swing.onEDT {
+      println(s"DuringGamePanel - updateDiscardsTopCard $card")
+      discardPanel.deckButton.text = card.toString
+    }
   }
 
   override def showYourNthCard(card: Card): Unit =
-    println(s"DuringGamePanel - showYourNthCard: $card")
-    this.myTurnActionsLog.text = s"YOUR CARD SELECTED HAS VALUE $card"
+    Swing.onEDT {
+      println(s"DuringGamePanel - showYourNthCard: $card")
+      this.myTurnActionsLog.text = s"YOUR CARD SELECTED HAS VALUE $card"
+    }
 
   override def showAdversaryNthCard(adversaryName: String, n: Int, card: Card): Unit = ???
 
@@ -423,20 +412,26 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
   override def lostYourConnection(): Unit = ???
 
   override def startTurn(): Unit =
-    this.disableAll()
-    this.exitButton.enabled = true
-    this.deckPanel.deckButton.enabled = true
-    this.discardPanel.deckButton.enabled = true
+    Swing.onEDT {
+      this.disableAll()
+      this.exitButton.enabled = true
+      this.deckPanel.deckButton.enabled = true
+      this.discardPanel.deckButton.enabled = true
+    }
 
   override def enterWaitingPhase(): Unit = {
-    this.disableAll()
-    this.exitButton.enabled = true
+    Swing.onEDT {
+      this.disableAll()
+      this.exitButton.enabled = true
+    }
   }
 
   override def enterRevealingInitialCardsPhase(): Unit = {
-    this.disableAll()
-    this.exitButton.enabled = true
-    this.playerPanel.enableCardsButton(true)
+    Swing.onEDT {
+      this.disableAll()
+      this.exitButton.enabled = true
+      this.playerPanel.enableCardsButton(true)
+    }
   }
 }
 
@@ -490,6 +485,73 @@ private class DeckPanel(name: String) extends BoxPanel(Orientation.Vertical) {
   contents += discardLabel
   contents += Swing.VStrut(5)
   contents += deckButton
-} 
+}
 
+private class GameInfoPanel(game: GameInProgress) extends BoxPanel(Orientation.Vertical) {
+  peer.setBorder(BorderFactory.createLineBorder(Color.RED, 3))
+  //    border = Swing.EmptyBorder(10, 10, 10, 10)
+  private val gameCodeLabel = new Label(s"Game Code: ${game.code}") {
+    font = new AwtFont("Arial", AwtFont.BOLD, 16)
+    horizontalAlignment = Alignment.Center
+  }
 
+  private val numMaxTurnsLabel = new Label(s"Rounds ${game.gameParameters.roundLimitation}") {
+    font = new AwtFont("Arial", AwtFont.BOLD, 12)
+    horizontalAlignment = Alignment.Center
+  }
+
+  private val currentTurnLabel = new Label("") {
+    font = new AwtFont("Arial", AwtFont.BOLD, 12)
+    horizontalAlignment = Alignment.Center
+  }
+  this.updateCurrentTurn(game)
+
+  def updateCurrentTurn(game: GameInProgress): Unit = {
+    currentTurnLabel.text = s"Round N: ${game.currentRound}"
+  }
+
+  contents += gameCodeLabel
+  contents += Swing.VStrut(5)
+  contents += numMaxTurnsLabel
+  contents += Swing.VStrut(5)
+  contents += currentTurnLabel
+}
+
+private class LogPanel() extends ScrollPane {
+  private val logTextArea = new TextArea {
+    editable = false
+    lineWrap = true
+    wordWrap = true
+    font = new AwtFont("Arial", AwtFont.PLAIN, 12)
+    text = ""
+  }
+  contents = logTextArea
+  verticalScrollBarPolicy = ScrollPane.BarPolicy.Always
+  horizontalScrollBarPolicy = ScrollPane.BarPolicy.Never
+  peer.setBorder(BorderFactory.createLineBorder(Color.MAGENTA, 3))
+
+  def updateLastTurnLog(string: String): Unit = {
+    this.logTextArea.text = "Last turn played: " + string
+  }
+}
+
+private object TurnLogsWriter:
+
+  import model.TurnLog
+  import model.TurnEvent
+
+  def simpleTurnLog(userID: String, roundOfTurn: Int, turnLog: TurnLog): String = {
+    var string = s"Player $userID in round $roundOfTurn "
+    turnLog.events.foreach(
+      _ match
+        case TurnEvent.DrawCardFromDeck(card) => string += s"has drawn ${card} from deck, "
+        case TurnEvent.DrawCardFromDiscardStack(card) => string += s"has drawn ${card} from discard stack, "
+        case TurnEvent.SeeSelfCard(index) => string += s"has seen its card $index, "
+        case TurnEvent.SeeAdversaryCard(adversaryID, index) => string += s"has seen card $index of $adversaryID, "
+        case TurnEvent.ReplaceOwnCardWithAdversaryCard(itsCardIndex, adversaryID, adversaryCardIndex) => {
+          string += s"has changed its card $itsCardIndex with $adversaryID's $adversaryCardIndex one, "
+        }
+        case TurnEvent.CardDiscarded(card) => string += s"has discarded $card."
+    )
+    string
+  }

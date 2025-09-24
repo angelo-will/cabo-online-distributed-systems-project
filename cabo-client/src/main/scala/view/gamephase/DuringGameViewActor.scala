@@ -85,12 +85,12 @@ class DuringGameViewActor private(
   private def myTurn(properties: PropertiesAfterInitialization): Behavior[Message] = {
     properties.userInterface.startTurn()
     Behaviors.receivePartial {
-////      handleUpdateLastTurnPlayed(properties)
-//        .orElse({
-          case msg =>
-            println(s"DuringGameViewActor in myTurn received message: $msg")
-            Behaviors.same
-//        })
+      ////      handleUpdateLastTurnPlayed(properties)
+      //        .orElse({
+      case msg =>
+        println(s"DuringGameViewActor in myTurn received message: $msg")
+        Behaviors.same
+      //        })
     }
   }
 
@@ -143,8 +143,9 @@ class DuringGameViewActor private(
       ctx.log.info(s"DuringGameViewActor handling LastTurnPlayed with message: ${LastTurnPlayed(turnLog, game, isMyTurn)}")
       lastGameUpdate = game
       lastTurnLog = turnLog
-      properties.userInterface.updateLastTurnLog(turnLog)
+      properties.userInterface.updateLastTurnLog(turnLog.playerName, (game.currentRound - 1), turnLog)
       properties.userInterface.updateGameInfo(game)
+      properties.userInterface.updateDiscardsTopCard(game.discardDeckStack.cards.head)
       if isMyTurn then myTurn(properties) else waitMyTurn(properties)
   }
 
@@ -153,12 +154,12 @@ class DuringGameViewActor private(
     case (ctx, FirstTurn()) =>
       ctx.log.info(s"DuringGameViewActor handling FirstTurn with message: ${FirstTurn()}")
       myTurn(properties)
-      // next behave
+    // next behave
   }
-//  private def handle(properties: PropertiesAfterInitialization):
-//  PartialFunction[(ActorContext[Message], Message), Behavior[Message]] = {
-//    case (ctx, _()) =>
-//      ctx.log.info(s"DuringGameViewActor handling _ with message: ${}")
-//      // next behave
-//  }
+  //  private def handle(properties: PropertiesAfterInitialization):
+  //  PartialFunction[(ActorContext[Message], Message), Behavior[Message]] = {
+  //    case (ctx, _()) =>
+  //      ctx.log.info(s"DuringGameViewActor handling _ with message: ${}")
+  //      // next behave
+  //  }
 }

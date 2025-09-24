@@ -1,7 +1,8 @@
 import akka.actor.testkit.typed.scaladsl.{ScalaTestWithActorTestKit, TestProbe}
 import akka.actor.typed.ActorRef
 import model.Game.GameInProgress
-import model.{CardStack, Game, GameParameters, GameStatus, Hand, IGameParameters, PlayerPlaying}
+import model.TurnEvent.CardDiscarded
+import model.{CardStack, DuringGameTurnLog, Game, GameParameters, GameStatus, Hand, IGameParameters, InvalidTurnEventException, PlayerPlaying, Power, TurnEvent, TurnLog, TurnPhase}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.BeforeAndAfterEach
@@ -17,21 +18,24 @@ import scala.swing.MenuBar.NoMenuBar.border
 class DuringGameViewActorSpec extends ScalaTestWithActorTestKit
   with AnyWordSpecLike
   with BeforeAndAfterEach
-  with Matchers:
+  with Matchers {
 
   import scala.concurrent.duration.{FiniteDuration, SECONDS}
+
+  val userID = "Protagonista"
 
   private var probeAsClient: TestProbe[Message] = _
   private var probeAsMainMenu: TestProbe[Message] = _
   private var probeAsGameCoordinator: TestProbe[Message] = _
+  private var game: GameInProgress = _
 
-  val userID = "Protagonista"
 
   override def beforeEach(): Unit =
     super.beforeEach()
     probeAsClient = testKit.createTestProbe[Message]()
     probeAsMainMenu = testKit.createTestProbe[Message]()
     probeAsGameCoordinator = testKit.createTestProbe[Message]()
+    game = generateGameInProgress(userID, true)
 
   private val tab = "&nbsp;"
 
@@ -47,7 +51,6 @@ class DuringGameViewActorSpec extends ScalaTestWithActorTestKit
         val duringGameViewActor = testKit.spawn(view.gamephase.DuringGameViewActor(userID, probeAsClient.ref, probeAsMainMenu.ref))
         probeAsClient.expectMessageType[ClientMessages.DuringGameViewReady](FiniteDuration(3, SECONDS))
         Thread.sleep(2000) // wait for the view to update
-        val game = generateGameInProgress(userID)
         duringGameViewActor ! DuringGameViewMessages.StartGame(game, probeAsGameCoordinator.ref)
         Thread.sleep(5000) // wait for the view to update
       }
@@ -57,7 +60,6 @@ class DuringGameViewActorSpec extends ScalaTestWithActorTestKit
         val duringGameViewActor = testKit.spawn(view.gamephase.DuringGameViewActor(userID, probeAsClient.ref, probeAsMainMenu.ref))
         probeAsClient.receiveMessages(1)
         Thread.sleep(2000) // wait for the view to update
-        val game = generateGameInProgress(userID)
         duringGameViewActor ! DuringGameViewMessages.StartGame(game, probeAsGameCoordinator.ref)
         val card = probeAsGameCoordinator.expectMessageType[GameCoordinatorMessage.ShowYourNthCard](FiniteDuration(5, SECONDS))
       }
@@ -66,20 +68,18 @@ class DuringGameViewActorSpec extends ScalaTestWithActorTestKit
       "user click on own card during revealing at start own card phase and receive CardSeen message from GameCoordinator" in {
         val duringGameViewActor = testKit.spawn(view.gamephase.DuringGameViewActor(userID, probeAsClient.ref, probeAsMainMenu.ref))
         probeAsClient.receiveMessages(1)
-        val game = generateGameInProgress(userID)
         val player = game.players.filter(_.userID.equals(userID)).head
         duringGameViewActor ! DuringGameViewMessages.StartGame(game, probeAsGameCoordinator.ref)
         val showYourNCardRequest = probeAsGameCoordinator.expectMessageType[GameCoordinatorMessage.ShowYourNthCard](FiniteDuration(5, SECONDS))
         val cardRequested = player.hand.cards(showYourNCardRequest.index)
         duringGameViewActor ! DuringGameViewMessages.CardSeen(cardRequested)
 
-//        duringGameViewActor ! GameCoordinatorMessage.CardSeen(cardRequest.index, game.players.head.hand.cards(cardRequest.index))
+        //        duringGameViewActor ! GameCoordinatorMessage.CardSeen(cardRequest.index, game.players.head.hand.cards(cardRequest.index))
         Thread.sleep(10000) // wait for the view to update
       }
     }
     "notify end view card phase" when {
       "quantity of cards visible has been seen" in {
-        val game = generateGameInProgress(userID)
         val duringGameViewActor = testKit.spawn(view.gamephase.DuringGameViewActor(userID, probeAsClient.ref, probeAsMainMenu.ref))
         probeAsClient.receiveMessages(1)
         revealingFirstTwoCardsPhase(duringGameViewActor, game)
@@ -87,19 +87,28 @@ class DuringGameViewActorSpec extends ScalaTestWithActorTestKit
         Thread.sleep(10000) // wait for the view to update
       }
     }
-
     "let the player start his turn" when {
-      "receive StartPlayPhase message and then LastTurnPlayed message with isMyTurn true" in {
-        val game = generateGameInProgress(userID)
+      "receive StartPlayPhase message and then FirstTurn" in {
         val duringGameViewActor = testKit.spawn(view.gamephase.DuringGameViewActor(userID, probeAsClient.ref, probeAsMainMenu.ref))
         probeAsClient.receiveMessages(1)
         revealingFirstTwoCardsPhase(duringGameViewActor, game)
         duringGameViewActor ! DuringGameViewMessages.StartPlayPhase()
-        duringGameViewActor ! DuringGameViewMessages.FirstTurn()        
+        duringGameViewActor ! DuringGameViewMessages.FirstTurn()
         Thread.sleep(10000) // wait for the view to update
       }
+      "receive LastTurnPlayed and myTurn is true" in {
+        val game = generateGameInProgress(userID, false)
+        val duringGameViewActor = testKit.spawn(view.gamephase.DuringGameViewActor(userID, probeAsClient.ref, probeAsMainMenu.ref))
+        val playerWhoPlayTurnBefore = game.players.filter(_.userID != userID).head
+        probeAsClient.receiveMessages(1)
+        revealingFirstTwoCardsPhase(duringGameViewActor, game)
+        duringGameViewActor ! DuringGameViewMessages.StartPlayPhase()
+        val (newGameState, turn) = generateTurnWithDrawFromDeck(playerWhoPlayTurnBefore.userID, game)
+        Thread.sleep(2000)
+        duringGameViewActor ! DuringGameViewMessages.LastTurnPlayed(turn, newGameState, true)
+        Thread.sleep(20000) // wait for the view to update
+      }
     }
-
   }
 
   private def revealingFirstTwoCardsPhase(duringGameViewActor: ActorRef[Message], game: GameInProgress): Unit = {
@@ -113,9 +122,9 @@ class DuringGameViewActorSpec extends ScalaTestWithActorTestKit
     duringGameViewActor ! DuringGameViewMessages.CardSeen(secondCardRequested)
   }
 
-  def generateGameInProgress(userID: String): GameInProgress = {
+  def generateGameInProgress(userID: String, shuffleDeck: Boolean): GameInProgress = {
     // 1. Creazione dei giocatori e delle loro mani
-    val fullDeck = CardStack.buildShuffledFullDeck
+    val fullDeck = if shuffleDeck then CardStack.buildShuffledFullDeck else CardStack.buildSortedFullDeck
     val (hand1Cards, deckAfterHand1) = fullDeck.drawNCards(4)
     val (hand2Cards, deckAfterHand2) = deckAfterHand1.drawNCards(4)
     //    val (hand3Cards, deckAfterHand3) = deckAfterHand2.drawNCards(4)
@@ -154,3 +163,51 @@ class DuringGameViewActorSpec extends ScalaTestWithActorTestKit
       currentRound = currentRound
     )
   }
+
+  private def generateTurnWithDrawFromDeck(userID: String, game: GameInProgress): (GameInProgress, TurnLog) = {
+    val turnLog = new DuringGameTurnLog(userID)
+    val (cardDrawn, newDeck) = game.deckStack.drawFirstCard
+    turnLog.addEvent(TurnEvent.DrawCardFromDeck(cardDrawn))
+    turnLog.currentPhase match {
+      case TurnPhase.AwaitDiscardCard() =>
+      case TurnPhase.AwaitUsePower() =>
+        // Here you would implement the logic for using the power of the drawn card
+        // For simplicity, let's assume the player sees their own card (if applicable) and then discards the drawn card
+        cardDrawn.power match {
+          case Power.SeeYourCard() =>
+            turnLog.addEvent(TurnEvent.SeeSelfCard(0)) // Assuming the player sees their first card
+          case Power.SeeYourOpponentCard() =>
+            val adversaryID = game.players.filter(_.userID == this.userID).head.userID
+            turnLog.addEvent(TurnEvent.SeeAdversaryCard(adversaryID, 0)) // Assuming the player sees the first card of an adversary
+          case Power.ChangeOneOfYourCardWithOpponent() =>
+            val adversaryID = game.players.filter(_.userID == this.userID).head.userID
+            turnLog.addEvent(TurnEvent.ReplaceOwnCardWithAdversaryCard(0, adversaryID, 0)) // Assuming the player swaps their first card with the first card of an adversary
+          case Power.NoPower() =>
+            throw new Error("This case should not happen as NoPower is handled in AwaitDrawCard phase")
+        }
+      case _ =>
+        throw new Error("Test not implemented for this case")
+      //
+      //        val player = game.players.filter(_.userID.equals(userID)).head
+      //        val cardToDiscard = player.hand.cards.head
+      //        turnLog.addEvent(TurnEvent.CardDiscarded(cardToDiscard))
+      //        val newHand = Hand(player.hand.cards.tail :+ cardDrawn)
+      //        val newPlayer = player.copy(hand = newHand)
+      //        val newPlayers = game.players.map(p => if (p.userID == userID) newPlayer else p)
+      //        val newDiscardDeck = game.discardDeckStack.addCardOnTop(cardToDiscard)
+      //        game = game.copy(
+      //          players = newPlayers,
+      //          deckStack = newDeck,
+      //          discardDeckStack = newDiscardDeck
+      //        )
+    }
+    turnLog.addEvent(TurnEvent.CardDiscarded(cardDrawn))
+
+    val newGameState = game.copy(
+      deckStack = newDeck,
+      discardDeckStack = game.discardDeckStack.addTopCard(cardDrawn),
+      currentRound = game.currentRound + 1
+    )
+    (newGameState, turnLog)
+  }
+}
