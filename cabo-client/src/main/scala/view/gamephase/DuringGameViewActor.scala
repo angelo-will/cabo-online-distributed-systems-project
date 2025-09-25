@@ -86,7 +86,9 @@ class DuringGameViewActor private(
     properties.userInterface.startTurn()
     Behaviors.receivePartial {
       handleDeckSelected(properties)
+        .orElse(handleDiscardStackSelected(properties))
         .orElse(handleCardDrawn(properties))
+        .orElse(handleNewTopDiscardCard(properties))
         .orElse({
           ////      handleUpdateLastTurnPlayed(properties)
           //        .orElse({
@@ -179,11 +181,32 @@ class DuringGameViewActor private(
     //      waitCardSelected(properties, waitMyTurn)
   }
 
+  private def handleDiscardStackSelected(properties: PropertiesAfterInitialization):
+  PartialFunction[(ActorContext[Message], Message), Behavior[Message]] = {
+    case (ctx, DiscardStackSelected()) =>
+      println(s"DuringGameViewActor handling DiscardStackSelected with message: ${DiscardStackSelected()}")
+      properties.gameCoordinatorRef ! GameCoordinatorMessage.DrawCardFromDiscardStack()
+      Behaviors.same
+  }
+
   private def handleCardDrawn(properties: PropertiesAfterInitialization):
   PartialFunction[(ActorContext[Message], Message), Behavior[Message]] = {
     case (ctx, CardDrawn(card)) =>
       ctx.log.info(s"DuringGameViewActor handling CardDrawn with message: ${CardDrawn(card)}")
+      properties.userInterface.afterDrawPhase()
       properties.userInterface.showCardDrawnFromDeck(card)
+      Behaviors.same
+  }
+
+  private def handleNewTopDiscardCard(properties: PropertiesAfterInitialization):
+  PartialFunction[(ActorContext[Message], Message), Behavior[Message]] = {
+    case (ctx, NewTopCardDiscardStack(card)) =>
+      ctx.log.info(s"DuringGameViewActor handling NewTopDiscardCard with message: ${NewTopCardDiscardStack(card)}")
+      properties.userInterface.updateDiscardsTopCard(card)
+      Behaviors.same
+    case (ctx, EmptyDiscardStack()) =>
+      ctx.log.info(s"DuringGameViewActor handling EmptyDiscardStack with message: ${EmptyDiscardStack()}")
+      properties.userInterface.emptyDiscardStack()
       Behaviors.same
   }
 }

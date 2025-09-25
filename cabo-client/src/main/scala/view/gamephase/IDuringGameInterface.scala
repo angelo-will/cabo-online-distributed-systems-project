@@ -14,6 +14,8 @@ trait IDuringGameInterface {
 
   def updateDiscardsTopCard(card: Card): Unit
 
+  def emptyDiscardStack(): Unit
+
   def showYourNthCard(card: Card): Unit
 
   def showAdversaryNthCard(adversaryName: String, n: Int, card: Card): Unit
@@ -32,4 +34,6 @@ trait IDuringGameInterface {
   def enterRevealingInitialCardsPhase(): Unit
 
   def startTurn(): Unit
+
+  def afterDrawPhase(): Unit
 }

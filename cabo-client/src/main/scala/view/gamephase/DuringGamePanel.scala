@@ -327,24 +327,6 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
     listenTo(this)
   }
 
-  // Defining the phases of the game panel - start
-
-
-  def beforeDrawPhase(): DuringGamePanel = {
-    this.disableAll()
-    this.deckPanel.enabled = true
-    this.discardPanel.enabled = true
-    this.exitButton.enabled = true
-    this
-  }
-
-  //  def beforeDrawPhase(): DuringGamePanel = {
-  //    this.exitButton.enabled = true
-  //    this.callCaboButton.enabled = false
-  //    this.endTurnButton.enabled = false
-  //    this.adversariesPanelMap.foreach((k, v) => v.disableCardsButton())
-  //  }
-
   def notMyTurnPhase(): DuringGamePanel = {
     this.disableAll()
     this.exitButton.enabled = true
@@ -393,6 +375,13 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
     }
   }
 
+  override def emptyDiscardStack(): Unit = {
+    Swing.onEDT {
+      println(s"DuringGamePanel - emptyDiscardStack")
+      this.discardPanel.deckButton.text = "Empty"
+    }
+  }
+
   override def showCardDrawnFromDiscards(cardDrawn: Card): Unit = ???
 
   override def updateDiscardsTopCard(card: Card): Unit = {
@@ -416,6 +405,7 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
 
   override def lostYourConnection(): Unit = ???
 
+
   override def startTurn(): Unit =
     Swing.onEDT {
       this.disableAll()
@@ -423,6 +413,14 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
       this.deckPanel.deckButton.enabled = true
       this.discardPanel.deckButton.enabled = true
     }
+
+  override def afterDrawPhase(): Unit = {
+    Swing.onEDT {
+      this.disableAll()
+      this.exitButton.enabled = true
+      //      this.playerPanel.enableCardsButton()
+    }
+  }
 
   override def enterWaitingPhase(): Unit = {
     Swing.onEDT {

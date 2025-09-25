@@ -19,7 +19,8 @@ case class DuringGameViewListener(whoToResponse: ActorRef[Message]) extends IDur
   //    whoToResponse ! DrawCardFromDeck()
 
   override def drawFromDiscard(): Unit =
-    whoToResponse ! DrawCardFromDiscardStack()
+    whoToResponse ! DuringGameViewMessages.DiscardStackSelected()
+  //    whoToResponse ! DrawCardFromDiscardStack()
 
   override def discardCardNth(carIndex: Int): Unit =
     whoToResponse ! DiscardYourNthCard(carIndex)

@@ -40,6 +40,8 @@ object DuringGameViewMessages {
 
   case class NewTopCardDiscardStack(card: Card) extends DuringGameViewCommand
 
+  case class EmptyDiscardStack() extends DuringGameViewCommand
+
   case class GameInformation(game: Game.GameInProgress) extends DuringGameViewCommand
 
   case class CardSeen(card: Card) extends DuringGameViewCommand

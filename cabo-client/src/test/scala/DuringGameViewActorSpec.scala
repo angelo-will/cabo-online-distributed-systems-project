@@ -5,7 +5,7 @@ import model.TurnEvent.CardDiscarded
 import model.{CardStack, DuringGameTurnLog, Game, GameParameters, GameStatus, Hand, IGameParameters, InvalidTurnEventException, PlayerPlaying, Power, TurnEvent, TurnLog, TurnPhase}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
-import org.scalatest.BeforeAndAfterEach
+import org.scalatest.{BeforeAndAfterEach, durations}
 import org.scalatest.matchers.must.Matchers.mustBe
 import utils.{ClientMessages, DuringGameViewMessages, GameCoordinatorMessage, InitialViewMessages, Message}
 import view.lobbyphase.ViewApplication
@@ -125,7 +125,21 @@ class DuringGameViewActorSpec extends ScalaTestWithActorTestKit
         Thread.sleep(10000)
       }
       "choose to draw from discard stack" in {
-
+        val duringGameViewActor = testKit.spawn(view.gamephase.DuringGameViewActor(userID, probeAsClient.ref, probeAsMainMenu.ref))
+        probeAsClient.receiveMessages(1)
+        revealingFirstTwoCardsPhase(duringGameViewActor, game)
+        duringGameViewActor ! DuringGameViewMessages.StartPlayPhase()
+        Thread.sleep(1000)
+        duringGameViewActor ! DuringGameViewMessages.FirstTurn()
+        val msg = probeAsGameCoordinator.expectMessageType[GameCoordinatorMessage.DrawCardFromDiscardStack](FiniteDuration(5, SECONDS))
+        val (cardDrawn, newDiscardStack) = game.discardDeckStack.drawFirstCard
+        duringGameViewActor ! DuringGameViewMessages.CardDrawn(cardDrawn)
+        if newDiscardStack.isEmpty then
+          duringGameViewActor ! DuringGameViewMessages.EmptyDiscardStack()
+        else
+          duringGameViewActor ! DuringGameViewMessages.NewTopCardDiscardStack(newDiscardStack.cards.head)
+        // Check the correct visualization of the card drawn from deck
+        Thread.sleep(10000)
       }
     }
   }
@@ -148,8 +162,8 @@ class DuringGameViewActorSpec extends ScalaTestWithActorTestKit
     //    val (hand3Cards, deckAfterHand3) = deckAfterHand2.drawNCards(4)
     //    val (hand4Cards, deckAfterHand4) = deckAfterHand3.drawNCards(4)
 
-    val (firstCardDiscardStack, finalDeck) = deckAfterHand2.drawFirstCard 
-    
+    val (firstCardDiscardStack, finalDeck) = deckAfterHand2.drawFirstCard
+
     val player1 = PlayerPlaying(userID, "Alice", 1, Hand(hand1Cards))
     val player2 = PlayerPlaying("user2", "Bob", 2, Hand(hand2Cards))
     //    val player3 = PlayerPlaying("user3", "Charlie", Hand(hand3Cards))
@@ -162,10 +176,10 @@ class DuringGameViewActorSpec extends ScalaTestWithActorTestKit
       //      player3,
       //      player4
     )
-    
+
     val discardDeck = CardStack.buildEmptyDeck.addTopCard(firstCardDiscardStack)
 
-    
+
     val gameParameters: IGameParameters = GameParameters()
     val gameStatus = GameStatus.InProgress()
     val currentRound = 1
