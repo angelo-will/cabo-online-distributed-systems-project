@@ -113,7 +113,7 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
   // CREAZIONE MAZZO PRINCIPALE - FINE
 
   // CREAZIONE MAZZO SCARTI - INIZIO
-  val discardPanel = new DeckPanel("Discards", viewListener.drawFromDiscard)
+  val discardPanel = new DeckPanel(gameInProgress.discardDeckStack.cards.head.toString, viewListener.drawFromDiscard)
   private val discardPanelColumnIndex = deckPanelColumnIndex + 2
   c.gridx = discardPanelColumnIndex
   c.gridy = deckPanelRowIndex
