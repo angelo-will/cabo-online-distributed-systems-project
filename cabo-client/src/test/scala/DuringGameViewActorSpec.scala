@@ -142,13 +142,14 @@ class DuringGameViewActorSpec extends ScalaTestWithActorTestKit
   }
 
   def generateGameInProgress(userID: String, shuffleDeck: Boolean): GameInProgress = {
-    // 1. Creazione dei giocatori e delle loro mani
     val fullDeck = if shuffleDeck then CardStack.buildShuffledFullDeck else CardStack.buildSortedFullDeck
     val (hand1Cards, deckAfterHand1) = fullDeck.drawNCards(4)
     val (hand2Cards, deckAfterHand2) = deckAfterHand1.drawNCards(4)
     //    val (hand3Cards, deckAfterHand3) = deckAfterHand2.drawNCards(4)
     //    val (hand4Cards, deckAfterHand4) = deckAfterHand3.drawNCards(4)
 
+    val (firstCardDiscardStack, finalDeck) = deckAfterHand2.drawFirstCard 
+    
     val player1 = PlayerPlaying(userID, "Alice", 1, Hand(hand1Cards))
     val player2 = PlayerPlaying("user2", "Bob", 2, Hand(hand2Cards))
     //    val player3 = PlayerPlaying("user3", "Charlie", Hand(hand3Cards))
@@ -161,13 +162,10 @@ class DuringGameViewActorSpec extends ScalaTestWithActorTestKit
       //      player3,
       //      player4
     )
+    
+    val discardDeck = CardStack.buildEmptyDeck.addTopCard(firstCardDiscardStack)
 
-    // 2. Creazione del mazzo e del mazzo degli scarti
-    val gameDeck = deckAfterHand2
-    //    val gameDeck = deckAfterHand4
-    val discardDeck = CardStack.buildEmptyDeck
-
-    // 3. Creazione dei parametri del gioco e dello stato
+    
     val gameParameters: IGameParameters = GameParameters()
     val gameStatus = GameStatus.InProgress()
     val currentRound = 1
@@ -177,7 +175,7 @@ class DuringGameViewActorSpec extends ScalaTestWithActorTestKit
       gameParameters = gameParameters,
       gameStatus = gameStatus,
       players = playersList,
-      deckStack = gameDeck,
+      deckStack = finalDeck,
       discardDeckStack = discardDeck,
       currentRound = currentRound
     )
