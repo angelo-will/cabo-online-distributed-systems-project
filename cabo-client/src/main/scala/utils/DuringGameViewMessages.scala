@@ -12,7 +12,7 @@ object DuringGameViewMessages {
   trait DuringGameViewCommand extends DuringGameViewMessage
 
   case class StartGame(game: GameInProgress, gameCoordinatorRef: ActorRef[GameCoordinatorMessage.PlayerCommand]) extends DuringGameViewCommand
-  
+
   case class StartPlayPhase() extends DuringGameViewMessage
 
   /**
@@ -21,8 +21,8 @@ object DuringGameViewMessages {
   case class FirstTurn() extends DuringGameViewCommand
 
   case class LastTurnPlayed(turnLog: TurnLog, game: GameInProgress, isMyTurn: Boolean) extends DuringGameViewCommand
-  
-//  case class MyTurn(lastTurnPlayed: LastTurnPlayed) extends DuringGameViewCommand
+
+  //  case class MyTurn(lastTurnPlayed: LastTurnPlayed) extends DuringGameViewCommand
 
   // To use when an adversary is unreachable, POSSIAMO USARLO O MENO 
   case class AdversaryIsDisconnected(playerPlaying: PlayerPlaying) extends DuringGameViewCommand
@@ -45,12 +45,16 @@ object DuringGameViewMessages {
   case class CardSeen(card: Card) extends DuringGameViewCommand
 
   case class PlayThisTurn(viewRef: ActorRef[ViewCommand]) extends DuringGameViewCommand
-  
+
   // TODO: create message of game ending with the winner, his points, ecc.
   // i parametri attuali sono solo indicativi
   // case class GameEnded(winner: PlayerPlaying, points: Int) extends DuringGameViewCommand
-  
+
   trait DuringGameUserInterfaceCommand extends DuringGameViewMessage
-  
+
   case class OwnCardSelected(index: Int) extends DuringGameUserInterfaceCommand
+
+  case class DeckSelected() extends DuringGameUserInterfaceCommand
+
+  case class DiscardStackSelected() extends DuringGameUserInterfaceCommand
 }

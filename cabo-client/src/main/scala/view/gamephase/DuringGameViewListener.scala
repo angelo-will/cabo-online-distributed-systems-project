@@ -2,21 +2,21 @@ package view.gamephase
 
 import akka.actor.typed.ActorRef
 import utils.GameCoordinatorMessage.*
-import utils.Message
+import utils.{Message, DuringGameViewMessages}
 import view.lobbyphase.ViewListener.IDuringGameViewListener
 
 case class DuringGameViewListener(whoToResponse: ActorRef[Message]) extends IDuringGameViewListener:
   override def ownCardSelected(cardIndex: Int): Unit =
     whoToResponse ! utils.DuringGameViewMessages.OwnCardSelected(cardIndex)
 
-  override def adversaryCardSelected(adversaryID: String, cardIndex: Int): Unit =
-    {}
+  override def adversaryCardSelected(adversaryID: String, cardIndex: Int): Unit = {}
 
   override def showCardNth(cardIndex: Int): Unit =
     whoToResponse ! ShowYourNthCard(cardIndex)
 
   override def drawFromDeck(): Unit =
-    whoToResponse ! DrawCardFromDeck()
+    whoToResponse ! DuringGameViewMessages.DeckSelected()
+  //    whoToResponse ! DrawCardFromDeck()
 
   override def drawFromDiscard(): Unit =
     whoToResponse ! DrawCardFromDiscardStack()

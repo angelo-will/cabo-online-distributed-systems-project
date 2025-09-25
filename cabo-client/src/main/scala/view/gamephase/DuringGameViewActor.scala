@@ -85,14 +85,21 @@ class DuringGameViewActor private(
   private def myTurn(properties: PropertiesAfterInitialization): Behavior[Message] = {
     properties.userInterface.startTurn()
     Behaviors.receivePartial {
-      ////      handleUpdateLastTurnPlayed(properties)
-      //        .orElse({
-      case msg =>
-        println(s"DuringGameViewActor in myTurn received message: $msg")
-        Behaviors.same
-      //        })
+      handleDeckSelected(properties)
+        .orElse(handleCardDrawn(properties))
+        .orElse({
+          ////      handleUpdateLastTurnPlayed(properties)
+          //        .orElse({
+          case msg =>
+            println(s"DuringGameViewActor in myTurn received message: $msg")
+            Behaviors.same
+          //        })
+
+        })
+
     }
   }
+
 
   private def waitCardSelected(
                                 properties: PropertiesAfterInitialization,
@@ -162,4 +169,21 @@ class DuringGameViewActor private(
   //      ctx.log.info(s"DuringGameViewActor handling _ with message: ${}")
   //      // next behave
   //  }
+
+  private def handleDeckSelected(properties: PropertiesAfterInitialization):
+  PartialFunction[(ActorContext[Message], Message), Behavior[Message]] = {
+    case (ctx, DeckSelected()) =>
+      println(s"DuringGameViewActor handling DeckSelected with message: ${DeckSelected()}")
+      properties.gameCoordinatorRef ! GameCoordinatorMessage.DrawCardFromDeck()
+      Behaviors.same
+    //      waitCardSelected(properties, waitMyTurn)
+  }
+
+  private def handleCardDrawn(properties: PropertiesAfterInitialization):
+  PartialFunction[(ActorContext[Message], Message), Behavior[Message]] = {
+    case (ctx, CardDrawn(card)) =>
+      ctx.log.info(s"DuringGameViewActor handling CardDrawn with message: ${CardDrawn(card)}")
+      properties.userInterface.showCardDrawnFromDeck(card)
+      Behaviors.same
+  }
 }

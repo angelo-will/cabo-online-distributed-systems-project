@@ -106,7 +106,26 @@ class DuringGameViewActorSpec extends ScalaTestWithActorTestKit
         val (newGameState, turn) = generateTurnWithDrawFromDeck(playerWhoPlayTurnBefore.userID, game)
         Thread.sleep(2000)
         duringGameViewActor ! DuringGameViewMessages.LastTurnPlayed(turn, newGameState, true)
-        Thread.sleep(20000) // wait for the view to update
+        Thread.sleep(10000) // wait for the view to update
+      }
+    }
+    "let the player draw a card at turn start" when {
+      "choose to draw from deck" in {
+        val duringGameViewActor = testKit.spawn(view.gamephase.DuringGameViewActor(userID, probeAsClient.ref, probeAsMainMenu.ref))
+        val playerWhoPlayTurnBefore = game.players.filter(_.userID != userID).head
+        probeAsClient.receiveMessages(1)
+        revealingFirstTwoCardsPhase(duringGameViewActor, game)
+        duringGameViewActor ! DuringGameViewMessages.StartPlayPhase()
+        Thread.sleep(1000)
+        duringGameViewActor ! DuringGameViewMessages.FirstTurn()
+        val msg = probeAsGameCoordinator.expectMessageType[GameCoordinatorMessage.DrawCardFromDeck](FiniteDuration(5, SECONDS))
+        val (cardDrawn, newDeck) = game.deckStack.drawFirstCard
+        duringGameViewActor ! DuringGameViewMessages.CardDrawn(cardDrawn)
+        // Check the correct visualization of the card drawn from deck
+        Thread.sleep(10000)
+      }
+      "choose to draw from discard stack" in {
+
       }
     }
   }

@@ -101,7 +101,7 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
   // CREAZIONE SCHERMATA DATI PARTITA E TURNO - FINE
 
   // CREAZIONE MAZZO PRINCIPALE - INIZIO
-  val deckPanel = new DeckPanel("Deck")
+  val deckPanel = new DeckPanel("Deck", viewListener.drawFromDeck)
   private val deckPanelRowIndex = NORTH_OFFSET_CENTER_FIELDS_ROWS + 1
   private val deckPanelColumnIndex = 3
   private val deckHeight = 2
@@ -113,7 +113,7 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
   // CREAZIONE MAZZO PRINCIPALE - FINE
 
   // CREAZIONE MAZZO SCARTI - INIZIO
-  val discardPanel = new DeckPanel("Discards")
+  val discardPanel = new DeckPanel("Discards", viewListener.drawFromDiscard)
   private val discardPanelColumnIndex = deckPanelColumnIndex + 2
   c.gridx = discardPanelColumnIndex
   c.gridy = deckPanelRowIndex
@@ -386,7 +386,12 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
     }
   }
 
-  override def showCardDrawnFromDeck(cardDrawn: Card): Unit = ???
+  override def showCardDrawnFromDeck(cardDrawn: Card): Unit = {
+    Swing.onEDT {
+      println(s"DuringGamePanel - showCardDrawnFromDeck $cardDrawn")
+      this.drawnCardButton.text = cardDrawn.toString
+    }
+  }
 
   override def showCardDrawnFromDiscards(cardDrawn: Card): Unit = ???
 
@@ -470,7 +475,7 @@ private class PlayerPanel(playerName: String, f: (index: Int) => Unit) extends B
   contents += Swing.VStrut(5)
   contents += cards
 
-private class DeckPanel(name: String) extends BoxPanel(Orientation.Vertical) {
+private class DeckPanel(name: String, buttonAction: () => Unit) extends BoxPanel(Orientation.Vertical) {
   border = Swing.EmptyBorder(10, 10, 10, 10)
   private val discardLabel = new Label(name) {
     font = new AwtFont("Arial", AwtFont.BOLD, 14)
@@ -480,6 +485,13 @@ private class DeckPanel(name: String) extends BoxPanel(Orientation.Vertical) {
   val deckButton: Button = new Button(name) {
     font = new AwtFont("Arial", AwtFont.PLAIN, 24)
     border = Swing.EmptyBorder(5, 5, 5, 5)
+  }
+  listenTo(deckButton)
+
+  reactions += {
+    case ButtonClicked(`deckButton`) =>
+      println(s"$name button clicked")
+      buttonAction()
   }
 
   contents += discardLabel
