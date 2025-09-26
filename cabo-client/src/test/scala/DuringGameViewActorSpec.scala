@@ -13,8 +13,9 @@ import view.lobbyphase.ViewApplication
 import view.lobbyphase.actors.InitialPhaseViewActor.ViewCreated
 import view.lobbyphase.actors.{InitialPhaseViewActor, ViewActorListener}
 
-import scala.swing.{BoxPanel, Label, MainFrame, Orientation, Swing}
+import scala.swing.{BoxPanel, Button, Dimension, Frame, Label, MainFrame, Orientation, SimpleSwingApplication, Swing}
 import scala.swing.MenuBar.NoMenuBar.border
+import scala.swing.event.ButtonClicked
 
 class DuringGameViewActorSpec extends ScalaTestWithActorTestKit
   with AnyWordSpecLike
@@ -28,6 +29,7 @@ class DuringGameViewActorSpec extends ScalaTestWithActorTestKit
   private var probeAsClient: TestProbe[Message] = _
   private var probeAsMainMenu: TestProbe[Message] = _
   private var probeAsGameCoordinator: TestProbe[Message] = _
+  private var probeCheck: TestProbe[Message] = _
   private var game: GameInProgress = _
 
 
@@ -36,9 +38,14 @@ class DuringGameViewActorSpec extends ScalaTestWithActorTestKit
     probeAsClient = testKit.createTestProbe[Message]()
     probeAsMainMenu = testKit.createTestProbe[Message]()
     probeAsGameCoordinator = testKit.createTestProbe[Message]()
+    probeCheck = testKit.createTestProbe[Message]()
     game = generateGameInProgress(userID, true)
 
   private val tab = "&nbsp;"
+
+  private case class Passed() extends Message
+
+  private case class Failed() extends Message
 
   "DuringGameViewActor" must {
     "start and send DuringGameViewReady message to clientRef" when {
@@ -143,7 +150,7 @@ class DuringGameViewActorSpec extends ScalaTestWithActorTestKit
         Thread.sleep(10000)
       }
     }
-    "let the player discard card drown" in {
+    "let the player discard card drawn" in {
       val duringGameViewActor = startApp()
       revealingFirstTwoCardsPhase(duringGameViewActor, game)
       duringGameViewActor ! DuringGameViewMessages.StartPlayPhase()
@@ -179,16 +186,19 @@ class DuringGameViewActorSpec extends ScalaTestWithActorTestKit
         game = game.replaceNthCardOfPlayerWithID(userID, cardDrawn, msg.index)
         duringGameViewActor ! DuringGameViewMessages.NewTopCardDiscardStack(oldCard)
         Thread.sleep(10000)
-
-
-        //        val player = game.players.filter(_.userID.equals(userID)).head
-        //        val cardToReplace = player.hand.cards.head
-        //        duringGameViewActor ! DuringGameViewMessages.OwnCardSelected(0)
-        //        val msg = probeAsGameCoordinator.expectMessageType[GameCoordinatorMessage.ReplaceOwnNthCardWithAdversaryNthOne](FiniteDuration(5, SECONDS))
-        //        msg.ownCardIndex mustBe 0
-        //        msg.adversaryID mustBe userID
-        //        msg.adversaryCardIndex mustBe 0
       }
+    }
+    "let the player end turn" in {
+      val duringGameViewActor = startApp()
+      revealingFirstTwoCardsPhase(duringGameViewActor, game)
+      duringGameViewActor ! DuringGameViewMessages.StartPlayPhase()
+      Thread.sleep(1000)
+      duringGameViewActor ! DuringGameViewMessages.FirstTurn()
+      val (cardDrawn, newDeck) = drawFromDeckExpectation(duringGameViewActor.ref)
+      probeAsGameCoordinator.expectMessageType[GameCoordinatorMessage.DiscardCardDrawn](FiniteDuration(5, SECONDS))
+      duringGameViewActor ! DuringGameViewMessages.NewTopCardDiscardStack(cardDrawn)
+      probeAsGameCoordinator.expectMessageType[GameCoordinatorMessage.EndTurn](FiniteDuration(5, SECONDS))
+      createCheckFrame().open()
     }
   }
 
@@ -304,4 +314,33 @@ class DuringGameViewActorSpec extends ScalaTestWithActorTestKit
     )
     (newGameState, turnLog)
   }
+
+
+  def createCheckFrame(): Frame = new Frame {
+    title = "Test"
+    preferredSize = new java.awt.Dimension(500, 400)
+    peer.setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE)
+    val panel: BoxPanel = new BoxPanel(Orientation.Vertical) {
+      border = Swing.EmptyBorder(30, 30, 30, 30)
+      val yesButton = new scala.swing.Button("Yes")
+      val noButton = new scala.swing.Button("No")
+      listenTo(yesButton, noButton)
+      reactions += {
+        case scala.swing.event.ButtonClicked(`yesButton`) =>
+          probeCheck.ref ! Passed()
+          dispose()
+        case scala.swing.event.ButtonClicked(`noButton`) =>
+          probeCheck.ref ! Failed()
+          dispose()
+      }
+      contents += new Label("Click yes if view has showed the correct behavior.")
+      contents += yesButton
+      contents += noButton
+    }
+    contents = panel
+    visible = true
+    probeCheck.expectMessage(FiniteDuration(30, SECONDS), Passed())
+  }
+
 }
+

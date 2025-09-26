@@ -35,7 +35,7 @@ case class DuringGameViewListener(whoToResponse: ActorRef[Message]) extends IDur
     whoToResponse ! ReplaceOwnNthCardWithAdversaryNthOne(ownCardIndex, adversaryID, adversaryCardIndex)
 
   override def endTurn(): Unit =
-    whoToResponse ! EndTurn()
+    whoToResponse ! DuringGameViewMessages.EndTurn()
 
   override def callCabo(): Unit =
     whoToResponse ! CallCabo()

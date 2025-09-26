@@ -92,13 +92,11 @@ class DuringGameViewActor private(
         .orElse(handleChangeCardWithDrawnOne(properties))
         .orElse(handleDiscardCardDrawn(properties))
         .orElse({
-          ////      handleUpdateLastTurnPlayed(properties)
-          //        .orElse({
-          case msg =>
-            println(s"DuringGameViewActor in myTurn received message: $msg")
-            Behaviors.same
-          //        })
-
+          case (ctx, EndTurn()) =>
+            ctx.log.info(s"DuringGameViewActor in myTurn received EndTurn")
+            properties.userInterface.enterWaitingPhase()
+            properties.gameCoordinatorRef ! GameCoordinatorMessage.EndTurn()
+            waitMyTurn(properties)
         })
 
     }
@@ -132,15 +130,15 @@ class DuringGameViewActor private(
   private def handleStartPlayPhase(properties: PropertiesAfterInitialization):
   PartialFunction[(ActorContext[Message], Message), Behavior[Message]] = {
     case (ctx, StartPlayPhase()) => {
-      ctx.log.info(s"DuringGameViewActor handling StartPlayphase with message: ${StartPlayPhase()}")
+      ctx.log.info(s"DuringGameViewActor handling StartPlayPhase with message: ${StartPlayPhase()}")
       properties.userInterface.enterWaitingPhase()
       waitMyTurn(properties)
     }
   }
 
   private def handleShowCard(
-                                   properties: PropertiesAfterInitialization,
-                                   behaviorAfterWatched: PropertiesAfterInitialization => Behavior[Message]):
+                              properties: PropertiesAfterInitialization,
+                              behaviorAfterWatched: PropertiesAfterInitialization => Behavior[Message]):
   PartialFunction[(ActorContext[Message], Message), Behavior[Message]] = {
     case (ctx, OwnCardSelected(index)) =>
       println(s"DuringGameViewActor HANDLER handleWatchYourCards received OwnCardSelected with index: $index")
@@ -213,20 +211,21 @@ class DuringGameViewActor private(
   }
 
   private def handleDiscardCardDrawn(properties: PropertiesAfterInitialization):
-    PartialFunction[(ActorContext[Message], Message), Behavior[Message]] = {
-      case (ctx, DiscardCardDrawn()) => {
-        println(s"DuringGameViewActor handling Disc] with message: ${DiscardCardDrawn()}")
-        properties.userInterface.emptyDrawnCardArea()
-        properties.gameCoordinatorRef ! GameCoordinatorMessage.DiscardCardDrawn()
-        Behaviors.same
-      }
-   }
+  PartialFunction[(ActorContext[Message], Message), Behavior[Message]] = {
+    case (ctx, DiscardCardDrawn()) => {
+      println(s"DuringGameViewActor handling Disc] with message: ${DiscardCardDrawn()}")
+      properties.userInterface.emptyDrawnCardArea()
+      properties.gameCoordinatorRef ! GameCoordinatorMessage.DiscardCardDrawn()
+      properties.userInterface.afterDiscarded()
+      Behaviors.same
+    }
+  }
 
   private def handleChangeCardWithDrawnOne(properties: PropertiesAfterInitialization):
-    PartialFunction[(ActorContext[Message], Message), Behavior[Message]] = {
-      case (ctx, OwnCardSelected(index)) =>
-        println(s"DuringGameViewActor HANDLER OwnCardSelected with message: ${OwnCardSelected(index)}")
-        properties.gameCoordinatorRef ! GameCoordinatorMessage.DiscardYourNthCard(index)
-        Behaviors.same
-   }
+  PartialFunction[(ActorContext[Message], Message), Behavior[Message]] = {
+    case (ctx, OwnCardSelected(index)) =>
+      println(s"DuringGameViewActor HANDLER OwnCardSelected with message: ${OwnCardSelected(index)}")
+      properties.gameCoordinatorRef ! GameCoordinatorMessage.DiscardYourNthCard(index)
+      Behaviors.same
+  }
 }

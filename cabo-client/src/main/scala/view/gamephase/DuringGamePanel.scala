@@ -234,7 +234,7 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
     reactions += {
       case ButtonClicked(_) =>
         println("End Turn button clicked")
-      // viewListener.endTurn()
+        viewListener.endTurn()
     }
   }
 
@@ -460,6 +460,15 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
       this.disableAll()
       this.exitButton.enabled = true
       this.playerPanel.enableCardsButton(true)
+    }
+  }
+
+  override def afterDiscarded(): Unit = {
+    Swing.onEDT {
+      this.disableAll()
+      this.exitButton.enabled = true
+      this.endTurnButton.enabled = true
+      this.callCaboButton.enabled = true
     }
   }
 }
