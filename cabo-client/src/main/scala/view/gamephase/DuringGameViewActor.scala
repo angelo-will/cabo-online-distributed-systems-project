@@ -89,6 +89,7 @@ class DuringGameViewActor private(
         .orElse(handleDiscardStackSelected(properties))
         .orElse(handleCardDrawn(properties))
         .orElse(handleNewTopDiscardCard(properties))
+        .orElse(handleDiscardCardDrawn(properties))
         .orElse({
           ////      handleUpdateLastTurnPlayed(properties)
           //        .orElse({
@@ -209,4 +210,13 @@ class DuringGameViewActor private(
       properties.userInterface.emptyDiscardStack()
       Behaviors.same
   }
+  
+  private def handleDiscardCardDrawn(properties: PropertiesAfterInitialization):
+    PartialFunction[(ActorContext[Message], Message), Behavior[Message]] = {
+      case (ctx, DiscardCardDrawn()) =>
+        println(s"DuringGameViewActor handling Disc] with message: ${DiscardCardDrawn()}")
+        properties.userInterface.emptyDrawnCardArea()
+        properties.gameCoordinatorRef ! GameCoordinatorMessage.DiscardCardDrawn()
+        Behaviors.same
+   }
 }

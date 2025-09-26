@@ -101,7 +101,7 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
   // CREAZIONE SCHERMATA DATI PARTITA E TURNO - FINE
 
   // CREAZIONE MAZZO PRINCIPALE - INIZIO
-  val deckPanel = new DeckPanel("Deck", viewListener.drawFromDeck)
+  val deckPanel = new DeckPanel("Deck", "Deck", viewListener.drawFromDeck)
   private val deckPanelRowIndex = NORTH_OFFSET_CENTER_FIELDS_ROWS + 1
   private val deckPanelColumnIndex = 3
   private val deckHeight = 2
@@ -113,7 +113,11 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
   // CREAZIONE MAZZO PRINCIPALE - FINE
 
   // CREAZIONE MAZZO SCARTI - INIZIO
-  val discardPanel = new DeckPanel(gameInProgress.discardDeckStack.cards.head.toString, viewListener.drawFromDiscard)
+  val discardPanel = new DeckPanel(
+    "Discard",
+    gameInProgress.discardDeckStack.cards.head.toString,
+    viewListener.drawFromDiscard
+  )
   private val discardPanelColumnIndex = deckPanelColumnIndex + 2
   c.gridx = discardPanelColumnIndex
   c.gridy = deckPanelRowIndex
@@ -251,6 +255,20 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
   layout(callCaboButton) = c
   // CREAZIONE TASTI END TURN E CALL CABO - FINE
 
+  // PROTOTYPE BUTTONS DISCARD CARD DRAWN - START
+  private val discardCardDrawnButton: Button = new Button("Discard Drawn Card") {
+    font = new AwtFont("Arial", AwtFont.BOLD, 12)
+    reactions += {
+      case ButtonClicked(_) =>
+        println("Discard Drawn Card button clicked")
+        viewListener.discardCardDrawn()
+    }
+  }
+
+  c.gridy = exitButtonRowIndex + 2
+  c.gridx = 7
+  layout(discardCardDrawnButton) = c
+  // PROTOTYPE BUTTONS DISCARD CARD DRAWN - END
 
   // FUNZIONI DI SUPPORTO - INIZIO
   override def paintComponent(g: Graphics2D): Unit = {
@@ -382,6 +400,13 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
     }
   }
 
+  override def emptyDrawnCardArea(): Unit = {
+    Swing.onEDT {
+      println("DuringGamePanel - emptyDrawnCardArea")
+      this.drawnCardButton.text = "Empty"
+    }
+  }
+
   override def showCardDrawnFromDiscards(cardDrawn: Card): Unit = ???
 
   override def updateDiscardsTopCard(card: Card): Unit = {
@@ -473,14 +498,14 @@ private class PlayerPanel(playerName: String, f: (index: Int) => Unit) extends B
   contents += Swing.VStrut(5)
   contents += cards
 
-private class DeckPanel(name: String, buttonAction: () => Unit) extends BoxPanel(Orientation.Vertical) {
+private class DeckPanel(labelStack: String, stackValue: String, buttonAction: () => Unit) extends BoxPanel(Orientation.Vertical) {
   border = Swing.EmptyBorder(10, 10, 10, 10)
-  private val discardLabel = new Label(name) {
+  private val discardLabel = new Label(labelStack) {
     font = new AwtFont("Arial", AwtFont.BOLD, 14)
     horizontalAlignment = Alignment.Center
   }
 
-  val deckButton: Button = new Button(name) {
+  val deckButton: Button = new Button(stackValue) {
     font = new AwtFont("Arial", AwtFont.PLAIN, 24)
     border = Swing.EmptyBorder(5, 5, 5, 5)
   }
@@ -488,8 +513,12 @@ private class DeckPanel(name: String, buttonAction: () => Unit) extends BoxPanel
 
   reactions += {
     case ButtonClicked(`deckButton`) =>
-      println(s"$name button clicked")
+      println(s"$labelStack button clicked")
       buttonAction()
+  }
+
+  def updateStackValue(newValue: String): Unit = {
+    deckButton.text = newValue
   }
 
   contents += discardLabel

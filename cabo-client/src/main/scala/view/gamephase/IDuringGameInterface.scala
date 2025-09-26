@@ -15,6 +15,8 @@ trait IDuringGameInterface {
   def updateDiscardsTopCard(card: Card): Unit
 
   def emptyDiscardStack(): Unit
+  
+  def emptyDrawnCardArea(): Unit
 
   def showYourNthCard(card: Card): Unit
 

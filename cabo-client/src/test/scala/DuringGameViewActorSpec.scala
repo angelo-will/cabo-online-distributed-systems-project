@@ -1,13 +1,14 @@
-import akka.actor.testkit.typed.scaladsl.{ScalaTestWithActorTestKit, TestProbe}
+import akka.actor.testkit.typed.scaladsl.{ScalaTestWithActorTestKit, TestDuration, TestProbe}
 import akka.actor.typed.ActorRef
 import model.Game.GameInProgress
 import model.TurnEvent.CardDiscarded
-import model.{CardStack, DuringGameTurnLog, Game, GameParameters, GameStatus, Hand, IGameParameters, InvalidTurnEventException, PlayerPlaying, Power, TurnEvent, TurnLog, TurnPhase}
+import model.{Card, CardStack, DuringGameTurnLog, Game, GameParameters, GameStatus, Hand, IGameParameters, InvalidTurnEventException, PlayerPlaying, Power, TurnEvent, TurnLog, TurnPhase}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.{BeforeAndAfterEach, durations}
 import org.scalatest.matchers.must.Matchers.mustBe
 import utils.{ClientMessages, DuringGameViewMessages, GameCoordinatorMessage, InitialViewMessages, Message}
+import view.gamephase.DuringGameViewActor
 import view.lobbyphase.ViewApplication
 import view.lobbyphase.actors.InitialPhaseViewActor.ViewCreated
 import view.lobbyphase.actors.{InitialPhaseViewActor, ViewActorListener}
@@ -142,17 +143,55 @@ class DuringGameViewActorSpec extends ScalaTestWithActorTestKit
         Thread.sleep(10000)
       }
     }
+    "let the player discard card drown" in {
+      val duringGameViewActor = startApp()
+      revealingFirstTwoCardsPhase(duringGameViewActor, game)
+      duringGameViewActor ! DuringGameViewMessages.StartPlayPhase()
+      Thread.sleep(1000)
+      duringGameViewActor ! DuringGameViewMessages.FirstTurn()
+      val (cardDrawn, newDeck) = drawFromDeckExpectation(duringGameViewActor.ref)
+      probeAsGameCoordinator.expectMessageType[GameCoordinatorMessage.DiscardCardDrawn](FiniteDuration(5, SECONDS))
+      Thread.sleep(10000)
+    }
+    "let update discard stack" when {
+      "player discard card" in {
+        val duringGameViewActor = startApp()
+        revealingFirstTwoCardsPhase(duringGameViewActor, game)
+        duringGameViewActor ! DuringGameViewMessages.StartPlayPhase()
+        Thread.sleep(1000)
+        duringGameViewActor ! DuringGameViewMessages.FirstTurn()
+        val (cardDrawn, newDeck) = drawFromDeckExpectation(duringGameViewActor.ref)
+        probeAsGameCoordinator.expectMessageType[GameCoordinatorMessage.DiscardCardDrawn](FiniteDuration(5, SECONDS))
+        duringGameViewActor ! DuringGameViewMessages.NewTopCardDiscardStack(cardDrawn)
+        Thread.sleep(10000)
+      }
+    }
+  }
+
+  private def startApp(): ActorRef[Message] = {
+    val ref = testKit.spawn(DuringGameViewActor(userID, probeAsClient.ref, probeAsMainMenu.ref))
+    probeAsClient.receiveMessages(1)
+    ref ! DuringGameViewMessages.StartGame(game, probeAsGameCoordinator.ref)
+    ref
   }
 
   private def revealingFirstTwoCardsPhase(duringGameViewActor: ActorRef[Message], game: GameInProgress): Unit = {
     val player = game.players.filter(_.userID.equals(userID)).head
-    duringGameViewActor ! DuringGameViewMessages.StartGame(game, probeAsGameCoordinator.ref)
+    //    duringGameViewActor ! DuringGameViewMessages.StartGame(game, probeAsGameCoordinator.ref)
     val showYourFirstNthCard = probeAsGameCoordinator.expectMessageType[GameCoordinatorMessage.ShowYourNthCard](FiniteDuration(5, SECONDS))
     val firstCardRequested = player.hand.cards(showYourFirstNthCard.index)
     duringGameViewActor ! DuringGameViewMessages.CardSeen(firstCardRequested)
     val showYourSecondNthCard = probeAsGameCoordinator.expectMessageType[GameCoordinatorMessage.ShowYourNthCard](FiniteDuration(5, SECONDS))
     val secondCardRequested = player.hand.cards(showYourSecondNthCard.index)
     duringGameViewActor ! DuringGameViewMessages.CardSeen(secondCardRequested)
+  }
+
+  private def drawFromDeckExpectation(viewActor: ActorRef[Message]): (Card, CardStack) = {
+    val msg = probeAsGameCoordinator.expectMessageType[GameCoordinatorMessage.DrawCardFromDeck](FiniteDuration(5, SECONDS))
+    println(s"DuringGameViewActorSpec: received message $msg TO GameCoordinator")
+    val (cardDrawn, newDeck) = game.deckStack.drawFirstCard
+    viewActor ! DuringGameViewMessages.CardDrawn(cardDrawn)
+    (cardDrawn, newDeck)
   }
 
   def generateGameInProgress(userID: String, shuffleDeck: Boolean): GameInProgress = {

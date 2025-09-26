@@ -26,7 +26,7 @@ case class DuringGameViewListener(whoToResponse: ActorRef[Message]) extends IDur
     whoToResponse ! DiscardYourNthCard(carIndex)
 
   override def discardCardDrawn(): Unit =
-    whoToResponse ! DiscardCardDrawn()
+    whoToResponse ! DuringGameViewMessages.DiscardCardDrawn()
 
   override def showAdversaryNthCard(adversaryID: String, cardIndex: Int): Unit =
     whoToResponse ! ShowAdversaryNthCard(adversaryID, cardIndex)

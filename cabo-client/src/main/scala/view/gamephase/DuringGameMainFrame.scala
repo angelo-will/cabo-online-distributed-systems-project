@@ -137,6 +137,7 @@ private class WaitingToStartGamePanel extends BorderPanel:
     //    val player3 = PlayerPlaying("user3", "Charlie", Hand(hand3Cards))
     //    val player4 = PlayerPlaying("user4", "Diana", Hand(hand4Cards))
 
+    val (topCard, finalDeck) = deckAfterHand2.drawNCards(1)
 
     val playersList = List(
       player1,
@@ -145,12 +146,8 @@ private class WaitingToStartGamePanel extends BorderPanel:
       //      player4
     )
 
-    // 2. Creazione del mazzo e del mazzo degli scarti
-    val gameDeck = deckAfterHand2
-    //    val gameDeck = deckAfterHand4
-    val discardDeck = CardStack.buildEmptyDeck
+    val discardDeck = topCard
 
-    // 3. Creazione dei parametri del gioco e dello stato
     val gameParameters: IGameParameters = GameParameters()
     val gameStatus = GameStatus.InProgress()
     val currentRound = 1
@@ -160,7 +157,7 @@ private class WaitingToStartGamePanel extends BorderPanel:
       gameParameters = gameParameters,
       gameStatus = gameStatus,
       players = playersList,
-      deckStack = gameDeck,
+      deckStack = finalDeck,
       discardDeckStack = discardDeck,
       currentRound = currentRound
     )

@@ -59,4 +59,6 @@ object DuringGameViewMessages {
   case class DeckSelected() extends DuringGameUserInterfaceCommand
 
   case class DiscardStackSelected() extends DuringGameUserInterfaceCommand
+  
+  case class DiscardCardDrawn() extends DuringGameUserInterfaceCommand
 }
