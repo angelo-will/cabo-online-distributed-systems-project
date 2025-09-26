@@ -78,3 +78,7 @@ case class PlayerPlaying(userID: String, name: String, rank: Int, hand: Hand) ex
   def replaceNthCard(index: Int, card: Card): PlayerPlaying =
     val newHand = Hand(hand.cards.updated(index, card))
     this.copy(hand = newHand)
+    
+  def getCard(index: Int): Card = {
+    this.hand.cards(index)
+  }  

@@ -39,6 +39,8 @@ object Game:
       "\tcurrentRound=" + currentRound + ""
 
     def getPlayerWithID(userID: String) = PlayerPlaying.getPlayerWithID(userID, this.players)
+    
+    def getCardOfPlayerWithID(userID: String, index: Int) = this.getPlayerWithID(userID).getCard(index)
 
     def getHandOfPlayerWithID(userID: String) = this.getPlayerWithID(userID).hand
 

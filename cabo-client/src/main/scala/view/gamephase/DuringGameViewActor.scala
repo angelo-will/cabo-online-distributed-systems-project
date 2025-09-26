@@ -2,7 +2,7 @@ package view.gamephase
 
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
-import model.{Game, TurnLog}
+import model.{Game, Power, TurnLog}
 import utils.{DuringGameViewMessages, GameCoordinatorMessage, InitialViewMessages, Message}
 import utils.DuringGameViewMessages.*
 
@@ -82,6 +82,7 @@ class DuringGameViewActor private(
     }
   }
 
+  // MY TURN BEHAVIORS - START
   private def myTurn(properties: PropertiesAfterInitialization): Behavior[Message] = {
     properties.userInterface.startTurn()
     Behaviors.receivePartial {
@@ -101,6 +102,24 @@ class DuringGameViewActor private(
 
     }
   }
+
+  private def myTurnPowerSeeMyCard(properties: PropertiesAfterInitialization): Behavior[Message] = {
+    //    properties.userInterface.enterSeeYourCardPhase()
+    Behaviors.receivePartial {
+      handleShowCard(properties, myTurn)
+    }
+  }
+
+  private def myTurnPowerSeeOpponentCard(properties: PropertiesAfterInitialization): Behavior[Message] = {
+    //    properties.userInterface.enterSeeOpponentCardPhase(lastGameUpdate, userID)
+    Behaviors.receivePartial {
+      case (ctx, AdversaryCardSelected(adversaryID, index)) =>
+        println(s"DuringGameViewActor in myTurnPowerSeeOpponentCard received AdversaryCardSelected with index: $index")
+        properties.gameCoordinatorRef ! GameCoordinatorMessage.ShowAdversaryNthCard(adversaryID, index)
+        waitCardSelected(properties, myTurn)
+    }
+  }
+  // MY TURN BEHAVIORS - END
 
 
   private def waitCardSelected(
@@ -195,7 +214,10 @@ class DuringGameViewActor private(
       ctx.log.info(s"DuringGameViewActor handling CardDrawn with message: ${CardDrawn(card)}")
       properties.userInterface.afterDrawPhase()
       properties.userInterface.showCardDrawnFromDeck(card)
-      Behaviors.same
+      card.power match
+        case Power.SeeYourCard() => myTurnPowerSeeMyCard(properties)
+//        case Power.SeeYourOpponentCard() => myTurnPowerSeeOpponentCard(properties)
+        case _ => Behaviors.same
   }
 
   private def handleNewTopDiscardCard(properties: PropertiesAfterInitialization):

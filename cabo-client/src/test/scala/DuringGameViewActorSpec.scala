@@ -200,6 +200,23 @@ class DuringGameViewActorSpec extends ScalaTestWithActorTestKit
       probeAsGameCoordinator.expectMessageType[GameCoordinatorMessage.EndTurn](FiniteDuration(5, SECONDS))
       createCheckFrame().open()
     }
+    "let the player use power" when {
+      "draw power to see one of his cards" in {
+        game = generateGameInProgress(userID, false)
+        // With two players skipping first card reach Jack (in not shuffled deck)
+        val (_, deck) = game.deckStack.drawFirstCard
+        game = game.copy(deckStack = deck)
+        val duringGameViewActor = startApp()
+        revealingFirstTwoCardsPhase(duringGameViewActor, game)
+        duringGameViewActor ! DuringGameViewMessages.StartPlayPhase()
+        Thread.sleep(1000)
+        duringGameViewActor ! DuringGameViewMessages.FirstTurn()
+        val (cardDrawn, newDeck) = drawFromDeckExpectation(duringGameViewActor.ref)
+        val cardIndex = probeAsGameCoordinator.expectMessageType[GameCoordinatorMessage.ShowYourNthCard](FiniteDuration(5, SECONDS)).index
+        duringGameViewActor ! DuringGameViewMessages.CardSeen(game.getCardOfPlayerWithID(userID,cardIndex))
+        createCheckFrame().open()
+      }
+    }
   }
 
   private def startApp(): ActorRef[Message] = {
