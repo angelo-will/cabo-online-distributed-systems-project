@@ -166,6 +166,30 @@ class DuringGameViewActorSpec extends ScalaTestWithActorTestKit
         Thread.sleep(10000)
       }
     }
+    "let the player change one of his card" when {
+      "choose to keep drawn card" in {
+        val duringGameViewActor = startApp()
+        revealingFirstTwoCardsPhase(duringGameViewActor, game)
+        duringGameViewActor ! DuringGameViewMessages.StartPlayPhase()
+        Thread.sleep(1000)
+        duringGameViewActor ! DuringGameViewMessages.FirstTurn()
+        val (cardDrawn, newDeck) = drawFromDeckExpectation(duringGameViewActor.ref)
+        val msg = probeAsGameCoordinator.expectMessageType[GameCoordinatorMessage.DiscardYourNthCard](FiniteDuration(5, SECONDS))
+        val oldCard = game.getPlayerWithID(userID).hand.cards(msg.index)
+        game = game.replaceNthCardOfPlayerWithID(userID, cardDrawn, msg.index)
+        duringGameViewActor ! DuringGameViewMessages.NewTopCardDiscardStack(oldCard)
+        Thread.sleep(10000)
+
+
+        //        val player = game.players.filter(_.userID.equals(userID)).head
+        //        val cardToReplace = player.hand.cards.head
+        //        duringGameViewActor ! DuringGameViewMessages.OwnCardSelected(0)
+        //        val msg = probeAsGameCoordinator.expectMessageType[GameCoordinatorMessage.ReplaceOwnNthCardWithAdversaryNthOne](FiniteDuration(5, SECONDS))
+        //        msg.ownCardIndex mustBe 0
+        //        msg.adversaryID mustBe userID
+        //        msg.adversaryCardIndex mustBe 0
+      }
+    }
   }
 
   private def startApp(): ActorRef[Message] = {
@@ -194,7 +218,7 @@ class DuringGameViewActorSpec extends ScalaTestWithActorTestKit
     (cardDrawn, newDeck)
   }
 
-  def generateGameInProgress(userID: String, shuffleDeck: Boolean): GameInProgress = {
+  private def generateGameInProgress(userID: String, shuffleDeck: Boolean): GameInProgress = {
     val fullDeck = if shuffleDeck then CardStack.buildShuffledFullDeck else CardStack.buildSortedFullDeck
     val (hand1Cards, deckAfterHand1) = fullDeck.drawNCards(4)
     val (hand2Cards, deckAfterHand2) = deckAfterHand1.drawNCards(4)

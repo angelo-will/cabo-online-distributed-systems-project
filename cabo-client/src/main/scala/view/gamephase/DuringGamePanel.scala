@@ -443,6 +443,7 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
     Swing.onEDT {
       this.disableAll()
       this.exitButton.enabled = true
+      this.playerPanel.enableCardsButton(true)
       //      this.playerPanel.enableCardsButton()
     }
   }

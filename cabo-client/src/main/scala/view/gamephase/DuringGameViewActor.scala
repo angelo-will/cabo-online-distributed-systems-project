@@ -62,7 +62,7 @@ class DuringGameViewActor private(
 
   private def watchYourCards(properties: PropertiesAfterInitialization): Behavior[Message] = {
     Behaviors.receivePartial {
-      handleWatchYourCard(properties, watchYourCards)
+      handleShowCard(properties, watchYourCards)
         .orElse(handleStartPlayPhase(properties))
         .orElse({
           case _ => Behaviors.same
@@ -89,6 +89,7 @@ class DuringGameViewActor private(
         .orElse(handleDiscardStackSelected(properties))
         .orElse(handleCardDrawn(properties))
         .orElse(handleNewTopDiscardCard(properties))
+        .orElse(handleChangeCardWithDrawnOne(properties))
         .orElse(handleDiscardCardDrawn(properties))
         .orElse({
           ////      handleUpdateLastTurnPlayed(properties)
@@ -137,7 +138,7 @@ class DuringGameViewActor private(
     }
   }
 
-  private def handleWatchYourCard(
+  private def handleShowCard(
                                    properties: PropertiesAfterInitialization,
                                    behaviorAfterWatched: PropertiesAfterInitialization => Behavior[Message]):
   PartialFunction[(ActorContext[Message], Message), Behavior[Message]] = {
@@ -210,13 +211,22 @@ class DuringGameViewActor private(
       properties.userInterface.emptyDiscardStack()
       Behaviors.same
   }
-  
+
   private def handleDiscardCardDrawn(properties: PropertiesAfterInitialization):
     PartialFunction[(ActorContext[Message], Message), Behavior[Message]] = {
-      case (ctx, DiscardCardDrawn()) =>
+      case (ctx, DiscardCardDrawn()) => {
         println(s"DuringGameViewActor handling Disc] with message: ${DiscardCardDrawn()}")
         properties.userInterface.emptyDrawnCardArea()
         properties.gameCoordinatorRef ! GameCoordinatorMessage.DiscardCardDrawn()
+        Behaviors.same
+      }
+   }
+
+  private def handleChangeCardWithDrawnOne(properties: PropertiesAfterInitialization):
+    PartialFunction[(ActorContext[Message], Message), Behavior[Message]] = {
+      case (ctx, OwnCardSelected(index)) =>
+        println(s"DuringGameViewActor HANDLER OwnCardSelected with message: ${OwnCardSelected(index)}")
+        properties.gameCoordinatorRef ! GameCoordinatorMessage.DiscardYourNthCard(index)
         Behaviors.same
    }
 }
