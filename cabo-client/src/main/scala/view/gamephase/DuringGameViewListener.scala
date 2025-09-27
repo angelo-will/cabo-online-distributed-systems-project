@@ -9,7 +9,8 @@ case class DuringGameViewListener(whoToResponse: ActorRef[Message]) extends IDur
   override def ownCardSelected(cardIndex: Int): Unit =
     whoToResponse ! utils.DuringGameViewMessages.OwnCardSelected(cardIndex)
 
-  override def adversaryCardSelected(adversaryID: String, cardIndex: Int): Unit = {}
+  override def adversaryCardSelected(adversaryID: String, cardIndex: Int): Unit =
+    whoToResponse ! DuringGameViewMessages.AdversaryCardSelected(adversaryID, cardIndex)
 
   override def showCardNth(cardIndex: Int): Unit =
     whoToResponse ! ShowYourNthCard(cardIndex)

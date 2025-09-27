@@ -38,6 +38,8 @@ trait IDuringGameInterface {
   def startTurn(): Unit
 
   def afterDrawPhase(): Unit
+  
+  def usePowerToSeeAdversaryCard(): Unit
 
   def afterDiscarded(): Unit
 }

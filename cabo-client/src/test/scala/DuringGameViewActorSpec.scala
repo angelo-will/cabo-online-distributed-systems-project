@@ -25,6 +25,9 @@ class DuringGameViewActorSpec extends ScalaTestWithActorTestKit
   import scala.concurrent.duration.{FiniteDuration, SECONDS}
 
   val userID = "Protagonista"
+  val adversary01ID = "player01"
+  val adversary02ID = "player02"
+  val adversary03ID = "player03"
 
   private var probeAsClient: TestProbe[Message] = _
   private var probeAsMainMenu: TestProbe[Message] = _
@@ -213,7 +216,22 @@ class DuringGameViewActorSpec extends ScalaTestWithActorTestKit
         duringGameViewActor ! DuringGameViewMessages.FirstTurn()
         val (cardDrawn, newDeck) = drawFromDeckExpectation(duringGameViewActor.ref)
         val cardIndex = probeAsGameCoordinator.expectMessageType[GameCoordinatorMessage.ShowYourNthCard](FiniteDuration(5, SECONDS)).index
-        duringGameViewActor ! DuringGameViewMessages.CardSeen(game.getCardOfPlayerWithID(userID,cardIndex))
+        duringGameViewActor ! DuringGameViewMessages.CardSeen(game.getCardOfPlayerWithID(userID, cardIndex))
+        createCheckFrame().open()
+      }
+      "draw power to see one of adversary cards" in {
+        game = generateGameInProgress(userID, false)
+        val (_, deck) = game.deckStack.drawNCards(2)
+        game = game.copy(deckStack = deck)
+        val duringGameViewActor = startApp()
+        revealingFirstTwoCardsPhase(duringGameViewActor, game)
+        duringGameViewActor ! DuringGameViewMessages.StartPlayPhase()
+        Thread.sleep(1000)
+        duringGameViewActor ! DuringGameViewMessages.FirstTurn()
+        val (cardDrawn, newDeck) = drawFromDeckExpectation(duringGameViewActor.ref)
+        val msg = probeAsGameCoordinator.expectMessageType[GameCoordinatorMessage.ShowAdversaryNthCard](FiniteDuration(5, SECONDS))
+        val card = game.getCardOfPlayerWithID(msg.playerID, msg.cardIndex)
+        duringGameViewActor ! DuringGameViewMessages.CardSeen(card)
         createCheckFrame().open()
       }
     }
@@ -254,15 +272,15 @@ class DuringGameViewActorSpec extends ScalaTestWithActorTestKit
 
     val (firstCardDiscardStack, finalDeck) = deckAfterHand2.drawFirstCard
 
-    val player1 = PlayerPlaying(userID, "Alice", 1, Hand(hand1Cards))
-    val player2 = PlayerPlaying("user2", "Bob", 2, Hand(hand2Cards))
+    val player1 = PlayerPlaying(userID, userID, 1, Hand(hand1Cards))
+    val adversary01 = PlayerPlaying(adversary01ID, adversary01ID, 2, Hand(hand2Cards))
     //    val player3 = PlayerPlaying("user3", "Charlie", Hand(hand3Cards))
     //    val player4 = PlayerPlaying("user4", "Diana", Hand(hand4Cards))
 
 
     val playersList = List(
       player1,
-      player2,
+      adversary01,
       //      player3,
       //      player4
     )

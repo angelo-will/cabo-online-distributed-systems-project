@@ -2,7 +2,7 @@ package view.gamephase
 
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
-import model.{Game, Power, TurnLog}
+import model.{Card, Game, Power, TurnLog}
 import utils.{DuringGameViewMessages, GameCoordinatorMessage, InitialViewMessages, Message}
 import utils.DuringGameViewMessages.*
 
@@ -35,6 +35,10 @@ class DuringGameViewActor private(
 
   private var lastGameUpdate: Game.GameInProgress = _
   private var lastTurnLog: TurnLog = _
+
+  private var adversaryIDRequested: String = _
+  private var adversaryIndexCardRequested: Int = _
+  private var adversaryCardRequested: Card = _
 
   //  private var cardsSeenQuantity = 0
 
@@ -111,12 +115,14 @@ class DuringGameViewActor private(
   }
 
   private def myTurnPowerSeeOpponentCard(properties: PropertiesAfterInitialization): Behavior[Message] = {
-    //    properties.userInterface.enterSeeOpponentCardPhase(lastGameUpdate, userID)
+    properties.userInterface.usePowerToSeeAdversaryCard()
     Behaviors.receivePartial {
       case (ctx, AdversaryCardSelected(adversaryID, index)) =>
         println(s"DuringGameViewActor in myTurnPowerSeeOpponentCard received AdversaryCardSelected with index: $index")
         properties.gameCoordinatorRef ! GameCoordinatorMessage.ShowAdversaryNthCard(adversaryID, index)
-        waitCardSelected(properties, myTurn)
+        this.adversaryIndexCardRequested = index
+        this.adversaryIDRequested = adversaryID
+        waitAdversaryCardSelected(properties)
     }
   }
   // MY TURN BEHAVIORS - END
@@ -131,6 +137,15 @@ class DuringGameViewActor private(
         println(s"DuringGameViewActor in waitCardSelected received Card seen with card: $card")
         properties.userInterface.showYourNthCard(card)
         behaviorAfterCardReceived(properties)
+    }
+  }
+
+  private def waitAdversaryCardSelected(properties: PropertiesAfterInitialization): Behavior[Message] = {
+    Behaviors.receivePartial {
+      case (ctx, CardSeen(card)) =>
+        println(s"DuringGameViewActor in waitAdversaryCardSelected received: ${CardSeen(card)}")
+        properties.userInterface.showAdversaryNthCard(adversaryIDRequested, adversaryIndexCardRequested, card)
+        myTurn(properties)
     }
   }
 
@@ -216,7 +231,7 @@ class DuringGameViewActor private(
       properties.userInterface.showCardDrawnFromDeck(card)
       card.power match
         case Power.SeeYourCard() => myTurnPowerSeeMyCard(properties)
-//        case Power.SeeYourOpponentCard() => myTurnPowerSeeOpponentCard(properties)
+        case Power.SeeYourOpponentCard() => myTurnPowerSeeOpponentCard(properties)
         case _ => Behaviors.same
   }
 

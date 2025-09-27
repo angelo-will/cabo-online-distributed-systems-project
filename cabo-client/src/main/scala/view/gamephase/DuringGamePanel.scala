@@ -422,7 +422,13 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
       this.myTurnActionsLog.text = s"YOUR CARD SELECTED HAS VALUE $card"
     }
 
-  override def showAdversaryNthCard(adversaryName: String, n: Int, card: Card): Unit = ???
+  override def showAdversaryNthCard(adversaryName: String, n: Int, card: Card): Unit = {
+    Swing.onEDT {
+      println(s"DuringGamePanel - showAdversaryNthCard: $adversaryName, $n, $card")
+      this.myTurnActionsLog.text = s"$adversaryName's CARD $n SELECTED HAS VALUE $card"
+    }
+  }
+    
 
   override def changeCardWithAdversaryIsDone(): Unit = ???
 
@@ -447,6 +453,14 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
       //      this.playerPanel.enableCardsButton()
     }
   }
+  
+  override def usePowerToSeeAdversaryCard(): Unit = {
+    Swing.onEDT{
+      this.disableAll()
+      this.exitButton.enabled = true
+      this.adversariesPanelMap.foreach(_._2.enableCardsButton(true))
+    }
+  } 
 
   override def enterWaitingPhase(): Unit = {
     Swing.onEDT {
