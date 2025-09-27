@@ -40,6 +40,11 @@ class DuringGameViewActor private(
   private var adversaryIndexCardRequested: Int = _
   private var adversaryCardRequested: Card = _
 
+  private var ownCardIndexSelected: Int = _
+
+  private var isAdversaryCardRequested: Boolean = false
+  private var isOwnCardRequested: Boolean = false
+
   //  private var cardsSeenQuantity = 0
 
   def start(): Behavior[Message] = Behaviors.setup { ctx =>
@@ -125,6 +130,37 @@ class DuringGameViewActor private(
         waitAdversaryCardSelected(properties)
     }
   }
+
+  private def myTurnPowerExchange(properties: PropertiesAfterInitialization): Behavior[Message] = {
+    if !isAdversaryCardRequested || !isOwnCardRequested then
+      properties.userInterface.usePowerToExchangeCardWithAdversary()
+    Behaviors.receivePartial {
+      case (ctx, AdversaryCardSelected(adversaryID, index)) =>
+        println(s"DuringGameViewActor in myTurnPowerExchange received AdversaryCardSelected with index: $index")
+        this.adversaryIndexCardRequested = index
+        this.adversaryIDRequested = adversaryID
+        this.isAdversaryCardRequested = true
+        properties.userInterface.activateAdversariesCards(false)
+        properties.userInterface.notifyYourAdversaryCardSelection(adversaryID, index)
+        checkIfCanExchangeCard(properties)
+      case (ctx, OwnCardSelected(ownIndex)) =>
+        println(s"DuringGameViewActor in myTurnPowerExchange received OwnCardSelected with index: $ownIndex")
+        this.ownCardIndexSelected = ownIndex
+        this.isOwnCardRequested = true
+        properties.userInterface.activateOwnCards(false)
+        properties.userInterface.notifyYourOwnCardSelection(ownIndex)
+        checkIfCanExchangeCard(properties)
+    }
+  }
+
+  private def myTurnWaitPowerChangeAck(properties: PropertiesAfterInitialization): Behavior[Message] = {
+    Behaviors.receivePartial {
+      case (ctx, DuringGameViewMessages.ChangeCardWithAdversaryAck()) =>
+        println(s"DuringGameViewActor in myTurnWaitPowerChangeAck received ChangeCardWithAdversaryAck")
+        properties.userInterface.changeCardWithAdversaryIsDone()
+        myTurn(properties)
+    }
+  }
   // MY TURN BEHAVIORS - END
 
 
@@ -199,12 +235,6 @@ class DuringGameViewActor private(
       myTurn(properties)
     // next behave
   }
-  //  private def handle(properties: PropertiesAfterInitialization):
-  //  PartialFunction[(ActorContext[Message], Message), Behavior[Message]] = {
-  //    case (ctx, _()) =>
-  //      ctx.log.info(s"DuringGameViewActor handling _ with message: ${}")
-  //      // next behave
-  //  }
 
   private def handleDeckSelected(properties: PropertiesAfterInitialization):
   PartialFunction[(ActorContext[Message], Message), Behavior[Message]] = {
@@ -232,6 +262,7 @@ class DuringGameViewActor private(
       card.power match
         case Power.SeeYourCard() => myTurnPowerSeeMyCard(properties)
         case Power.SeeYourOpponentCard() => myTurnPowerSeeOpponentCard(properties)
+        case Power.ChangeOneOfYourCardWithOpponent() => myTurnPowerExchange(properties)
         case _ => Behaviors.same
   }
 
@@ -264,5 +295,18 @@ class DuringGameViewActor private(
       println(s"DuringGameViewActor HANDLER OwnCardSelected with message: ${OwnCardSelected(index)}")
       properties.gameCoordinatorRef ! GameCoordinatorMessage.DiscardYourNthCard(index)
       Behaviors.same
+  }
+
+  // SUPPORT FUNCTIONS
+
+  private def checkIfCanExchangeCard(properties: PropertiesAfterInitialization): Behavior[Message] = {
+    if isAdversaryCardRequested && isOwnCardRequested then {
+      properties.gameCoordinatorRef ! GameCoordinatorMessage.ReplaceOwnNthCardWithAdversaryNthOne(ownCardIndexSelected, adversaryIDRequested, adversaryIndexCardRequested)
+      isAdversaryCardRequested = false
+      isOwnCardRequested = false
+      myTurnWaitPowerChangeAck(properties)
+    } else {
+      Behaviors.same
+    }
   }
 }

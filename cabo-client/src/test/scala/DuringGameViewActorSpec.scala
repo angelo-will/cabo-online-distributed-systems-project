@@ -234,6 +234,24 @@ class DuringGameViewActorSpec extends ScalaTestWithActorTestKit
         duringGameViewActor ! DuringGameViewMessages.CardSeen(card)
         createCheckFrame().open()
       }
+      "draw power to change card with adversary one" in {
+        game = generateGameInProgress(userID, false)
+        val (_, deck) = game.deckStack.drawNCards(3)
+        game = game.copy(deckStack = deck)
+        val duringGameViewActor = startApp()
+        revealingFirstTwoCardsPhase(duringGameViewActor, game)
+        duringGameViewActor ! DuringGameViewMessages.StartPlayPhase()
+        Thread.sleep(1000)
+        duringGameViewActor ! DuringGameViewMessages.FirstTurn()
+        val (cardDrawn, newDeck) = drawFromDeckExpectation(duringGameViewActor.ref)
+        val msg = probeAsGameCoordinator.expectMessageType[GameCoordinatorMessage.ReplaceOwnNthCardWithAdversaryNthOne](FiniteDuration(15, SECONDS))
+        val playerOldCard = game.getCardOfPlayerWithID(userID, msg.ownCardIndex)
+        val adversaryOldCard = game.getCardOfPlayerWithID(msg.adversaryID, msg.adversaryCardIndex)
+        game = game.replaceNthCardOfPlayerWithID(userID, adversaryOldCard, msg.ownCardIndex)
+        game = game.replaceNthCardOfPlayerWithID(msg.adversaryID, playerOldCard, msg.adversaryCardIndex)
+        duringGameViewActor ! DuringGameViewMessages.ChangeCardWithAdversaryAck()
+        createCheckFrame().open()
+      }
     }
   }
 

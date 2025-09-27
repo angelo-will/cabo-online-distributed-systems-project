@@ -38,8 +38,18 @@ trait IDuringGameInterface {
   def startTurn(): Unit
 
   def afterDrawPhase(): Unit
-  
+
   def usePowerToSeeAdversaryCard(): Unit
+
+  def usePowerToExchangeCardWithAdversary(): Unit
+
+  def activateAdversariesCards(areActivated: Boolean): Unit
+
+  def activateOwnCards(areActivated: Boolean): Unit
+
+  def notifyYourAdversaryCardSelection(adversaryID: String, index: Int): Unit
+
+  def notifyYourOwnCardSelection(index: Int): Unit
 
   def afterDiscarded(): Unit
 }

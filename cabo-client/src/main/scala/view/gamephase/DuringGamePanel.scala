@@ -428,9 +428,49 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
       this.myTurnActionsLog.text = s"$adversaryName's CARD $n SELECTED HAS VALUE $card"
     }
   }
-    
 
-  override def changeCardWithAdversaryIsDone(): Unit = ???
+  override def usePowerToExchangeCardWithAdversary(): Unit = {
+    Swing.onEDT {
+      this.disableAll()
+      this.exitButton.enabled = true
+      this.activateAdversariesCards(true)
+      this.activateOwnCards(true)
+    }
+  }
+
+  override def activateAdversariesCards(areActivated: Boolean): Unit = {
+    Swing.onEDT {
+      this.adversariesPanelMap.foreach(_._2.enableCardsButton(areActivated))
+    }
+  }
+
+  override def activateOwnCards(areActivated: Boolean): Unit = {
+    Swing.onEDT {
+      this.playerPanel.enableCardsButton(areActivated)
+    }
+  }
+
+  override def notifyYourAdversaryCardSelection(adversaryID: String, index: Int): Unit = {
+    Swing.onEDT{
+      this.myTurnActionsLog.text += s"\nYou selected card $index of adversary with ID $adversaryID"
+    }
+  }
+
+  override def notifyYourOwnCardSelection(index: Int): Unit = {
+    Swing.onEDT{
+      this.myTurnActionsLog.text += s"\nYou selected your card $index"
+    }
+  }
+
+  override def changeCardWithAdversaryIsDone(): Unit = {
+    Swing.onEDT {
+      this.myTurnActionsLog.text = s"\nCard exchange with adversary completed!"
+//      this.disableAll()
+//      this.exitButton.enabled = true
+//      this.endTurnButton.enabled = true
+//      this.callCaboButton.enabled = true
+    }
+  }
 
   override def playerIsDisconnected(player: PlayerPlaying): Unit = ???
 
@@ -453,14 +493,14 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
       //      this.playerPanel.enableCardsButton()
     }
   }
-  
+
   override def usePowerToSeeAdversaryCard(): Unit = {
-    Swing.onEDT{
+    Swing.onEDT {
       this.disableAll()
       this.exitButton.enabled = true
       this.adversariesPanelMap.foreach(_._2.enableCardsButton(true))
     }
-  } 
+  }
 
   override def enterWaitingPhase(): Unit = {
     Swing.onEDT {
