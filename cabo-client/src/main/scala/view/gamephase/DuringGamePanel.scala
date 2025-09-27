@@ -355,6 +355,7 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
     this.exitButton.enabled = false
     this.callCaboButton.enabled = false
     this.endTurnButton.enabled = false
+    this.discardCardDrawnButton.enabled = false
 
     this.adversariesPanelMap.foreach((k, v) => v.enableCardsButton(false))
 
@@ -485,11 +486,12 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
       this.discardPanel.deckButton.enabled = true
     }
 
-  override def afterDrawPhase(): Unit = {
+  override def afterDrawPhase(canDiscardDrawnCard: Boolean): Unit = {
     Swing.onEDT {
       this.disableAll()
       this.exitButton.enabled = true
-      this.playerPanel.enableCardsButton(true)
+      this.activateOwnCards(true)
+      this.discardCardDrawnButton.enabled = canDiscardDrawnCard
       //      this.playerPanel.enableCardsButton()
     }
   }

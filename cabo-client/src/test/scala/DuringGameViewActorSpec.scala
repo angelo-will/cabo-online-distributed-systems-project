@@ -217,6 +217,16 @@ class DuringGameViewActorSpec extends ScalaTestWithActorTestKit
         val (cardDrawn, newDeck) = drawFromDeckExpectation(duringGameViewActor.ref)
         val cardIndex = probeAsGameCoordinator.expectMessageType[GameCoordinatorMessage.ShowYourNthCard](FiniteDuration(5, SECONDS)).index
         duringGameViewActor ! DuringGameViewMessages.CardSeen(game.getCardOfPlayerWithID(userID, cardIndex))
+        probeAsGameCoordinator.receiveMessages(1, FiniteDuration(10, SECONDS)).head match
+          case GameCoordinatorMessage.DiscardYourNthCard(index) =>
+            val oldCard = game.getCardOfPlayerWithID(userID, index)
+            game = game.replaceNthCardOfPlayerWithID(userID, cardDrawn, index)
+            duringGameViewActor ! DuringGameViewMessages.NewTopCardDiscardStack(oldCard)
+          case GameCoordinatorMessage.DiscardCardDrawn() =>
+            duringGameViewActor ! DuringGameViewMessages.NewTopCardDiscardStack(cardDrawn)
+          case msg =>
+            fail(s"Expected DiscardYourNthCard or DiscardCardDrawn message, received instead $msg")
+        probeAsGameCoordinator.expectMessageType[GameCoordinatorMessage.EndTurn](FiniteDuration(10, SECONDS))
         createCheckFrame().open()
       }
       "draw power to see one of adversary cards" in {
