@@ -12,16 +12,69 @@ import scala.swing.GridBagPanel.Anchor
 import java.awt.{Color, GridBagConstraints, GridBagLayout, Insets, Font as AwtFont}
 import javax.swing.{BorderFactory, ImageIcon, UIManager}
 
-//class DuringGamePanelLogic(viewListener: IDuringGameViewListener, gameInProgress: GameInProgress, userID: String) extends GridBagPanel {
-//  val duringGamePanel: DuringGamePanel = new DuringGamePanel(viewListener, gameInProgress, userID).revealingInitialCardsPhase()
-//}
-
 class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: GameInProgress, userID: String) extends GridBagPanel with IDuringGameInterface {
 
-  private val PLAYER_CARDS = 4
-  private val MIN_CENTER_FIELD_ROWS = 10
-  private val NORTH_OFFSET_CENTER_FIELDS_ROWS = 2
-  private var centerFieldRows = MIN_CENTER_FIELD_ROWS
+  // POSITIONIG ELEMENTS - START
+  private val GAME_INFORMATION_PANEL_ROW = 1
+  private val GAME_INFORMATION_PANEL_COLUMN = 3
+  private val GAME_INFORMATION_PANEL_COLUMNS_QUANTITY = 3
+
+  private val EMPTY_ROWS_UNDER_GAME_INFORMATION_PANEL = GAME_INFORMATION_PANEL_ROW + 1
+  private val EMPTY_ROWS_UNDER_GAME_INFORMATION_PANEL_ROWS_QUANTITY = 1
+
+  private val EMPTY_COLUMNS_AFTER_GAME_INFORMATION =
+    GAME_INFORMATION_PANEL_COLUMN + GAME_INFORMATION_PANEL_COLUMNS_QUANTITY
+
+  private val ADVERSARIES_PANEL_COLUMN = 1
+  private val ADVERSARIES_PANEL_START_ROW =
+    EMPTY_ROWS_UNDER_GAME_INFORMATION_PANEL + EMPTY_ROWS_UNDER_GAME_INFORMATION_PANEL_ROWS_QUANTITY + 1
+
+  private val ADVERSARIES_PANEL_ROWS_GAP = 1
+
+  private val DECK_PANEL_ROW = ADVERSARIES_PANEL_START_ROW
+  private val DECK_PANEL_COLUMN = GAME_INFORMATION_PANEL_COLUMN
+
+  private val DISCARD_PANEL_ROW = DECK_PANEL_ROW
+  private val DISCARD_PANEL_COLUMN =
+    GAME_INFORMATION_PANEL_COLUMN + GAME_INFORMATION_PANEL_COLUMN - 1
+
+  private val DRAWN_CARD_PANEL_ROW = DECK_PANEL_ROW + 2
+  private val DRAWN_CARD_PANEL_COLUMN = DECK_PANEL_COLUMN + 1
+
+  private val EMPTY_ROW_UNDER_DRAWN_PANEL = DRAWN_CARD_PANEL_ROW + 1
+  private val EMPTY_ROW_UNDER_DRAWN_PANEL_ROWS_QUANTITY = 1
+
+  private val MY_TURN_LOG_ROW = EMPTY_ROW_UNDER_DRAWN_PANEL + EMPTY_ROW_UNDER_DRAWN_PANEL_ROWS_QUANTITY + 1
+  private val MY_TURN_LOG_COLUMN = GAME_INFORMATION_PANEL_COLUMN
+  private val MY_TURN_LOG_ROWS_QUANTITY = 2
+  private val MY_TURN_LOG_COLUMNS_QUANTITY = GAME_INFORMATION_PANEL_COLUMNS_QUANTITY
+
+  private val PLAYER_PANEL_ROW = MY_TURN_LOG_ROW + MY_TURN_LOG_ROWS_QUANTITY + 1
+  private val PLAYER_PANEL_COLUMN = GAME_INFORMATION_PANEL_COLUMN
+  private val PLAYER_PANEL_ROWS_QUANTITY = 1
+  private val PLAYER_PANEL_COLUMNS_QUANTITY = GAME_INFORMATION_PANEL_COLUMNS_QUANTITY
+
+  private val LOG_PANEL_ROW = ADVERSARIES_PANEL_START_ROW
+  private val LOG_PANEL_COLUMN = EMPTY_COLUMNS_AFTER_GAME_INFORMATION + 1
+  private val LOG_PANEL_ROWS_QUANTITY = 3
+
+  private val DISCARD_DRAWN_CARD_BUTTON_ROW = LOG_PANEL_ROW + LOG_PANEL_ROWS_QUANTITY
+  private val DISCARD_DRAWN_CARD_BUTTON_COLUMN = LOG_PANEL_COLUMN
+  private val DISCARD_DRAWN_CARD_BUTTON_FILL = Fill.Horizontal
+
+  private val END_TURN_BUTTON_ROW = DISCARD_DRAWN_CARD_BUTTON_ROW + 1
+  private val END_TURN_BUTTON_COLUMN = LOG_PANEL_COLUMN
+  private val END_TURN_BUTTON_FILL = Fill.Horizontal
+
+  private val CALL_CABO_BUTTON_ROW = END_TURN_BUTTON_ROW + 1
+  private val CALL_CABO_BUTTON_COLUMN = LOG_PANEL_COLUMN
+  private val CALL_CABO_BUTTON_FILL = Fill.Horizontal
+
+  private val EXIT_BUTTON_ROW = CALL_CABO_BUTTON_ROW + 1
+  private val EXIT_BUTTON_COLUMN = LOG_PANEL_COLUMN
+  private val EXIT_BUTTON_FILL = Fill.Horizontal
+  // POSITIONIG ELEMENTS - END
+
   peer.setBorder(BorderFactory.createLineBorder(Color.CYAN, 3))
 
   val c = new Constraints
@@ -46,42 +99,19 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
   layout(spacePanel) = c
   resetConstraintsValues()
 
-  // CREAZIONE GIOCATORI -- INIZIO
-  private val columnAdversariesIndex = 1
-  //  private var columnAdversariesIndex = columnAdversariesStartIndex
-  private val rowAdversaryStartIndex = NORTH_OFFSET_CENTER_FIELDS_ROWS
-  private var rowAdversaryIndex = rowAdversaryStartIndex
-
-  //  private def nextAdversaryRow() =
-  //    rowAdversaryIndex += 2
-  //    rowAdversaryIndex
+  // ADVERSARIES PANELS - START
+  private var rowAdversaryIndex = ADVERSARIES_PANEL_START_ROW
 
   adversariesPanelMap.foreach { (id, panel) =>
     c.gridy = rowAdversaryIndex
-    c.gridx = columnAdversariesIndex
+    c.gridx = ADVERSARIES_PANEL_COLUMN
     layout(panel) = c
-    val emptyRow = rowAdversaryIndex + 1
+    val emptyRow = rowAdversaryIndex + ADVERSARIES_PANEL_ROWS_GAP
     addEmptyRow(emptyRow, 50)
     rowAdversaryIndex = emptyRow + 1
   }
 
-  // For correct positioning the center field need 6 rows at least
-  if (rowAdversaryIndex - rowAdversaryStartIndex) > centerFieldRows then
-    centerFieldRows = rowAdversaryIndex - rowAdversaryStartIndex
-
-  // BOTTONE USCITA DAL GIOCO - INIZIO
-  val exitButton: Button = new Button("Exit Game") {
-    font = new AwtFont("Arial", AwtFont.BOLD, 12)
-    reactions += {
-      case ButtonClicked(_) =>
-        println("Exit Game button clicked")
-    }
-  }
-  private val exitButtonRowIndex = NORTH_OFFSET_CENTER_FIELDS_ROWS + centerFieldRows + 1
-  c.gridy = exitButtonRowIndex
-  c.gridx = columnAdversariesIndex
-  layout(exitButton) = c
-  // BOTTONE USCITA DAL GIOCO - FINE
+  // ADVERSARIES PANELS - END
 
   // COLONNA VUOTA DI RIEMPIMENTO
   addEmptyColumn(2, 50)
@@ -90,24 +120,18 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
   // CREAZIONE SCHERMATA DATI PARTITA E TURNO - INIZIO
   private val gameInfoPanel = new GameInfoPanel(gameInProgress)
 
-  private val rowInfoGameIndex = 1
-  c.gridx = 3
-  c.gridy = rowInfoGameIndex
-  c.gridwidth = 3
+  c.gridx = GAME_INFORMATION_PANEL_COLUMN
+  c.gridy = GAME_INFORMATION_PANEL_ROW
+  c.gridwidth = GAME_INFORMATION_PANEL_COLUMNS_QUANTITY
   c.fill = Fill.Both
-  //  c.weightx = 1.0
   layout(gameInfoPanel) = c
   resetConstraintsValues()
   // CREAZIONE SCHERMATA DATI PARTITA E TURNO - FINE
 
   // CREAZIONE MAZZO PRINCIPALE - INIZIO
   val deckPanel = new DeckPanel("Deck", "Deck", viewListener.drawFromDeck)
-  private val deckPanelRowIndex = NORTH_OFFSET_CENTER_FIELDS_ROWS + 1
-  private val deckPanelColumnIndex = 3
-  private val deckHeight = 2
-  c.gridx = deckPanelColumnIndex
-  c.gridy = deckPanelRowIndex
-  c.gridheight = deckHeight
+  c.gridx = DECK_PANEL_COLUMN
+  c.gridy = DECK_PANEL_ROW
   layout(deckPanel) = c
   resetConstraintsValues()
   // CREAZIONE MAZZO PRINCIPALE - FINE
@@ -118,16 +142,13 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
     gameInProgress.discardDeckStack.cards.head.toString,
     viewListener.drawFromDiscard
   )
-  private val discardPanelColumnIndex = deckPanelColumnIndex + 2
-  c.gridx = discardPanelColumnIndex
-  c.gridy = deckPanelRowIndex
-  c.gridheight = deckHeight
+  c.gridx = DISCARD_PANEL_COLUMN
+  c.gridy = DISCARD_PANEL_ROW
   layout(discardPanel) = c
   resetConstraintsValues()
   // CREAZIONE MAZZO SCARTI - FINE
 
   // CREAZIONE CARTA PESCATA - INIZIO
-
   private val drawnCardButton = new Button("Nascosta") {
     font = new AwtFont("Arial", AwtFont.PLAIN, 24)
     border = Swing.EmptyBorder(5, 5, 5, 5)
@@ -139,23 +160,17 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
       font = new AwtFont("Arial", AwtFont.BOLD, 14)
       horizontalAlignment = Alignment.Center
     }
-
-
     contents += drawnCardLabel
     contents += Swing.VStrut(5)
     contents += drawnCardButton
   }
-  private val drawnCardPanelColumnIndex = deckPanelColumnIndex + 1
-  private val drawnCardPanelRowIndex = deckPanelRowIndex + deckHeight + 1
-  c.gridx = drawnCardPanelColumnIndex
-  c.gridy = drawnCardPanelRowIndex
-  c.gridheight = deckHeight
+  c.gridx = DRAWN_CARD_PANEL_COLUMN
+  c.gridy = DRAWN_CARD_PANEL_ROW
   layout(drawnCardPanel) = c
   resetConstraintsValues()
   // CREAZIONE CARTA PESCATA - FINE
 
-  // CREAZIONE PANNELLO AZIONI COMPIUTE - INIZIO
-
+  // PLAYER ACTIONS LOG PANEL - START
   private val myTurnActionsLog = new TextArea {
     editable = false
     lineWrap = true
@@ -171,64 +186,40 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
     peer.setBorder(BorderFactory.createLineBorder(Color.MAGENTA, 3))
   }
 
-  c.gridx = 3
-  private val myTurnLogRowIndex = drawnCardPanelRowIndex + deckHeight + 1
-  private val myTurnLogHeight = 2
-  c.gridy = myTurnLogRowIndex
-  //  c.gridy = exitButtonRowIndex
-  c.gridwidth = 3
-  c.gridheight = 2
+  c.gridx = MY_TURN_LOG_COLUMN
+  c.gridy = MY_TURN_LOG_ROW
+  c.gridwidth = MY_TURN_LOG_COLUMNS_QUANTITY
+  c.gridheight = MY_TURN_LOG_ROWS_QUANTITY
   c.fill = Fill.Both
-  //  c.weightx = 1.0
   layout(myTurnScrollPane) = c
   resetConstraintsValues()
-  // CREAZIONE PANNELLO AZIONI COMPIUTE - FINE
+  // PLAYER ACTIONS LOG PANEL - END
 
-  // CRAZIONE PANNELLO GIOCATORE SE STESSO - INIZIO
-  c.gridx = 3
-  //  c.gridy = exitButtonRowIndex
-  c.gridy = myTurnLogRowIndex + myTurnLogHeight + 1
-  c.gridwidth = 3
+  // PLAYER PANEL - START
+  c.gridx = PLAYER_PANEL_COLUMN
+  c.gridy = PLAYER_PANEL_ROW
+  c.gridwidth = PLAYER_PANEL_COLUMNS_QUANTITY
   c.fill = Fill.Both
-  //  c.weightx = 1.0
   layout(playerPanel) = c
   resetConstraintsValues()
-
-  // CRAZIONE PANNELLO GIOCATORE SE STESSO - FINE
+  // PLAYER PANEL - END
 
   // COLONNA VUOTA DI RIEMPIMENTO
   addEmptyColumn(6, 50)
-  ////////////////////
 
-  // CREAZIONE TEXT AREA LOG - INIZIO
-  //  private val logTextArea = new TextArea {
-  //    editable = false
-  //    lineWrap = true
-  //    wordWrap = true
-  //    font = new AwtFont("Arial", AwtFont.PLAIN, 12)
-  //    text = "ULTIMO TURNO GIOCATO:"
-  //  }
-  //  private val logScrollPane = new ScrollPane(logTextArea) {
-  //    verticalScrollBarPolicy = ScrollPane.BarPolicy.Always
-  //    horizontalScrollBarPolicy = ScrollPane.BarPolicy.Never
-  //    //    preferredSize = new Dimension(1, 100)
-  //  }
+  // TEXT AREA LOG - END
   private val logPanel = new LogPanel()
 
-  c.gridy = NORTH_OFFSET_CENTER_FIELDS_ROWS
-  c.gridx = 7
-  c.gridheight = 6
-  //  c.gridwidth = 2
+  c.gridy = LOG_PANEL_ROW
+  c.gridx = LOG_PANEL_COLUMN
+  c.gridheight = LOG_PANEL_ROWS_QUANTITY
   c.fill = Fill.Vertical
-  //  c.weighty =
   layout(logPanel) = c
 
   resetConstraintsValues()
+  // TEXT AREA LOG - END
 
-  // CREAZIONE TEXT AREA LOG - FINE
-
-  // CREAZIONE TASTI END TURN E CALL CABO - INIZIO
-
+  // END TURN BUTTON - START
   val endTurnButton: Button = new Button("End Turn") {
     font = new AwtFont("Arial", AwtFont.BOLD, 12)
     reactions += {
@@ -238,24 +229,27 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
     }
   }
 
-  c.gridy = exitButtonRowIndex
-  c.gridx = 7
+  c.gridy = END_TURN_BUTTON_ROW
+  c.gridx = END_TURN_BUTTON_COLUMN
+  c.fill = Fill.Horizontal
   layout(endTurnButton) = c
+  resetConstraintsValues()
+  // END TURN BUTTON - END
 
+  // CALL CABO BUTTON - START
   val callCaboButton: Button = new Button("Call CABO") {
     font = new AwtFont("Arial", AwtFont.BOLD, 12)
     reactions += {
       case ButtonClicked(_) =>
         println("Call CABO button clicked")
-      // viewListener.callCabo()
     }
   }
-  c.gridy = exitButtonRowIndex + 1
-  c.gridx = 7
+  c.gridy = CALL_CABO_BUTTON_ROW
+  c.gridx = CALL_CABO_BUTTON_COLUMN
   layout(callCaboButton) = c
-  // CREAZIONE TASTI END TURN E CALL CABO - FINE
+  // CALL CABO BUTTON - END
 
-  // PROTOTYPE BUTTONS DISCARD CARD DRAWN - START
+  //DISCARD CARD DRAWN BUTTON - START
   private val discardCardDrawnButton: Button = new Button("Discard Drawn Card") {
     font = new AwtFont("Arial", AwtFont.BOLD, 12)
     reactions += {
@@ -265,10 +259,23 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
     }
   }
 
-  c.gridy = exitButtonRowIndex + 2
-  c.gridx = 7
+  c.gridy = DISCARD_DRAWN_CARD_BUTTON_ROW
+  c.gridx = DISCARD_DRAWN_CARD_BUTTON_COLUMN
   layout(discardCardDrawnButton) = c
-  // PROTOTYPE BUTTONS DISCARD CARD DRAWN - END
+  // DISCARD CARD DRAWN BUTTON - END
+
+  // EXIT BUTTON - START
+  val exitButton: Button = new Button("Exit Game") {
+    font = new AwtFont("Arial", AwtFont.BOLD, 12)
+    reactions += {
+      case ButtonClicked(_) =>
+        println("Exit Game button clicked")
+    }
+  }
+  c.gridy = EXIT_BUTTON_ROW
+  c.gridx = EXIT_BUTTON_COLUMN
+  layout(exitButton) = c
+  // EXIT BUTTON - END
 
   // FUNZIONI DI SUPPORTO - INIZIO
   override def paintComponent(g: Graphics2D): Unit = {
@@ -452,13 +459,13 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
   }
 
   override def notifyYourAdversaryCardSelection(adversaryID: String, index: Int): Unit = {
-    Swing.onEDT{
+    Swing.onEDT {
       this.myTurnActionsLog.text += s"\nYou selected card $index of adversary with ID $adversaryID"
     }
   }
 
   override def notifyYourOwnCardSelection(index: Int): Unit = {
-    Swing.onEDT{
+    Swing.onEDT {
       this.myTurnActionsLog.text += s"\nYou selected your card $index"
     }
   }
@@ -466,10 +473,10 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
   override def changeCardWithAdversaryIsDone(): Unit = {
     Swing.onEDT {
       this.myTurnActionsLog.text = s"\nCard exchange with adversary completed!"
-//      this.disableAll()
-//      this.exitButton.enabled = true
-//      this.endTurnButton.enabled = true
-//      this.callCaboButton.enabled = true
+      //      this.disableAll()
+      //      this.exitButton.enabled = true
+      //      this.endTurnButton.enabled = true
+      //      this.callCaboButton.enabled = true
     }
   }
 
@@ -529,135 +536,3 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
     }
   }
 }
-
-private class PlayerPanel(playerName: String, f: (index: Int) => Unit) extends BoxPanel(Orientation.Vertical):
-  //  border = Swing.EmptyBorder(10, 10, 10, 10)
-  peer.setBorder(BorderFactory.createLineBorder(Color.BLUE, 3))
-  private val nameLabel = new Label(playerName) {
-    font = new AwtFont("Arial", AwtFont.BOLD, 14)
-    horizontalAlignment = Alignment.Center
-  }
-
-  private val seqButtonCards: IndexedSeq[Button] = for (i <- 1 to 4) yield {
-    //      contents += new Button(s"$i") {
-    new Button(s"$i") {
-      font = new AwtFont("Arial", AwtFont.PLAIN, 24)
-      border = Swing.EmptyBorder(0, 5, 0, 5)
-      enabled = false
-      reactions += {
-        case ButtonClicked(_) =>
-          println(s"Player '$playerName' card $i clicked")
-          f(i)
-        //          f(i - 1) // Call the function with the index (0-based)
-      }
-    }
-  }
-
-  private val cards: BoxPanel = new BoxPanel(Orientation.Horizontal) {
-    seqButtonCards.foreach(b => contents += b)
-  }
-
-  def enableCardsButton(enable: Boolean): Unit = {
-    seqButtonCards.foreach(b => b.enabled = enable)
-  }
-
-  contents += nameLabel
-  contents += Swing.VStrut(5)
-  contents += cards
-
-private class DeckPanel(labelStack: String, stackValue: String, buttonAction: () => Unit) extends BoxPanel(Orientation.Vertical) {
-  border = Swing.EmptyBorder(10, 10, 10, 10)
-  private val discardLabel = new Label(labelStack) {
-    font = new AwtFont("Arial", AwtFont.BOLD, 14)
-    horizontalAlignment = Alignment.Center
-  }
-
-  val deckButton: Button = new Button(stackValue) {
-    font = new AwtFont("Arial", AwtFont.PLAIN, 24)
-    border = Swing.EmptyBorder(5, 5, 5, 5)
-  }
-  listenTo(deckButton)
-
-  reactions += {
-    case ButtonClicked(`deckButton`) =>
-      println(s"$labelStack button clicked")
-      buttonAction()
-  }
-
-  def updateStackValue(newValue: String): Unit = {
-    deckButton.text = newValue
-  }
-
-  contents += discardLabel
-  contents += Swing.VStrut(5)
-  contents += deckButton
-}
-
-private class GameInfoPanel(game: GameInProgress) extends BoxPanel(Orientation.Vertical) {
-  peer.setBorder(BorderFactory.createLineBorder(Color.RED, 3))
-  //    border = Swing.EmptyBorder(10, 10, 10, 10)
-  private val gameCodeLabel = new Label(s"Game Code: ${game.code}") {
-    font = new AwtFont("Arial", AwtFont.BOLD, 16)
-    horizontalAlignment = Alignment.Center
-  }
-
-  private val numMaxTurnsLabel = new Label(s"Rounds ${game.gameParameters.roundLimitation}") {
-    font = new AwtFont("Arial", AwtFont.BOLD, 12)
-    horizontalAlignment = Alignment.Center
-  }
-
-  private val currentTurnLabel = new Label("") {
-    font = new AwtFont("Arial", AwtFont.BOLD, 12)
-    horizontalAlignment = Alignment.Center
-  }
-  this.updateCurrentTurn(game)
-
-  def updateCurrentTurn(game: GameInProgress): Unit = {
-    currentTurnLabel.text = s"Round N: ${game.currentRound}"
-  }
-
-  contents += gameCodeLabel
-  contents += Swing.VStrut(5)
-  contents += numMaxTurnsLabel
-  contents += Swing.VStrut(5)
-  contents += currentTurnLabel
-}
-
-private class LogPanel() extends ScrollPane {
-  private val logTextArea = new TextArea {
-    editable = false
-    lineWrap = true
-    wordWrap = true
-    font = new AwtFont("Arial", AwtFont.PLAIN, 12)
-    text = ""
-  }
-  contents = logTextArea
-  verticalScrollBarPolicy = ScrollPane.BarPolicy.Always
-  horizontalScrollBarPolicy = ScrollPane.BarPolicy.Never
-  peer.setBorder(BorderFactory.createLineBorder(Color.MAGENTA, 3))
-
-  def updateLastTurnLog(string: String): Unit = {
-    this.logTextArea.text = "Last turn played: " + string
-  }
-}
-
-private object TurnLogsWriter:
-
-  import model.TurnLog
-  import model.TurnEvent
-
-  def simpleTurnLog(userID: String, roundOfTurn: Int, turnLog: TurnLog): String = {
-    var string = s"Player $userID in round $roundOfTurn "
-    turnLog.events.foreach(
-      _ match
-        case TurnEvent.DrawCardFromDeck(card) => string += s"has drawn ${card} from deck, "
-        case TurnEvent.DrawCardFromDiscardStack(card) => string += s"has drawn ${card} from discard stack, "
-        case TurnEvent.SeeSelfCard(index) => string += s"has seen its card $index, "
-        case TurnEvent.SeeAdversaryCard(adversaryID, index) => string += s"has seen card $index of $adversaryID, "
-        case TurnEvent.ReplaceOwnCardWithAdversaryCard(itsCardIndex, adversaryID, adversaryCardIndex) => {
-          string += s"has changed its card $itsCardIndex with $adversaryID's $adversaryCardIndex one, "
-        }
-        case TurnEvent.CardDiscarded(card) => string += s"has discarded $card."
-    )
-    string
-  }

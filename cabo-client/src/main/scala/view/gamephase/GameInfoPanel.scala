@@ -1,0 +1,37 @@
+package view.gamephase
+
+import model.Game.GameInProgress
+
+import java.awt.{Color, Font as AwtFont}
+import javax.swing.BorderFactory
+import scala.swing.{Alignment, BoxPanel, Label, Orientation, Swing}
+
+class GameInfoPanel(game: GameInProgress) extends BoxPanel(Orientation.Vertical) {
+  peer.setBorder(BorderFactory.createLineBorder(Color.RED, 3))
+  //    border = Swing.EmptyBorder(10, 10, 10, 10)
+  private val gameCodeLabel = new Label(s"Game Code: ${game.code}") {
+    font = new AwtFont("Arial", AwtFont.BOLD, 16)
+    horizontalAlignment = Alignment.Center
+  }
+
+  private val numMaxTurnsLabel = new Label(s"Rounds ${game.gameParameters.roundLimitation}") {
+    font = new AwtFont("Arial", AwtFont.BOLD, 12)
+    horizontalAlignment = Alignment.Center
+  }
+
+  private val currentTurnLabel = new Label("") {
+    font = new AwtFont("Arial", AwtFont.BOLD, 12)
+    horizontalAlignment = Alignment.Center
+  }
+  this.updateCurrentTurn(game)
+
+  def updateCurrentTurn(game: GameInProgress): Unit = {
+    currentTurnLabel.text = s"Round N: ${game.currentRound}"
+  }
+
+  contents += gameCodeLabel
+  contents += Swing.VStrut(5)
+  contents += numMaxTurnsLabel
+  contents += Swing.VStrut(5)
+  contents += currentTurnLabel
+}
