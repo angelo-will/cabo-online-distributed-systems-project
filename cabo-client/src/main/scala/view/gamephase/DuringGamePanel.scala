@@ -525,6 +525,7 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
       this.exitButton.enabled = true
       this.endTurnButton.enabled = true
       this.callCaboButton.enabled = true
+      this.emptyDrawnCardArea()
     }
   }
 }
