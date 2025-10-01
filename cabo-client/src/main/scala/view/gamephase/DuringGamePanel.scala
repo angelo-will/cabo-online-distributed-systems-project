@@ -1,7 +1,7 @@
 package view.gamephase
 
 import model.Game.GameInProgress
-import model.{Card, PlayerPlaying, TurnLog}
+import model.{Card, PlayerPlaying, Power, TurnLog}
 import model.TurnPhase.TurnPhase
 import view.lobbyphase.ViewListener.IDuringGameViewListener
 
@@ -134,8 +134,6 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
   // CREAZIONE MAZZO PRINCIPALE - INIZIO
   val deckPanel = new DeckPanel("Deck", "Deck", () => {
     viewListener.drawFromDeck()
-    // TODO: remove this behaviors used to test timer
-    timerPanel.startTimer()
   })
   c.gridx = DECK_PANEL_COLUMN
   c.gridy = DECK_PANEL_ROW
@@ -240,6 +238,8 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
       case ButtonClicked(_) =>
         println("End Turn button clicked")
         viewListener.endTurn()
+        timerPanel.stopTimer()
+        timerPanel.resetTimer()
     }
   }
 
@@ -417,6 +417,7 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
     Swing.onEDT {
       println(s"DuringGamePanel - showCardDrawnFromDeck $cardDrawn")
       this.drawnCardButton.text = cardDrawn.toString
+      this.myTurnActionsLog.text = textInfoCardDrawn(cardDrawn)
     }
   }
 
@@ -510,6 +511,7 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
       this.exitButton.enabled = true
       this.deckPanel.deckButton.enabled = true
       this.discardPanel.deckButton.enabled = true
+      this.timerPanel.startTimer()
     }
 
   override def afterDrawPhase(canDiscardDrawnCard: Boolean): Unit = {
@@ -552,6 +554,17 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
       this.endTurnButton.enabled = true
       this.callCaboButton.enabled = true
       this.emptyDrawnCardArea()
+    }
+  }
+
+  private def textInfoCardDrawn(card: Card): String = {
+    s"You have drawn the card: $card."
+      + {
+      card.power match
+        case Power.SeeYourCard() => "\nThis card allow you to see one of your card."
+        case Power.SeeYourOpponentCard() => "\nThis card allow you to see one card of one adversary."
+        case Power.ChangeOneOfYourCardWithOpponent() => "\nThis card allow you to swap one of your card with one of one adversary."
+        case Power.NoPower() => ""
     }
   }
 }
