@@ -55,6 +55,7 @@ object DuringGameViewMessages {
   trait DuringGameUserInterfaceCommand extends DuringGameViewMessage
 
   case class OwnCardSelected(index: Int) extends DuringGameUserInterfaceCommand
+
   case class AdversaryCardSelected(adversaryID: String, index: Int) extends DuringGameUserInterfaceCommand
 
   case class DeckSelected() extends DuringGameUserInterfaceCommand
@@ -63,5 +64,9 @@ object DuringGameViewMessages {
 
   case class DiscardCardDrawn() extends DuringGameUserInterfaceCommand
 
+  case class CallCaboSelected() extends DuringGameUserInterfaceCommand
+
   case class EndTurn() extends DuringGameUserInterfaceCommand
+
+  case class ExitSelected() extends DuringGameUserInterfaceCommand
 }
