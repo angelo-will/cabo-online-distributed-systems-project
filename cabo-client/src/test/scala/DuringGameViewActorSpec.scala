@@ -5,9 +5,9 @@ import model.TurnEvent.CardDiscarded
 import model.{Card, CardStack, DuringGameTurnLog, Game, GameParameters, GameStatus, Hand, IGameParameters, InvalidTurnEventException, PlayerPlaying, Power, TurnEvent, TurnLog, TurnPhase}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
-import org.scalatest.{BeforeAndAfterEach, durations}
+import org.scalatest.{BeforeAndAfterEach}
 import org.scalatest.matchers.must.Matchers.mustBe
-import utils.{ClientMessages, DuringGameViewMessages, GameCoordinatorMessage, InitialViewMessages, Message}
+import utils.{ClientMessages, DuringGameViewMessages, GameCoordinatorMessage, Message}
 import view.gamephase.DuringGameViewActor
 import view.lobbyphase.ViewApplication
 import view.lobbyphase.actors.InitialPhaseViewActor.ViewCreated
@@ -108,10 +108,9 @@ class DuringGameViewActorSpec extends ScalaTestWithActorTestKit
         Thread.sleep(10000) // wait for the view to update
       }
       "receive LastTurnPlayed and myTurn is true" in {
-        val game = generateGameInProgress(userID, false)
-        val duringGameViewActor = testKit.spawn(view.gamephase.DuringGameViewActor(userID, probeAsClient.ref, probeAsMainMenu.ref))
+        game = generateGameInProgress(userID, false)
+        val duringGameViewActor = startApp()
         val playerWhoPlayTurnBefore = game.players.filter(_.userID != userID).head
-        probeAsClient.receiveMessages(1)
         revealingFirstTwoCardsPhase(duringGameViewActor, game)
         duringGameViewActor ! DuringGameViewMessages.StartPlayPhase()
         val (newGameState, turn) = generateTurnWithDrawFromDeck(playerWhoPlayTurnBefore.userID, game)

@@ -2,15 +2,13 @@ package view.gamephase
 
 import model.Game.GameInProgress
 import model.{Card, PlayerPlaying, Power, TurnLog}
-import model.TurnPhase.TurnPhase
 import view.lobbyphase.ViewListener.IDuringGameViewListener
 
 import scala.swing.*
 import scala.swing.event.*
 import scala.swing.GridBagPanel.Fill
-import scala.swing.GridBagPanel.Anchor
-import java.awt.{Color, GridBagConstraints, GridBagLayout, Insets, Font as AwtFont}
-import javax.swing.{BorderFactory, ImageIcon, UIManager}
+import java.awt.{Color, GridBagLayout, Font as AwtFont}
+import javax.swing.{BorderFactory, UIManager}
 
 class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: GameInProgress, userID: String) extends GridBagPanel with IDuringGameInterface {
 
@@ -396,8 +394,6 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
     this.disableAll()
     this.exitButton.enabled = true
   }
-  // Defining the phases of the game panel - end
-
 
   override def updateLastTurnLog(playerName: String, round: Int, turnLog: TurnLog): Unit = {
     Swing.onEDT {

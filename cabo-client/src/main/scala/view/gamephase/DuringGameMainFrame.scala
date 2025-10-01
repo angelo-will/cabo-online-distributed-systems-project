@@ -1,9 +1,7 @@
 package view.gamephase
 
-import akka.actor.typed.ActorRef
 import model.{CardStack, GameParameters, GameStatus, Hand, IGameParameters, PlayerPlaying}
 import model.Game.GameInProgress
-import utils.Message
 import view.lobbyphase.ViewListener.IDuringGameViewListener
 
 import java.awt.{Dimension, Toolkit}

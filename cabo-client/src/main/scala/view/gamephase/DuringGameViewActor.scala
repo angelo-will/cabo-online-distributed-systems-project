@@ -2,7 +2,6 @@ package view.gamephase
 
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
-import model.TurnEvent.DrawCardFromDeck
 import model.{Card, Game, Power, TurnLog}
 import utils.{DuringGameViewMessages, GameCoordinatorMessage as GCMsg, InitialViewMessages, Message}
 import utils.DuringGameViewMessages.*
@@ -93,9 +92,9 @@ class DuringGameViewActor private(
         })
     }
   }
-  
-  private def waitFirstTurn(properties: PropertiesAfterInitialization):Behavior[Message] = {
-    Behaviors.receivePartial{
+
+  private def waitFirstTurn(properties: PropertiesAfterInitialization): Behavior[Message] = {
+    Behaviors.receivePartial {
       handleUpdateLastTurnPlayed(properties)
         .orElse({
           case (ctx, FirstTurn()) =>
@@ -175,7 +174,7 @@ class DuringGameViewActor private(
 
 
   private def myTurnPowerSeeMyCard(properties: PropertiesAfterInitialization): Behavior[Message] = {
-//    properties.userInterface.enterSeeYourCardPhase()
+    //    properties.userInterface.enterSeeYourCardPhase()
     Behaviors.receivePartial {
       handleShowCard(properties, myTurnAfterDraw)
     }
@@ -289,7 +288,7 @@ class DuringGameViewActor private(
       properties.userInterface.updateDiscardsTopCard(game.discardDeckStack.cards.head)
       if isMyTurn then myTurnBeforeDraw(properties) else waitMyTurn(properties)
   }
-  
+
   private def handleNewTopDiscardCard(properties: PropertiesAfterInitialization):
   PartialFunction[(ActorContext[Message], Message), Behavior[Message]] = {
     case (ctx, NewTopCardDiscardStack(card)) =>

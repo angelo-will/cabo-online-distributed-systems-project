@@ -29,16 +29,14 @@ private object TurnLogsWriter:
 
   def simpleTurnLog(userID: String, roundOfTurn: Int, turnLog: TurnLog): String = {
     var string = s"Player $userID in round $roundOfTurn "
-    turnLog.events.foreach(
-      _ match
-        case TurnEvent.DrawCardFromDeck(card) => string += s"has drawn ${card} from deck, "
-        case TurnEvent.DrawCardFromDiscardStack(card) => string += s"has drawn ${card} from discard stack, "
-        case TurnEvent.SeeSelfCard(index) => string += s"has seen its card $index, "
-        case TurnEvent.SeeAdversaryCard(adversaryID, index) => string += s"has seen card $index of $adversaryID, "
-        case TurnEvent.ReplaceOwnCardWithAdversaryCard(itsCardIndex, adversaryID, adversaryCardIndex) => {
-          string += s"has changed its card $itsCardIndex with $adversaryID's $adversaryCardIndex one, "
-        }
-        case TurnEvent.CardDiscarded(card) => string += s"has discarded $card."
-    )
+    turnLog.events.foreach {
+      case TurnEvent.DrawCardFromDeck(card) => string += s"has drawn ${card} from deck, "
+      case TurnEvent.DrawCardFromDiscardStack(card) => string += s"has drawn ${card} from discard stack, "
+      case TurnEvent.SeeSelfCard(index) => string += s"has seen its card $index, "
+      case TurnEvent.SeeAdversaryCard(adversaryID, index) => string += s"has seen card $index of $adversaryID, "
+      case TurnEvent.ReplaceOwnCardWithAdversaryCard(itsCardIndex, adversaryID, adversaryCardIndex) => 
+        string += s"has changed its card $itsCardIndex with $adversaryID's $adversaryCardIndex one, "
+      case TurnEvent.CardDiscarded(card) => string += s"has discarded $card."
+    }
     string
   }
