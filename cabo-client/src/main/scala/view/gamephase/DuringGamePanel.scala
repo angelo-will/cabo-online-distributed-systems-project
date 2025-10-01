@@ -54,6 +54,9 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
   private val PLAYER_PANEL_ROWS_QUANTITY = 1
   private val PLAYER_PANEL_COLUMNS_QUANTITY = GAME_INFORMATION_PANEL_COLUMNS_QUANTITY
 
+  private val TIMER_PANEL_ROW = GAME_INFORMATION_PANEL_ROW
+  private val TIMER_PANEL_COLUMN = EMPTY_COLUMNS_AFTER_GAME_INFORMATION + 1
+
   private val LOG_PANEL_ROW = ADVERSARIES_PANEL_START_ROW
   private val LOG_PANEL_COLUMN = EMPTY_COLUMNS_AFTER_GAME_INFORMATION + 1
   private val LOG_PANEL_ROWS_QUANTITY = 3
@@ -129,7 +132,11 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
   // CREAZIONE SCHERMATA DATI PARTITA E TURNO - FINE
 
   // CREAZIONE MAZZO PRINCIPALE - INIZIO
-  val deckPanel = new DeckPanel("Deck", "Deck", viewListener.drawFromDeck)
+  val deckPanel = new DeckPanel("Deck", "Deck", () => {
+    viewListener.drawFromDeck()
+    // TODO: remove this behaviors used to test timer
+    timerPanel.startTimer()
+  })
   c.gridx = DECK_PANEL_COLUMN
   c.gridy = DECK_PANEL_ROW
   layout(deckPanel) = c
@@ -204,8 +211,15 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
   resetConstraintsValues()
   // PLAYER PANEL - END
 
-  // COLONNA VUOTA DI RIEMPIMENTO
+  // EMPTY COLUMN
   addEmptyColumn(6, 50)
+
+  // TIMER PANEL - START
+  val timerPanel = new TimerPanel(() => this.disableButExit())
+  c.gridy = TIMER_PANEL_ROW
+  c.gridx = TIMER_PANEL_COLUMN
+  layout(timerPanel) = c
+  // TIMER PANEL - END
 
   // TEXT AREA LOG - END
   private val logPanel = new LogPanel()
@@ -376,6 +390,11 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
 
     this.drawnCardButton.enabled = false
     //    this.drawnCardPanel.enabled = false
+  }
+
+  private def disableButExit(): Unit = {
+    this.disableAll()
+    this.exitButton.enabled = true
   }
   // Defining the phases of the game panel - end
 
