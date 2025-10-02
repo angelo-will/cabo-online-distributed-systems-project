@@ -395,10 +395,10 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
     this.exitButton.enabled = true
   }
 
-  override def updateLastTurnLog(playerName: String, round: Int, turnLog: TurnLog): Unit = {
+  override def updateLastTurnLog(turnLog: TurnLog): Unit = {
     Swing.onEDT {
       println(s"DuringGamePanel - updateLastTurnLog: $turnLog")
-      logPanel.updateLastTurnLog(TurnLogsWriter.simpleTurnLog(playerName, round, turnLog))
+      logPanel.updateLastTurnLog(turnLog)
     }
   }
 
@@ -450,6 +450,13 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
     Swing.onEDT {
       println(s"DuringGamePanel - showAdversaryNthCard: $adversaryName, $n, $card")
       this.myTurnActionsLog.text = s"$adversaryName's CARD $n SELECTED HAS VALUE $card"
+    }
+  }
+
+  override def updateRevealingLog(revealingLog: TurnLog): Unit = {
+    Swing.onEDT {
+      println(s"DuringGamePanel - updateRevealingLog: $revealingLog")
+      logPanel.updateRevealingPhaseLog(revealingLog)
     }
   }
 

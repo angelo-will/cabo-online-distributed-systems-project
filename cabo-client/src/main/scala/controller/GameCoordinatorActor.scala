@@ -6,10 +6,9 @@ import model.Suit.Spades
 import model.{Card, DuringGameTurnLog, GameParameters, Hand, InitialPhaseTurnLog, PlayerPlaying, Power, TurnEvent, TurnLog}
 import model.Game.{GameInConstruction, GameInProgress}
 import model.TurnEvent.CardDiscarded
-import utils.ClientMessages
+import utils.{AppLogger, ClientMessages, DuringGameViewMessages}
 import utils.ClientMessages.*
 import utils.InitialViewMessages.ViewCommand
-import utils.DuringGameViewMessages
 
 object GameCoordinatorActor:
 
@@ -23,7 +22,7 @@ object GameCoordinatorActor:
 
   private case class GameData(
                                clientReference: ActorRef[ClientCommand],
-                             // todo: change type in ViewCommand moving the messages of GameCoordinatorMessage in ViewMessages?
+                               // todo: change type in ViewCommand moving the messages of GameCoordinatorMessage in ViewMessages?
                                viewReference: ActorRef[Message],
                                playerOwnRank: Int,
                                playerOwnUserID: String,
@@ -31,7 +30,7 @@ object GameCoordinatorActor:
                                turnLog: TurnLog,
                                temporaryDeck: CardStack,
                                temporaryDiscardDeck: CardStack
-                              ):
+                             ):
     def getOurHand: Hand = this.getSelfPlayer.hand
 
     def getHandOPlayerWithID(playerID: String): Hand = this.getPlayerWithID(playerID).hand
@@ -51,6 +50,8 @@ object GameCoordinatorActor:
         "game=" + game + "\n" +
         "temporaryDeck=" + temporaryDeck + "\n" +
         "temporaryDiscardDeck=" + temporaryDiscardDeck + "\n"
+
+  private val log = AppLogger.Log(true)
 
   /**
    * Creates the GameCoordinatorActor behavior.
@@ -78,10 +79,10 @@ object GameCoordinatorActor:
     val game = generateGameInProgressFromInConstruction(gameToStart)
 
     client ! ClientMessages.TakeGetInProgressGame(game)
-    
+
     apply(client, viewToContact, userId, game)
   }
-  
+
   def apply(client: ActorRef[ClientCommand], viewToContact: ActorRef[Message], userId: String, gameInProgress: GameInProgress): Behavior[Message] = {
 
     val playerRank = gameInProgress.players.find(_.userID == userId) match {
@@ -89,7 +90,7 @@ object GameCoordinatorActor:
       //todo - remove exception
       case None => throw new IllegalArgumentException(s"User ID $userId not found in the game players")
     }
-    
+
     val gameData = GameData(
       client,
       viewToContact,
@@ -107,19 +108,21 @@ object GameCoordinatorActor:
   private def generateGameInProgressFromInConstruction(gameInConstruction: GameInConstruction): GameInProgress = {
 
     var fullDeckShuffled = CardStack.buildShuffledFullDeck
+    val playersPlaying = gameInConstruction.players.zipWithIndex.map((p, index) => {
+      //test if it works
+      val (hand, remainingDeck) = fullDeckShuffled.drawNCards(4)
+      fullDeckShuffled = remainingDeck
+      PlayerPlaying(p.userID, p.name, index, Hand(hand))
+    })
+    val (firstCardDiscard, remainingDeck) = fullDeckShuffled.drawNCards(1)
 
     GameInProgress(
       gameInConstruction.code,
       gameInConstruction.gameParameters,
       GameStatus.InProgress(),
-      gameInConstruction.players.zipWithIndex.map((p, index) => {
-        //test if it works
-        val (hand, remainingDeck) = fullDeckShuffled.drawNCards(4)
-        fullDeckShuffled = remainingDeck
-        PlayerPlaying(p.userID, p.name, index, Hand(hand))
-      }),
-      fullDeckShuffled,
-      CardStack.buildEmptyDeck,
+      playersPlaying,
+      remainingDeck,
+      firstCardDiscard,
       0
     )
   }
@@ -163,7 +166,13 @@ object GameCoordinatorActor:
 
   // FIRST PHASE - player watch two of own cards
   private def watchOwnCardsPhase(gameData: GameData, cardSeenRemaining: Int): Behavior[Message] =
-    if cardSeenRemaining <= 0 then myTurnBeforeDraw(gameData.copy(turnLog = new DuringGameTurnLog(gameData.playerOwnUserID)))
+    log.log(s"GCoord actor of ${gameData.playerOwnUserID}, watchOwnCardsPhase called with cardSeenRemaining $cardSeenRemaining")
+
+    if cardSeenRemaining <= 0 then
+      println(s"GCoord actor of ${gameData.playerOwnUserID}, sending StartPlayPhase to ${gameData.viewReference}")
+      gameData.viewReference ! DuringGameViewMessages.StartPlayPhase()
+      gameData.clientReference ! ClientMessages.RevealingCardsPhaseLog(gameData.turnLog)
+      myTurnBeforeDraw(gameData.copy(turnLog = new DuringGameTurnLog(gameData.playerOwnUserID, 1)))
     else
       Behaviors.receivePartial {
         handleShowOwnNthCard(gameData, watchOwnCardsPhase(_, cardSeenRemaining - 1))
@@ -215,7 +224,7 @@ object GameCoordinatorActor:
         // send to other atcual status
         // [...]
         // to change then
-//        gameData.whoToSendResponse ! GameCoordinatorMessage.GameInformation(gameData.game)
+        //        gameData.whoToSendResponse ! GameCoordinatorMessage.GameInformation(gameData.game)
         gameData.clientReference ! ClientMessages.TurnEnded(gameData.syncAllTemporaryDecks.game, gameData.turnLog)
         notMyTurn(gameData)
       })
@@ -310,7 +319,8 @@ object GameCoordinatorActor:
     case (ctx, GameCoordinatorMessage.NewTurn(game)) =>
       //todo - check if it's my turn or wait another one
       //todo - send ack beck to client and update the view
-      myTurnBeforeDraw(gameData.copy(game = game, turnLog = new DuringGameTurnLog(gameData.playerOwnUserID)))
+      val actualTurn = game.currentRound + 1
+      myTurnBeforeDraw(gameData.copy(game = game, turnLog = new DuringGameTurnLog(gameData.playerOwnUserID, actualTurn)))
 
   // POWERS implementation
 
@@ -319,9 +329,10 @@ object GameCoordinatorActor:
                                     nextBehaviors: GameData => Behavior[Message]
                                   ): PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
     case (ctx, GameCoordinatorMessage.ShowYourNthCard(index)) =>
+      log.log("GCActor - handleShowOwnNthCard - received ShowYourNthCard")
       ctx.log.info(s"I show the card with index $index")
       gameData.turnLog.addEvent(TurnEvent.SeeSelfCard(index))
-      baseShowCard(gameData, gameData.getOurHand.cards(index), nextBehaviors(gameData))
+      baseShowCard(gameData, gameData.getOurHand.cards(index), () => nextBehaviors(gameData))
 
   private def handleShowAdversaryNthCard(
                                           gameData: GameData,
@@ -330,11 +341,11 @@ object GameCoordinatorActor:
     case (ctx, GameCoordinatorMessage.ShowAdversaryNthCard(playerID, cardIndex)) =>
       ctx.log.info(s"I show the card with index $cardIndex of player with index $playerID")
       gameData.turnLog.addEvent(TurnEvent.SeeAdversaryCard(playerID, cardIndex))
-      baseShowCard(gameData, gameData.getHandOPlayerWithID(playerID).cards(cardIndex), nextBehaviors(gameData))
+      baseShowCard(gameData, gameData.getHandOPlayerWithID(playerID).cards(cardIndex), () => nextBehaviors(gameData))
 
-  private def baseShowCard(gameData: GameData, card: Card, behavior: Behavior[Message]) =
+  private def baseShowCard(gameData: GameData, card: Card, nextBehavior: () => Behavior[Message]) =
     gameData.viewReference ! DuringGameViewMessages.CardSeen(card)
-    behavior
+    nextBehavior()
 
 
   private def handleChangeAdversaryCardWithOwnNthCard(

@@ -18,7 +18,7 @@ object ClientMessages {
    */
   case class CreateNewGame(makePublic: Boolean = GameParameters.defaultIsPublic,
                            maxTimeRound: Int = GameParameters.defaultMaxTimeRound,
-                           maxNumRound: Int = GameParameters.defaultRoundLimitation, 
+                           maxNumRound: Int = GameParameters.defaultRoundLimitation,
                            maxPlayers: Int = GameParameters.defaultMaxPlayers
                           ) extends ClientCommand
 
@@ -60,22 +60,24 @@ object ClientMessages {
    * @param replyTo
    */
   case class ChangePlayerName(newName: String, replyTo: ActorRef[ClientCommand]) extends ClientCommand
-  
+
   /**
    * Message sent by the view to the client to get the player information
    * This is useful for displaying player details in the UI
    */
   case class GetPlayerInfo(replyTo: ActorRef[ClientCommand]) extends ClientCommand
-  
+
   /**
    * Reply to provide player information
    */
   case class PlayerInfo(userID: String, name: String) extends ClientCommand
-  
+
   case class TakeGetInProgressGame(game: GameInProgress) extends ClientCommand
-  
+
   case class TurnEnded(game: GameInProgress, turnLog: TurnLog) extends ClientCommand
-  
+
   case class DuringGameViewReady(viewRef: ActorRef[Message]) extends ClientCommand
+
+  case class RevealingCardsPhaseLog(turnLog: TurnLog) extends ClientCommand
 
 }

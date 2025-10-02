@@ -1,7 +1,7 @@
 package utils
 
 import akka.actor.typed.ActorRef
-import model.{Card, Game, PlayerPlaying, TurnLog}
+import model.{Card, Game, InitialPhaseTurnLog, PlayerPlaying, TurnLog}
 import model.Game.GameInProgress
 import utils.InitialViewMessages.ViewCommand
 
@@ -12,6 +12,8 @@ object DuringGameViewMessages {
   trait DuringGameViewCommand extends DuringGameViewMessage
 
   case class StartGame(game: GameInProgress, gameCoordinatorRef: ActorRef[GameCoordinatorMessage.PlayerCommand]) extends DuringGameViewCommand
+
+  case class RevealingCardsPhaseAdversaryLog(revealingLog: TurnLog) extends DuringGameViewMessage
 
   case class StartPlayPhase() extends DuringGameViewMessage
 

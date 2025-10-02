@@ -32,10 +32,12 @@ trait TurnLog:
 
   def currentPhase: TurnPhase
 
+  def round:Int
+
 class InvalidTurnEventException(event: TurnEvent.TurnEvent)
   extends IllegalArgumentException(s"Invalid event '$event' in turn phase.")
 
-class DuringGameTurnLog(val ofUserID: String) extends TurnLog with Message:
+class DuringGameTurnLog(val ofUserID: String, val round: Int) extends TurnLog with Message:
 
   private var phaseEvents: PhaseEvents = new PhaseEvents(AwaitDrawCard(), List())
 
@@ -112,6 +114,8 @@ class InitialPhaseTurnLog(val userID: String) extends TurnLog with Message:
     case _ =>
       throw new InvalidTurnEventException(event)
 
-  override def currentPhase: TurnPhase = phaseEvents.phase    
+  override def currentPhase: TurnPhase = phaseEvents.phase
+
+  override def round: Int = 0
 
 

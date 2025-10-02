@@ -4,7 +4,9 @@ import model.Game.GameInProgress
 import model.{Card, PlayerPlaying, TurnLog}
 
 trait IDuringGameInterface {
-  def updateLastTurnLog(playerName: String, round: Int, turnLog: TurnLog): Unit
+  def updateRevealingLog(revealingLog: TurnLog): Unit
+
+  def updateLastTurnLog(turnLog: TurnLog): Unit
 
   def updateGameInfo(gameInfo: GameInProgress): Unit
 
