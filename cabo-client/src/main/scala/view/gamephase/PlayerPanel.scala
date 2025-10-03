@@ -13,7 +13,7 @@ private class PlayerPanel(playerName: String, f: (index: Int) => Unit) extends B
     horizontalAlignment = Alignment.Center
   }
 
-  private val seqButtonCards: IndexedSeq[Button] = for (i <- 1 to 4) yield {
+  private val seqButtonCards: IndexedSeq[Button] = for (i <- 0 to 3) yield {
     //      contents += new Button(s"$i") {
     new Button(s"$i") {
       font = new AwtFont("Arial", AwtFont.PLAIN, 24)
