@@ -28,7 +28,7 @@ class DuringGameViewActor private(
                                                    )
 
   private case class PropertiesAfterInitialization(
-                                                    gameCoordinatorRef: ActorRef[GCMsg.PlayerCommand],
+                                                    gameCoordinatorRef: ActorRef[GCMsg.GameCoordinatorMessage],
                                                     frame: DuringGameMainFrame,
                                                     userInterface: IDuringGameInterface
                                                   )
@@ -83,8 +83,8 @@ class DuringGameViewActor private(
       handleShowCard(properties, watchYourCards)
         .orElse(handleAdversariesRevealingLog(properties))
         .orElse({
-          case (ctx, StartPlayPhase()) => {
-            ctx.log.info(s"DuringGameViewActor of player $userID handling StartPlayPhase with message: ${StartPlayPhase()}")
+          case (ctx, WaitAfterRevealingSection()) => {
+            ctx.log.info(s"DuringGameViewActor of player $userID handling message: ${WaitAfterRevealingSection()}")
             properties.userInterface.enterWaitingPhase()
             waitFirstTurn(properties)
           }
@@ -97,12 +97,18 @@ class DuringGameViewActor private(
 
   private def waitFirstTurn(properties: PropertiesAfterInitialization): Behavior[Message] = {
     Behaviors.receivePartial {
-      handleUpdateLastTurnPlayed(properties)
-        .orElse(handleAdversariesRevealingLog(properties))
+      handleAdversariesRevealingLog(properties)
         .orElse({
+          case (ctx, PlayerIsPlaying(player)) =>
+            ctx.log.info(s"DuringGameViewActor of player $userID handling message: ${PlayerIsPlaying(player)}")
+            //TODO: update view
+            waitMyTurn(properties)
           case (ctx, FirstTurn()) =>
-            ctx.log.info(s"DuringGameViewActor of player $userID handling FirstTurn with message: ${FirstTurn()}")
+            ctx.log.info(s"DuringGameViewActor of player $userID handling message: ${FirstTurn()}")
             myTurnBeforeDraw(properties)
+          case (ctx,msg) =>
+            ctx.log.info(s"DuringGameViewActor of player $userID in waitFirstTurn received unexpected message: $msg")
+            Behaviors.same
         })
     }
   }

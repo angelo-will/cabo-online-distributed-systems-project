@@ -7,7 +7,7 @@ import akka.cluster.ClusterEvent.MemberExited
 import model.Game.{GameInConstruction, GameInProgress}
 import model.{GameParameters, PlayerInLobby, TurnLog}
 import utils.ClientMessages.*
-import utils.GameCoordinatorMessage.{NewTurn, PlayerCommand}
+import utils.GameCoordinatorMessage.{NewTurn, GameCoordinatorMessage}
 import utils.ServerMessages.{AbortGame, ServerKey}
 import utils.{Message, ServerMessages, InitialViewMessages}
 
@@ -425,7 +425,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
   }
 
   //todo - retrieve who am i, so the rank, by id from the game players?
-  private def inGameBehavior(gameCoordinator: ActorRef[PlayerCommand], playerOnline: Map[PlayerInLobby, Boolean]): Behavior[Message] = {
+  private def inGameBehavior(gameCoordinator: ActorRef[GameCoordinatorMessage], playerOnline: Map[PlayerInLobby, Boolean]): Behavior[Message] = {
     withShared( {
       case (ctx, TurnEnded(game, log)) =>
         ctx.log.info(s"My turn ended: ${game.code}")
@@ -452,7 +452,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
       case (ctx, GameInProgressUpdate(game, log)) =>
         //todo - update gameCoordinator
         ctx.log.info(s"Game info update: ${game.code}")
-        gameCoordinator ! NewTurn(game)
+        gameCoordinator ! NewTurn(game, log)
         //todo - sync to all the players, wait for gameCoordinator ack?
         Behaviors.same
     })

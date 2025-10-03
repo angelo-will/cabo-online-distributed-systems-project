@@ -1,42 +1,48 @@
 package utils
 
 import akka.actor.typed.ActorRef
-import model.Card
-import model.Game
+import model.{Card, Game, TurnLog}
 import utils.InitialViewMessages.ViewCommand
 
 object GameCoordinatorMessage:
 
-  trait PlayerCommand extends Message
+  trait GameCoordinatorMessage extends Message
 
+  trait GameCoordinatorPlayerCommand extends GameCoordinatorMessage
   // Messages - commands handled by the coordinator
+  
+  trait GameCoordinatorSyncMessage extends GameCoordinatorMessage
 
   /**
    * Represents a command to draw a card from the deck.
    */
-  case class DrawCardFromDeck() extends PlayerCommand
+  case class DrawCardFromDeck() extends GameCoordinatorPlayerCommand
 
   /**
    * Represents a command to draw a card from the discard stack.
    */
-  case class DrawCardFromDiscardStack() extends PlayerCommand
+  case class DrawCardFromDiscardStack() extends GameCoordinatorPlayerCommand
 
-  case class DiscardCardDrawn() extends PlayerCommand
+  case class DiscardCardDrawn() extends GameCoordinatorPlayerCommand
 
-  case class DiscardYourNthCard(index: Int) extends PlayerCommand
+  case class DiscardYourNthCard(index: Int) extends GameCoordinatorPlayerCommand
 
-  case class NewTurn(game: Game.GameInProgress) extends PlayerCommand
+  case class ShowYourNthCard(index: Int) extends GameCoordinatorPlayerCommand
+  
+  case class ShowAdversaryNthCard(playerID: String, cardIndex: Int) extends GameCoordinatorPlayerCommand
+  
+  case class ReplaceOwnNthCardWithAdversaryNthOne(ownCardIndex: Int, adversaryID: String, adversaryCardIndex: Int) extends GameCoordinatorPlayerCommand
 
-  case class ShowYourNthCard(index: Int) extends PlayerCommand
+  case class EndTurn() extends GameCoordinatorPlayerCommand
+  
+  case class CallCabo() extends GameCoordinatorPlayerCommand
+  
+  // SYNC MESSAGES
+  
+  case class StartGame() extends GameCoordinatorSyncMessage
+  
+  case class StartPlayCycle() extends GameCoordinatorSyncMessage
+  
+  case class NewTurn(game: Game.GameInProgress, turnLog: TurnLog) extends GameCoordinatorSyncMessage
 
-  case class ShowAdversaryNthCard(playerID: String, cardIndex: Int) extends PlayerCommand
-
-  case class ReplaceOwnNthCardWithAdversaryNthOne(ownCardIndex: Int, adversaryID: String, adversaryCardIndex: Int) extends PlayerCommand
-
-  case class StartGame() extends PlayerCommand
-
-  case class EndTurn() extends PlayerCommand
-
-  case class CallCabo() extends PlayerCommand
-
-  case class SendGameStatus(toWhoSend: ActorRef[Message]) extends PlayerCommand
+  case class SendGameStatus(toWhoSend: ActorRef[Message]) extends GameCoordinatorMessage

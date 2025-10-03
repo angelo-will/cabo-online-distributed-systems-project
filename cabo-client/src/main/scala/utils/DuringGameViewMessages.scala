@@ -11,16 +11,18 @@ object DuringGameViewMessages {
 
   trait DuringGameViewCommand extends DuringGameViewMessage
 
-  case class StartGame(game: GameInProgress, gameCoordinatorRef: ActorRef[GameCoordinatorMessage.PlayerCommand]) extends DuringGameViewCommand
+  case class StartGame(game: GameInProgress, gameCoordinatorRef: ActorRef[GameCoordinatorMessage.GameCoordinatorMessage]) extends DuringGameViewCommand
 
   case class RevealingCardsPhaseAdversaryLog(revealingLog: TurnLog) extends DuringGameViewMessage
 
-  case class StartPlayPhase() extends DuringGameViewMessage
+  case class WaitAfterRevealingSection() extends DuringGameViewMessage
 
   /**
    * Send when i have to play first turn of the game.
    */
   case class FirstTurn() extends DuringGameViewCommand
+  
+  case class PlayerIsPlaying(playerPlaying: PlayerPlaying) extends DuringGameViewCommand
 
   case class LastTurnPlayed(turnLog: TurnLog, game: GameInProgress, isMyTurn: Boolean) extends DuringGameViewCommand
 

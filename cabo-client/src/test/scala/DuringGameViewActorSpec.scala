@@ -94,7 +94,7 @@ class DuringGameViewActorSpec extends ScalaTestWithActorTestKit
         val duringGameViewActor = testKit.spawn(view.gamephase.DuringGameViewActor(userID, probeAsClient.ref, probeAsMainMenu.ref))
         probeAsClient.receiveMessages(1)
         revealingFirstTwoCardsPhase(duringGameViewActor, game)
-        duringGameViewActor ! DuringGameViewMessages.StartPlayPhase()
+        duringGameViewActor ! DuringGameViewMessages.WaitAfterRevealingSection()
         Thread.sleep(10000) // wait for the view to update
       }
     }
@@ -103,7 +103,7 @@ class DuringGameViewActorSpec extends ScalaTestWithActorTestKit
         val duringGameViewActor = testKit.spawn(view.gamephase.DuringGameViewActor(userID, probeAsClient.ref, probeAsMainMenu.ref))
         probeAsClient.receiveMessages(1)
         revealingFirstTwoCardsPhase(duringGameViewActor, game)
-        duringGameViewActor ! DuringGameViewMessages.StartPlayPhase()
+        duringGameViewActor ! DuringGameViewMessages.WaitAfterRevealingSection()
         duringGameViewActor ! DuringGameViewMessages.FirstTurn()
         Thread.sleep(10000) // wait for the view to update
       }
@@ -112,7 +112,7 @@ class DuringGameViewActorSpec extends ScalaTestWithActorTestKit
         val duringGameViewActor = startApp()
         val playerWhoPlayTurnBefore = game.players.filter(_.userID != userID).head
         revealingFirstTwoCardsPhase(duringGameViewActor, game)
-        duringGameViewActor ! DuringGameViewMessages.StartPlayPhase()
+        duringGameViewActor ! DuringGameViewMessages.WaitAfterRevealingSection()
         val (newGameState, turn) = generateTurnWithDrawFromDeck(playerWhoPlayTurnBefore.userID, game)
         Thread.sleep(2000)
         duringGameViewActor ! DuringGameViewMessages.LastTurnPlayed(turn, newGameState, true)
@@ -125,7 +125,7 @@ class DuringGameViewActorSpec extends ScalaTestWithActorTestKit
         val playerWhoPlayTurnBefore = game.players.filter(_.userID != userID).head
         probeAsClient.receiveMessages(1)
         revealingFirstTwoCardsPhase(duringGameViewActor, game)
-        duringGameViewActor ! DuringGameViewMessages.StartPlayPhase()
+        duringGameViewActor ! DuringGameViewMessages.WaitAfterRevealingSection()
         Thread.sleep(1000)
         duringGameViewActor ! DuringGameViewMessages.FirstTurn()
         val msg = probeAsGameCoordinator.expectMessageType[GameCoordinatorMessage.DrawCardFromDeck](FiniteDuration(5, SECONDS))
@@ -138,7 +138,7 @@ class DuringGameViewActorSpec extends ScalaTestWithActorTestKit
         val duringGameViewActor = testKit.spawn(view.gamephase.DuringGameViewActor(userID, probeAsClient.ref, probeAsMainMenu.ref))
         probeAsClient.receiveMessages(1)
         revealingFirstTwoCardsPhase(duringGameViewActor, game)
-        duringGameViewActor ! DuringGameViewMessages.StartPlayPhase()
+        duringGameViewActor ! DuringGameViewMessages.WaitAfterRevealingSection()
         Thread.sleep(1000)
         duringGameViewActor ! DuringGameViewMessages.FirstTurn()
         val msg = probeAsGameCoordinator.expectMessageType[GameCoordinatorMessage.DrawCardFromDiscardStack](FiniteDuration(5, SECONDS))
@@ -155,7 +155,7 @@ class DuringGameViewActorSpec extends ScalaTestWithActorTestKit
     "let the player discard card drawn" in {
       val duringGameViewActor = startApp()
       revealingFirstTwoCardsPhase(duringGameViewActor, game)
-      duringGameViewActor ! DuringGameViewMessages.StartPlayPhase()
+      duringGameViewActor ! DuringGameViewMessages.WaitAfterRevealingSection()
       Thread.sleep(1000)
       duringGameViewActor ! DuringGameViewMessages.FirstTurn()
       val (cardDrawn, newDeck) = drawFromDeckExpectation(duringGameViewActor.ref)
@@ -166,7 +166,7 @@ class DuringGameViewActorSpec extends ScalaTestWithActorTestKit
       "player discard card" in {
         val duringGameViewActor = startApp()
         revealingFirstTwoCardsPhase(duringGameViewActor, game)
-        duringGameViewActor ! DuringGameViewMessages.StartPlayPhase()
+        duringGameViewActor ! DuringGameViewMessages.WaitAfterRevealingSection()
         Thread.sleep(1000)
         duringGameViewActor ! DuringGameViewMessages.FirstTurn()
         val (cardDrawn, newDeck) = drawFromDeckExpectation(duringGameViewActor.ref)
@@ -179,7 +179,7 @@ class DuringGameViewActorSpec extends ScalaTestWithActorTestKit
       "choose to keep drawn card" in {
         val duringGameViewActor = startApp()
         revealingFirstTwoCardsPhase(duringGameViewActor, game)
-        duringGameViewActor ! DuringGameViewMessages.StartPlayPhase()
+        duringGameViewActor ! DuringGameViewMessages.WaitAfterRevealingSection()
         Thread.sleep(1000)
         duringGameViewActor ! DuringGameViewMessages.FirstTurn()
         val (cardDrawn, newDeck) = drawFromDeckExpectation(duringGameViewActor.ref)
@@ -193,7 +193,7 @@ class DuringGameViewActorSpec extends ScalaTestWithActorTestKit
     "let the player end turn" in {
       val duringGameViewActor = startApp()
       revealingFirstTwoCardsPhase(duringGameViewActor, game)
-      duringGameViewActor ! DuringGameViewMessages.StartPlayPhase()
+      duringGameViewActor ! DuringGameViewMessages.WaitAfterRevealingSection()
       Thread.sleep(1000)
       duringGameViewActor ! DuringGameViewMessages.FirstTurn()
       val (cardDrawn, newDeck) = drawFromDeckExpectation(duringGameViewActor.ref)
@@ -210,7 +210,7 @@ class DuringGameViewActorSpec extends ScalaTestWithActorTestKit
         game = game.copy(deckStack = deck)
         val duringGameViewActor = startApp()
         revealingFirstTwoCardsPhase(duringGameViewActor, game)
-        duringGameViewActor ! DuringGameViewMessages.StartPlayPhase()
+        duringGameViewActor ! DuringGameViewMessages.WaitAfterRevealingSection()
         Thread.sleep(1000)
         duringGameViewActor ! DuringGameViewMessages.FirstTurn()
         val (cardDrawn, newDeck) = drawFromDeckExpectation(duringGameViewActor.ref)
@@ -234,7 +234,7 @@ class DuringGameViewActorSpec extends ScalaTestWithActorTestKit
         game = game.copy(deckStack = deck)
         val duringGameViewActor = startApp()
         revealingFirstTwoCardsPhase(duringGameViewActor, game)
-        duringGameViewActor ! DuringGameViewMessages.StartPlayPhase()
+        duringGameViewActor ! DuringGameViewMessages.WaitAfterRevealingSection()
         Thread.sleep(1000)
         duringGameViewActor ! DuringGameViewMessages.FirstTurn()
         val (cardDrawn, newDeck) = drawFromDeckExpectation(duringGameViewActor.ref)
@@ -249,7 +249,7 @@ class DuringGameViewActorSpec extends ScalaTestWithActorTestKit
         game = game.copy(deckStack = deck)
         val duringGameViewActor = startApp()
         revealingFirstTwoCardsPhase(duringGameViewActor, game)
-        duringGameViewActor ! DuringGameViewMessages.StartPlayPhase()
+        duringGameViewActor ! DuringGameViewMessages.WaitAfterRevealingSection()
         Thread.sleep(1000)
         duringGameViewActor ! DuringGameViewMessages.FirstTurn()
         val (cardDrawn, newDeck) = drawFromDeckExpectation(duringGameViewActor.ref)
@@ -331,7 +331,7 @@ class DuringGameViewActorSpec extends ScalaTestWithActorTestKit
   }
 
   private def generateTurnWithDrawFromDeck(userID: String, game: GameInProgress): (GameInProgress, TurnLog) = {
-    val turnLog = new DuringGameTurnLog(userID)
+    val turnLog = new DuringGameTurnLog(userID, game.currentRound + 1)
     val (cardDrawn, newDeck) = game.deckStack.drawFirstCard
     turnLog.addEvent(TurnEvent.DrawCardFromDeck(cardDrawn))
     turnLog.currentPhase match {
