@@ -1,6 +1,9 @@
 package model
 
 import model.Suit.Spades
+import akka.serialization.jackson.CborSerializable
+import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
+import model.GameStatus.{InProgress, WaitingForPlayers, Finished}
 
 object Game:
   // 0-index
@@ -50,6 +53,13 @@ object Game:
     def replaceNthCardOfPlayerWithID(userID: String, card: Card, index: Int) =
       this.copy(players = PlayerPlaying.replaceNthCardOfPlayerWithID(userID, card, index, this.players))
 
+
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+@JsonSubTypes(
+  Array(
+    new JsonSubTypes.Type(value = classOf[GameStatus.WaitingForPlayers], name = "waitingForPlayers"),
+    new JsonSubTypes.Type(value = classOf[GameStatus.InProgress], name = "inProgress"),
+    new JsonSubTypes.Type(value = classOf[GameStatus.Finished], name = "finished")))
 abstract class GameStatus(val status: String)
 
 object GameStatus:

@@ -4,8 +4,21 @@ import utils.Message
 import model.TurnEvent.*
 import model.TurnPhase.*
 import model.PhaseEvents.*
+import akka.serialization.jackson.CborSerializable
+import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 
 object TurnEvent:
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(
+    Array(
+      new JsonSubTypes.Type(value = classOf[TurnEvent.DrawCardFromDeck], name = "drawCardFromDeck"),
+      new JsonSubTypes.Type(value = classOf[TurnEvent.DrawCardFromDiscardStack], name = "drawCardFromDiscardStack"),
+      new JsonSubTypes.Type(value = classOf[TurnEvent.SeeSelfCard], name = "seeSelfCard"),
+      new JsonSubTypes.Type(value = classOf[TurnEvent.SeeAdversaryCard], name = "seeAdversaryCard"),
+      new JsonSubTypes.Type(value = classOf[TurnEvent.ReplaceOwnCardWithAdversaryCard], name = "replaceOwnCard"),
+      new JsonSubTypes.Type(value = classOf[TurnEvent.CardDiscarded], name = "cardDiscarded")
+    )
+  )
   sealed trait TurnEvent extends Message
 
   case class DrawCardFromDeck(card: Card) extends TurnEvent
@@ -23,6 +36,11 @@ object TurnEvent:
 object PhaseEvents:
   case class PhaseEvents(phase: TurnPhase, events: List[TurnEvent]) extends Message
 
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+@JsonSubTypes(
+  Array(
+    new JsonSubTypes.Type(value = classOf[DuringGameTurnLog], name = "duringGameTurnLog"),
+    new JsonSubTypes.Type(value = classOf[InitialPhaseTurnLog], name = "initialPhaseTurnLog")))
 trait TurnLog:
   def playerName: String
 
