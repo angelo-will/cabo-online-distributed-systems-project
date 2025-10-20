@@ -46,6 +46,8 @@ object Client:
 
   case class GameInProgressUpdate(replyTo: ActorRef[ClientInternalCommand],game: GameInProgress, turnLog: TurnLog) extends ClientInternalCommand
   
+  case class StartGameBehavior(behavior: Behavior[Message], hostRef: ActorRef[ClientInternalCommand]) extends ClientInternalCommand
+  
   private def viewDefaultBehavior: Behavior[Message] = Behaviors.setup { ctx =>
     Behaviors.receiveMessagePartial {
       case _ =>
@@ -282,17 +284,48 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
 
         //todo - check if we need to keep it for re-entering the game
         ctx.system.receptionist ! Receptionist.deregister(akka.actor.typed.receptionist.ServiceKey[Message](game.code), ctx.self)
+        
+        ctx.self ! StartGameBehavior(GameCoordinatorActor(ctx.self, viewActorRef, userId, game), ctx.self)
+        
+        Behaviors.same
 
-        val gameCoordinator = ctx.spawn(GameCoordinatorActor(ctx.self, viewActorRef, userId, game), "GameCoordinatorActor")
+        //automandati un messaggio con il behavior da spawnare così per il testo lo mandi da fuori diretto
+        
+//        val gameCoordinator = ctx.spawn(GameCoordinatorActor(ctx.self, viewActorRef, userId, game), "GameCoordinatorActor")
+//
+//        Behaviors.receiveMessagePartial {
+//          case TakeGetInProgressGame(gameInProgress) =>
+//            ctx.log.info(s"Game in progress received: ${gameInProgress.code}")
+//            game.players.filter(!_.address.equals(ctx.self)).foreach(_.address ! GameHasStarted(ctx.self, gameInProgress))
+//            awaitSynchronization(ctx, game.players.filter(!_.address.equals(ctx.self)).map(_.userID), () => {
+//              ctx.log.info(s"All players synchronized, starting the game: ${gameInProgress.code}")
+//              viewActorRef ! InitialViewMessages.ReadyToPlay(gameCoordinator)
+//              inGameBehavior(gameCoordinator, game.players.map(p => p -> true).toMap, ctx.self)
+//            }, () => {
+//              //If failed to synchronize
+//              //Brutal policy, we abort the game
+//              ctx.log.error(s"Failed to synchronize all players, aborting the game: ${gameInProgress.code}")
+//              //todo - check if this is ok
+//              ctx.stop(gameCoordinator)
+//              game.players.filter(!_.address.equals(ctx.self)).foreach(_.address ! GameCancelled())
+//              viewActorRef ! InitialViewMessages.GameAborted()
+//              //todo - if we use the variable argument this has to be changed
+//              connectionHandler ! ConnectionHandler.UpdateList(List())
+//              start
+//            })
+//        }
+
+      case (ctx, StartGameBehavior(behavior, hostRef)) =>
+        val gameCoordinator = ctx.spawn(behavior, "GameCoordinatorActor")
 
         Behaviors.receiveMessagePartial {
           case TakeGetInProgressGame(gameInProgress) =>
             ctx.log.info(s"Game in progress received: ${gameInProgress.code}")
-            game.players.filter(!_.address.equals(ctx.self)).foreach(_.address ! GameHasStarted(ctx.self, gameInProgress))
+            game.players.filter(!_.address.equals(ctx.self)).foreach(_.address ! GameHasStarted(hostRef, gameInProgress))
             awaitSynchronization(ctx, game.players.filter(!_.address.equals(ctx.self)).map(_.userID), () => {
               ctx.log.info(s"All players synchronized, starting the game: ${gameInProgress.code}")
               viewActorRef ! InitialViewMessages.ReadyToPlay(gameCoordinator)
-              inGameBehavior(gameCoordinator, game.players.map(p => p -> true).toMap, ctx.self)
+              inGameBehavior(gameCoordinator, game.players.map(p => p -> true).toMap, hostRef)
             }, () => {
               //If failed to synchronize
               //Brutal policy, we abort the game
@@ -306,23 +339,6 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
               start
             })
         }
-
-//      case (ctx, TakeGetInProgressGame_try2(gameInProgress, coordinatorRef)) =>
-//        ctx.log.info(s"Game in progress received: ${gameInProgress.code}")
-//        game.players.foreach(_.address ! GameHasStarted(gameInProgress))
-//        awaitSynchronization(ctx, game.players.map(_.userID), () => {
-//          ctx.log.info(s"All players synchronized, starting the game: ${gameInProgress.code}")
-//          viewActorRef ! ViewMessages.ReadyToPlay(coordinatorRef)
-//          inGameBehavior(gameInProgress)
-//        }, () => {
-//          //If failed to synchronize
-//          //Brutal policy, we abort the game
-//          ctx.log.error(s"Failed to synchronize all players, aborting the game: ${gameInProgress.code}")
-//          //todo - check if this is ok
-//          ctx.stop(coordinatorRef)
-//          ctx.self ! LeaveTheGame()
-//          Behaviors.same
-//        })
     })
   }
 
@@ -414,13 +430,24 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
 
         case (ctx, GameHasStarted(hostRef, gameInProgress)) =>
           ctx.log.info(s"Game has started: ${game.code}")
-//          val index = gameInProgress.players.indexWhere(p => p.userID == userId && p.name == name)
+          val index = gameInProgress.players.indexWhere(p => p.userID == userId && p.name == name)
           val gameCoordinator = ctx.spawn(GameCoordinatorActor(ctx.self, viewActorRef, userId, gameInProgress), "GameCoordinatorActor")
           viewActorRef ! InitialViewMessages.ReadyToPlay(gameCoordinator)
           hostRef ! SynchronizationAck(userId)
           //todo - a joiner initially check connection only with the host, in the game he should check also with other players?
           connectionHandler ! ConnectionHandler.UpdateList(game.players)
           inGameBehavior(gameCoordinator, game.players.map(p => p -> true).toMap, hostRef)
+//          ctx.self ! StartGameBehavior(GameCoordinatorActor(ctx.self, viewActorRef, userId, gameInProgress), hostRef)
+//          Behaviors.same
+
+          // may be useful to have a different starter as for the host?
+//        case (ctx, StartGameBehavior(behavior, hostRef)) =>
+//          val gameCoordinator = ctx.spawn(behavior, "GameCoordinatorActor")
+//          viewActorRef ! InitialViewMessages.ReadyToPlay(gameCoordinator)
+//          hostRef ! SynchronizationAck(userId)
+//          //todo - a joiner initially check connection only with the host, in the game he should check also with other players?
+//          connectionHandler ! ConnectionHandler.UpdateList(game.players)
+//          inGameBehavior(gameCoordinator, game.players.map(p => p -> true).toMap, hostRef)
     })
   }
 

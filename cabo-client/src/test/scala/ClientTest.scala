@@ -1,12 +1,13 @@
 import akka.actor.testkit.typed.scaladsl.{ScalaTestWithActorTestKit, TestProbe}
-import akka.actor.typed.ActorRef
+import akka.actor.typed.{ActorRef, Behavior}
 import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
 import akka.actor.typed.scaladsl.Behaviors
 import akka.cluster.typed.{Cluster, Join}
 import com.typesafe.config.ConfigFactory
 import controller.Client
 import controller.Client.*
-import model.PlayerInLobby
+import model.Game.GameInProgress
+import model.{GameParameters, PlayerInLobby, PlayerPlaying}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
 import org.scalatest.wordspec.AnyWordSpecLike
@@ -372,20 +373,36 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString("""
 
       joinHostGame(clientHost, probeClientHost, clientJoiner, probeClientJoiner, clientHostView, clientJoinerView)
 
-      clientHost ! StartTheGame()
-      probeClientHost.expectMessage(StartTheGame())
+      val coordinatorProbe = testKit.createTestProbe[Message]()
 
-      probeClientHost.receiveMessage() match {
-        case TakeGetInProgressGame(game) =>
-          assert(game.players.exists(p => p.userID == correctPlayerID(hostId, clientHost)))
-          assert(game.players.exists(p => p.userID == correctPlayerID(joinerId, clientJoiner)))
-        case _ => fail("Expected TakeGetInProgressGame message")
+      val coordinatorStub: Behavior[Message] = Behaviors.receiveMessage {
+          m => coordinatorProbe.ref ! m
+          Behaviors.same
       }
+
+      val hostTrueId = correctPlayerID(hostId, clientHost)
+      val joinerTrueId = correctPlayerID(joinerId, clientJoiner)
+
+      val gameInProgress = GameInProgress(
+        code = "XXXX",
+        gameParameters = GameParameters(),
+        gameStatus = model.GameStatus.InProgress(),
+        players = List(PlayerPlaying(hostTrueId, hostName, 0, null), PlayerPlaying(joinerTrueId, joinerName, 1, null)),
+        deckStack = null,
+        discardDeckStack = null,
+        currentRound = 0
+      )
+
+      clientHost ! StartGameBehavior(coordinatorStub, clientHost)
+      probeClientHost.expectMessage(StartGameBehavior(coordinatorStub, clientHost))
+
+      clientHost ! TakeGetInProgressGame(gameInProgress)
+      probeClientHost.expectMessage(TakeGetInProgressGame(gameInProgress))
 
       probeClientJoiner.receiveMessage() match {
         case GameHasStarted(host, game) =>
-          assert(game.players.exists(p => p.userID == correctPlayerID(hostId, clientHost)))
-          assert(game.players.exists(p => p.userID == correctPlayerID(joinerId, clientJoiner)))
+          assert(game.players.exists(p => p.userID == hostTrueId))
+          assert(game.players.exists(p => p.userID == joinerTrueId))
         case _ => fail("Expected GameHasStarted message")
       }
 
@@ -403,5 +420,5 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString("""
         case ReadyToPlay(gameCoordinator) => // ok
         case _ => fail("Host view expected ReadyToPlay message")
       }
-    }
   }
+}
