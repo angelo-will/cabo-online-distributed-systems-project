@@ -29,9 +29,10 @@ object GameCoordinatorActor:
                                playerOwnRank: Int,
                                playerOwnUserID: String,
                                game: GameInProgress,
+                               temporaryGame: GameInProgress,
                                turnLog: TurnLog,
-                               temporaryDeck: CardStack,
-                               temporaryDiscardDeck: CardStack
+                               //                               temporaryDeck: CardStack,
+                               //                               temporaryDiscardDeck: CardStack
                              ):
     def getOurHand: Hand = this.getSelfPlayer.hand
 
@@ -42,16 +43,19 @@ object GameCoordinatorActor:
     def getPlayerWithID(playerID: String): PlayerPlaying = this.game.getPlayerWithID(playerID)
 
     def syncAllTemporaryDecks: GameData =
-      val newGameState = game.copy(deckStack = temporaryDeck, discardDeckStack = temporaryDiscardDeck)
-      this.copy(game = newGameState)
+      //      val newGameState = game.copy(deckStack = temporaryDeck, discardDeckStack = temporaryDiscardDeck)
+      //      this.copy(game = newGameState)
+      this.copy(game = temporaryGame)
 
     override def toString: String =
       "GameData: \n" +
         "whoToSendResponse=" + viewReference + "\n" +
         "playerRank=" + playerOwnRank + "\n" +
         "game=" + game + "\n" +
-        "temporaryDeck=" + temporaryDeck + "\n" +
-        "temporaryDiscardDeck=" + temporaryDiscardDeck + "\n"
+        //        "temporaryDeck=" + temporaryDeck + "\n" +
+        //        "temporaryDiscardDeck=" + temporaryDiscardDeck + "\n"
+        "temporaryGame=" + temporaryGame + "\n" +
+        "turnLog=" + turnLog + "\n"
 
   private val log = AppLogger.Log(true)
 
@@ -77,10 +81,11 @@ object GameCoordinatorActor:
       viewToContact,
       playerRank,
       userId,
-      gameInProgress,
+      game = gameInProgress,
+      temporaryGame = gameInProgress,
       new InitialPhaseTurnLog(userId),
-      gameInProgress.deckStack,
-      gameInProgress.discardDeckStack
+      //      gameInProgress.deckStack,
+      //      gameInProgress.discardDeckStack
     )
 
     waitingStart(gameData)
@@ -93,8 +98,8 @@ object GameCoordinatorActor:
       //test if it works
       val (hand, remainingDeck) = fullDeckShuffled.drawNCards(4)
       fullDeckShuffled = remainingDeck
-      log.log(s"player ${p.userID} has rank $index")
-      PlayerPlaying(p.userID, p.name, index, Hand(hand))
+      log.log(s"player ${p.userID} has rank ${index + 1}")
+      PlayerPlaying(p.userID, p.name, index + 1, Hand(hand))
     })
     val (firstCardDiscard, remainingDeck) = fullDeckShuffled.drawNCards(1)
 
@@ -105,7 +110,8 @@ object GameCoordinatorActor:
       playersPlaying,
       remainingDeck,
       firstCardDiscard,
-      0
+      //todo: 0 or 1?
+      currentRound = 1
     )
   }
 
@@ -136,14 +142,14 @@ object GameCoordinatorActor:
         handleShowOwnNthCard(gameData, watchOwnCardsPhase(_, cardSeenRemaining - 1))
           .orElse(handleSendGameStatus(gameData, watchOwnCardsPhase(_, cardSeenRemaining)))
       }
-      
+
   // WAIT OTHERS HAVE SEEN CARDS
   private def waitOtherHaveSeenOwnCard(gameData: GameData): Behavior[Message] = {
-    Behaviors.receivePartial{
-      handleSendGameStatus(gameData,waitOtherHaveSeenOwnCard)
+    Behaviors.receivePartial {
+      handleSendGameStatus(gameData, waitOtherHaveSeenOwnCard)
         .orElse({
           case (ctx, GCMsg.StartPlayCycle()) =>
-            if gameData.playerOwnRank == 0 then
+            if gameData.playerOwnRank == 1 then
               gameData.viewReference ! DGVMsg.FirstTurn()
               myTurnBeforeDraw(gameData.copy(turnLog = new DuringGameTurnLog(gameData.playerOwnUserID, 1)))
             else
@@ -152,7 +158,7 @@ object GameCoordinatorActor:
               notMyTurn(gameData.copy(turnLog = new DuringGameTurnLog(gameData.playerOwnUserID, 1)))
         })
     }
-  }    
+  }
 
   // BEFORE DRAW
 
@@ -195,8 +201,9 @@ object GameCoordinatorActor:
       //      .orElse(handleShowOwnNthCard(gameData, myTurnAfterDiscard))
       .orElse({ case (ctx, GCMsg.EndTurn()) =>
         ctx.log.info(s"myTurnAfterDiscard, gameData = $gameData")
-        gameData.clientReference ! CLMsg.TurnEnded(gameData.syncAllTemporaryDecks.game, gameData.turnLog)
-        notMyTurn(gameData)
+        val newGameData = gameData.syncAllTemporaryDecks
+        gameData.clientReference ! CLMsg.TurnEnded(newGameData.game, gameData.turnLog)
+        notMyTurn(newGameData)
       })
   }
 
@@ -220,10 +227,16 @@ object GameCoordinatorActor:
       ctx.log.info(s"I draw $topCard from deck")
       gameData.turnLog.addEvent(TurnEvent.DrawCardFromDeck(topCard))
       gameData.viewReference ! DGVMsg.CardDrawn(topCard)
+      //
+      //      if topCard.power != Power.NoPower() then
+      //        myTurnAfterDrawWithPower(gameData.copy(temporaryDeck = newDeck), cardInHand = topCard)
+      //      else
+      //        myTurnAfterDrawNoPower(gameData.copy(temporaryDeck = newDeck), cardInHand = topCard)
+      val newTempGame = gameData.temporaryGame.copy(deckStack = newDeck)
       if topCard.power != Power.NoPower() then
-        myTurnAfterDrawWithPower(gameData.copy(temporaryDeck = newDeck), cardInHand = topCard)
+        myTurnAfterDrawWithPower(gameData.copy(temporaryGame = newTempGame), cardInHand = topCard)
       else
-        myTurnAfterDrawNoPower(gameData.copy(temporaryDeck = newDeck), cardInHand = topCard)
+        myTurnAfterDrawNoPower(gameData.copy(temporaryGame = newTempGame), cardInHand = topCard)
 
   private def handleDrawCardFromDiscardStack(
                                               gameData: GameData
@@ -234,24 +247,31 @@ object GameCoordinatorActor:
       val (topCard, newDiscardStack) = gameData.game.discardDeckStack.drawFirstCard
       gameData.turnLog.addEvent(TurnEvent.DrawCardFromDiscardStack(topCard))
       gameData.viewReference ! DGVMsg.CardDrawn(topCard)
-      myTurnAfterDrawFromDiscard(gameData.copy(temporaryDiscardDeck = newDiscardStack), topCard)
+      //
+      //      myTurnAfterDrawFromDiscard(gameData.copy(temporaryDiscardDeck = newDiscardStack), topCard)
+      val newTempGame = gameData.temporaryGame.copy(discardDeckStack = newDiscardStack)
+      myTurnAfterDrawFromDiscard(gameData.copy(temporaryGame = newTempGame), topCard)
 
   private def handleDiscardCardDrawn(
                                       gameData: GameData,
                                       cardInHand: Card
                                     ): PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
     case (ctx, GCMsg.DiscardCardDrawn()) =>
-      ctx.log.info(s"I discard the card drawn")
       gameData.turnLog.addEvent(TurnEvent.CardDiscarded(cardInHand))
-      val newGameState = gameData.game.copy(
-        deckStack = gameData.temporaryDeck,
-        discardDeckStack = gameData.temporaryDiscardDeck.addTopCard(cardInHand)
+      //      val newGameState = gameData.game.copy(
+      //        deckStack = gameData.temporaryDeck,
+      //        discardDeckStack = gameData.temporaryDiscardDeck.addTopCard(cardInHand)
+      //      )
+      val newTemporaryGame = gameData.temporaryGame.copy(
+        discardDeckStack = gameData.temporaryGame.discardDeckStack.addTopCard(cardInHand)
       )
 
-      println(s"New game state: $newGameState")
+      val newGameData = gameData.copy(temporaryGame = newTemporaryGame)
+      ctx.log.info(s"handleDiscardCardDrawn - new game data = $newGameData")
 
       gameData.viewReference ! DGVMsg.NewTopCardDiscardStack(cardInHand)
-      myTurnAfterDiscard(gameData.copy(game = newGameState, temporaryDiscardDeck = newGameState.discardDeckStack))
+      //      myTurnAfterDiscard(gameData.copy(game = newGameState, temporaryDiscardDeck = newGameState.discardDeckStack))
+      myTurnAfterDiscard(newGameData)
 
   private def handleDiscardOwnNthCard(
                                        gameData: GameData,
@@ -259,21 +279,23 @@ object GameCoordinatorActor:
                                      ): PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
     case (ctx, GCMsg.DiscardYourNthCard(index)) =>
       val oldHand = gameData.getOurHand
-      ctx.log.info(s"I discard the card with index $index")
-      ctx.log.info(s"The card is ${oldHand.cards(index)}")
+      ctx.log.info(s"handleDiscardOwnNthCard - I discard the card with index $index")
+      ctx.log.info(s"handleDiscardOwnNthCard - The card is ${oldHand.cards(index)}")
       gameData.turnLog.addEvent(TurnEvent.CardDiscarded(oldHand.cards(index)))
       val newHand = Hand(oldHand.cards.updated(index, cardInHand))
-      val gameStateAfterReplace = gameData.game.replaceHandOfPlayerWithID(gameData.playerOwnUserID, newHand)
+      //
+      //      val gameStateAfterReplace = gameData.game.replaceHandOfPlayerWithID(gameData.playerOwnUserID, newHand)
+      val gameStateAfterReplace = gameData.temporaryGame.replaceHandOfPlayerWithID(gameData.playerOwnUserID, newHand)
 
-      val newGameState = gameStateAfterReplace.copy(
-        deckStack = gameData.temporaryDeck,
-        discardDeckStack = gameData.temporaryDiscardDeck.addTopCard(oldHand.cards(index)),
+      val newTempGameState = gameStateAfterReplace.copy(
+        //        discardDeckStack = gameData.temporaryDiscardDeck.addTopCard(oldHand.cards(index)),
+        discardDeckStack = gameData.temporaryGame.discardDeckStack.addTopCard(oldHand.cards(index)),
       )
-      ctx.log.info(s"New game state: $newGameState")
+      ctx.log.info(s"handleDiscardOwnNthCard - new temporary game: $newTempGameState")
 
       gameData.viewReference ! DGVMsg.NewTopCardDiscardStack(oldHand.cards(index))
 
-      myTurnAfterDiscard(gameData.copy(game = newGameState))
+      myTurnAfterDiscard(gameData.copy(temporaryGame = newTempGameState))
 
   private def handleSendGameStatus(
                                     gameData: GameData,
@@ -287,10 +309,13 @@ object GameCoordinatorActor:
     // TODO: implementare l'arrivo delle nuove informazioni e la sequenza dei passaggi fatti in un turno.
     //       Se un giocatore per problemi o altro non gioca non fa andare avanti il mazzo, quindi può arrivarmi un messaggio con niente
     case (ctx, GCMsg.NewTurn(game, turnLog)) =>
+      ctx.log.info(s"NewTurn received, \ngameData = $gameData \ngameReceived = $game")
       //todo - send ack beck to client and update the view
+      val gameDataTempUpdated = gameData.copy(temporaryGame = game)
       val actualTurn = game.currentRound + 1
       val actualGame = game.copy(currentRound = actualTurn)
-      val newGameData = gameData.copy(game = actualGame, turnLog = new DuringGameTurnLog(gameData.playerOwnUserID, actualTurn))
+      val x = gameDataTempUpdated.copy(temporaryGame = actualGame, turnLog = new DuringGameTurnLog(gameData.playerOwnUserID, actualTurn))
+      val newGameData = x.syncAllTemporaryDecks
       if isMyTurn(newGameData, actualGame) then
         newGameData.viewReference ! DGVMsg.LastTurnPlayed(turnLog, actualGame, true)
         myTurnBeforeDraw(newGameData)
@@ -343,6 +368,7 @@ object GameCoordinatorActor:
 
       ctx.log.info(s"New game state: $newGameState")
 
+      gameData.viewReference ! DGVMsg.ChangeCardWithAdversaryAck()
 
       nextBehaviors(gameData.copy(game = newGameState))
   }
@@ -351,7 +377,8 @@ object GameCoordinatorActor:
 
   // SUPPORT FUNCTIONS
   private def isMyTurn(gameData: GameData, actualGame: GameInProgress): Boolean = {
-    val rankWhoPlay = (actualGame.currentRound - 1) % actualGame.players.size
+    val rankWhoPlay = ((actualGame.currentRound - 1) % actualGame.players.size) + 1
+    print(s"isMyTurn called, rankWhoPlay = $rankWhoPlay, gameData = $gameData, actualGame = $actualGame")
     gameData.playerOwnRank == rankWhoPlay
   }
       
