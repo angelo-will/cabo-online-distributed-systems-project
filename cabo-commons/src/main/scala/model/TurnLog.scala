@@ -16,7 +16,8 @@ object TurnEvent:
       new JsonSubTypes.Type(value = classOf[TurnEvent.SeeSelfCard], name = "seeSelfCard"),
       new JsonSubTypes.Type(value = classOf[TurnEvent.SeeAdversaryCard], name = "seeAdversaryCard"),
       new JsonSubTypes.Type(value = classOf[TurnEvent.ReplaceOwnCardWithAdversaryCard], name = "replaceOwnCard"),
-      new JsonSubTypes.Type(value = classOf[TurnEvent.CardDiscarded], name = "cardDiscarded")
+      new JsonSubTypes.Type(value = classOf[TurnEvent.CardDrawnDiscarded], name = "cardDrawnDiscarded"),
+      new JsonSubTypes.Type(value = classOf[TurnEvent.OwnCardDiscarded], name = "ownCardDiscarded")
     )
   )
   sealed trait TurnEvent extends Message
@@ -31,7 +32,9 @@ object TurnEvent:
 
   case class ReplaceOwnCardWithAdversaryCard(ownCardIndex: Int, adversaryID: String, adversaryCardIndex: Int) extends TurnEvent
 
-  case class CardDiscarded(card: Card) extends TurnEvent
+  case class CardDrawnDiscarded(card: Card) extends TurnEvent
+  
+  case class OwnCardDiscarded(card: Card, index: Int) extends TurnEvent
 
 object PhaseEvents:
   case class PhaseEvents(phase: TurnPhase, events: List[TurnEvent]) extends Message
@@ -50,7 +53,7 @@ trait TurnLog:
 
   def currentPhase: TurnPhase
 
-  def round:Int
+  def round: Int
 
 class InvalidTurnEventException(event: TurnEvent.TurnEvent)
   extends IllegalArgumentException(s"Invalid event '$event' in turn phase.")
@@ -81,7 +84,7 @@ class DuringGameTurnLog(val ofUserID: String, val round: Int) extends TurnLog wi
    * - [[AwaitUsePower]]: Allows [[SeeSelfCard]], [[SeeAdversaryCard]], or [[ReplaceOwnCardWithAdversaryCard]],
    * all of which transition to [[AwaitDiscardCard]].
    *
-   * - [[AwaitDiscardCard]]: Allows [[CardDiscarded]], which transitions to [[EndedTurn]].
+   * - [[AwaitDiscardCard]]: Allows [[CardDrawnDiscarded]] or [[OwnCardDiscarded]] which transitions to [[EndedTurn]].
    *
    * - [[EndedTurn]]: Does not allow any further events to be added.
    *
@@ -102,7 +105,9 @@ class DuringGameTurnLog(val ofUserID: String, val round: Int) extends TurnLog wi
       this.passToNewPhaseWithEvent(AwaitDiscardCard(), event)
     case (AwaitUsePower(), ReplaceOwnCardWithAdversaryCard(ownCardIndex, adversaryID, adversaryCardIndex)) =>
       this.passToNewPhaseWithEvent(AwaitDiscardCard(), event)
-    case (AwaitDiscardCard(), CardDiscarded(card)) =>
+    case (AwaitDiscardCard(), CardDrawnDiscarded(card)) =>
+      this.passToNewPhaseWithEvent(EndedTurn(), event)
+    case (AwaitDiscardCard(), OwnCardDiscarded(card, index)) =>
       this.passToNewPhaseWithEvent(EndedTurn(), event)
     case _ =>
       throw new InvalidTurnEventException(event)

@@ -1,7 +1,6 @@
 import akka.actor.testkit.typed.scaladsl.{ScalaTestWithActorTestKit, TestDuration, TestProbe}
 import akka.actor.typed.ActorRef
 import model.Game.GameInProgress
-import model.TurnEvent.CardDiscarded
 import model.{Card, CardStack, DuringGameTurnLog, Game, GameParameters, GameStatus, Hand, IGameParameters, InvalidTurnEventException, PlayerPlaying, Power, TurnEvent, TurnLog, TurnPhase}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
@@ -367,7 +366,7 @@ class DuringGameViewActorSpec extends ScalaTestWithActorTestKit
       //          discardDeckStack = newDiscardDeck
       //        )
     }
-    turnLog.addEvent(TurnEvent.CardDiscarded(cardDrawn))
+    turnLog.addEvent(TurnEvent.CardDrawnDiscarded(cardDrawn))
 
     val newGameState = game.copy(
       deckStack = newDeck,

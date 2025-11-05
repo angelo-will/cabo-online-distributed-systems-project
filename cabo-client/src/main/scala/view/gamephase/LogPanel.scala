@@ -23,7 +23,7 @@ private class LogPanel() extends ScrollPane {
     logTextArea.text += TurnLogsWriter.initialPhaseTurnLog(log)
   }
 
-  def updateLastTurnLog(log:TurnLog): Unit = {
+  def updateLastTurnLog(log: TurnLog): Unit = {
     this.logTextArea.text = "Last turn played:\n" + TurnLogsWriter.simpleTurnLog(log)
   }
 }
@@ -47,7 +47,8 @@ private object TurnLogsWriter:
       case TurnEvent.SeeAdversaryCard(adversaryID, index) => string += s"has seen card $index of $adversaryID, "
       case TurnEvent.ReplaceOwnCardWithAdversaryCard(itsCardIndex, adversaryID, adversaryCardIndex) =>
         string += s"has changed its card $itsCardIndex with $adversaryID's $adversaryCardIndex one, "
-      case TurnEvent.CardDiscarded(card) => string += s"has discarded $card."
+      case TurnEvent.OwnCardDiscarded(card, index) => string += s"has kept card drawn and discarded $index-th card.\nThat's $card.\n"
+      case TurnEvent.CardDrawnDiscarded(card) => string += s"has discarded drawn card $card."
     }
     string
   }

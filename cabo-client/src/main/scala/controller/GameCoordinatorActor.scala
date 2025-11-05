@@ -5,7 +5,6 @@ import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import model.Suit.Spades
 import model.{Card, DuringGameTurnLog, GameParameters, Hand, InitialPhaseTurnLog, PlayerPlaying, Power, TurnEvent, TurnLog}
 import model.Game.{GameInConstruction, GameInProgress}
-import model.TurnEvent.CardDiscarded
 import utils.AppLogger
 import utils.ClientMessages as CLMsg
 import utils.ClientMessages.ClientCommand as CCommand
@@ -257,7 +256,7 @@ object GameCoordinatorActor:
                                       cardInHand: Card
                                     ): PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
     case (ctx, GCMsg.DiscardCardDrawn()) =>
-      gameData.turnLog.addEvent(TurnEvent.CardDiscarded(cardInHand))
+      gameData.turnLog.addEvent(TurnEvent.CardDrawnDiscarded(cardInHand))
       //      val newGameState = gameData.game.copy(
       //        deckStack = gameData.temporaryDeck,
       //        discardDeckStack = gameData.temporaryDiscardDeck.addTopCard(cardInHand)
@@ -281,7 +280,7 @@ object GameCoordinatorActor:
       val oldHand = gameData.getOurHand
       ctx.log.info(s"handleDiscardOwnNthCard - I discard the card with index $index")
       ctx.log.info(s"handleDiscardOwnNthCard - The card is ${oldHand.cards(index)}")
-      gameData.turnLog.addEvent(TurnEvent.CardDiscarded(oldHand.cards(index)))
+      gameData.turnLog.addEvent(TurnEvent.OwnCardDiscarded(oldHand.cards(index), index))
       val newHand = Hand(oldHand.cards.updated(index, cardInHand))
       //
       //      val gameStateAfterReplace = gameData.game.replaceHandOfPlayerWithID(gameData.playerOwnUserID, newHand)
