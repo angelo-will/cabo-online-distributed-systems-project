@@ -7,7 +7,6 @@ import scala.swing.event.ButtonClicked
 
 private class PlayerPanel(playerName: String, f: (index: Int) => Unit) extends BoxPanel(Orientation.Vertical) {
   //  border = Swing.EmptyBorder(10, 10, 10, 10)
-  peer.setBorder(BorderFactory.createLineBorder(Color.BLUE, 3))
   private val nameLabel = new Label(playerName) {
     font = new AwtFont("Arial", AwtFont.BOLD, 14)
     horizontalAlignment = Alignment.Center
@@ -34,6 +33,15 @@ private class PlayerPanel(playerName: String, f: (index: Int) => Unit) extends B
 
   def enableCardsButton(enable: Boolean): Unit = {
     seqButtonCards.foreach(b => b.enabled = enable)
+  }
+
+  def setAsPlaying(isPlaying: Boolean): Unit = {
+    if isPlaying then
+      peer.setBorder(BorderFactory.createLineBorder(Color.GREEN, 3))
+    else
+      peer.setBorder(null)
+    peer.getParent.revalidate()
+    peer.repaint()
   }
 
   contents += nameLabel

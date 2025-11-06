@@ -9,6 +9,8 @@ trait IDuringGameInterface {
   def updateLastTurnLog(turnLog: TurnLog): Unit
 
   def updateGameInfo(gameInfo: GameInProgress): Unit
+  
+  def updatePlayerWhoIsPlaying(playerID:String): Unit
 
   def showCardDrawnFromDeck(cardDrawn: Card): Unit
 

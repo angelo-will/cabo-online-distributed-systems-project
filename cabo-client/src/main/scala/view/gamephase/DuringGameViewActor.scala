@@ -99,9 +99,9 @@ class DuringGameViewActor private(
     Behaviors.receivePartial {
       handleAdversariesRevealingLog(properties)
         .orElse({
-          case (ctx, PlayerIsPlaying(player)) =>
-            ctx.log.info(s"DuringGameViewActor of player $userID handling message: ${PlayerIsPlaying(player)}")
-            //TODO: update view
+          case (ctx, StartTurnPlayer(playerID)) =>
+            ctx.log.info(s"DuringGameViewActor of player $userID handling message: ${StartTurnPlayer(playerID)}")
+            properties.userInterface.updatePlayerWhoIsPlaying(playerID)
             waitMyTurn(properties)
           case (ctx, FirstTurn()) =>
             ctx.log.info(s"DuringGameViewActor of player $userID handling message: ${FirstTurn()}")
@@ -117,6 +117,10 @@ class DuringGameViewActor private(
     Behaviors.receivePartial {
       handleUpdateLastTurnPlayed(properties)
         .orElse({
+          case (ctx, StartTurnPlayer(playerID)) =>
+            ctx.log.info(s"DuringGameViewActor of player $userID handling StartTurnPlayer with message: ${StartTurnPlayer(playerID)}")
+            properties.userInterface.updatePlayerWhoIsPlaying(playerID)
+            Behaviors.same
           case msg =>
             println(s"DuringGameViewActor of player $userID in waitMyTurn received message: $msg")
             Behaviors.same
@@ -126,6 +130,7 @@ class DuringGameViewActor private(
 
   private def myTurnBeforeDraw(properties: PropertiesAfterInitialization): Behavior[Message] = {
     properties.userInterface.startTurn()
+    properties.userInterface.updatePlayerWhoIsPlaying(userID)
     Behaviors.receivePartial {
       handleExitSelected(properties)
         .orElse(handleEndTurn(properties))

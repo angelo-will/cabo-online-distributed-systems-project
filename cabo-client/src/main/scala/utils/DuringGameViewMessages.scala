@@ -22,9 +22,11 @@ object DuringGameViewMessages {
    */
   case class FirstTurn() extends DuringGameViewCommand
   
-  case class PlayerIsPlaying(playerPlaying: PlayerPlaying) extends DuringGameViewCommand
+//  case class PlayerIsPlaying(playerPlaying: PlayerPlaying) extends DuringGameViewCommand
 
   case class LastTurnPlayed(turnLog: TurnLog, game: GameInProgress, isMyTurn: Boolean) extends DuringGameViewCommand
+
+  case class StartTurnPlayer(playerID: String) extends DuringGameViewCommand
 
   //  case class MyTurn(lastTurnPlayed: LastTurnPlayed) extends DuringGameViewCommand
 

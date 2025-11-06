@@ -8,7 +8,7 @@ import scala.swing.*
 import scala.swing.event.*
 import scala.swing.GridBagPanel.Fill
 import java.awt.{Color, GridBagLayout, Font as AwtFont}
-import javax.swing.{BorderFactory, UIManager}
+import javax.swing.{BorderFactory, SwingUtilities, UIManager}
 
 class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: GameInProgress, userID: String) extends GridBagPanel with IDuringGameInterface {
 
@@ -212,7 +212,7 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
 
   // TIMER PANEL - START
   val timerPanel = new TimerPanel(
-    gameInProgress.gameParameters.maxTimeRound, 
+    gameInProgress.gameParameters.maxTimeRound,
     () => {
       this.disableButExit()
       this.drawnCardButton.text = "Empty"
@@ -512,10 +512,17 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
 
   override def lostYourConnection(): Unit = ???
 
+  override def updatePlayerWhoIsPlaying(playerID: String): Unit =
+    Swing.onEDT {
+      adversariesPanelMap.foreach((id, panel) => {
+        println(s"$userID - DuringGamePanel - i'm setting as playing ${id==playerID} of player $id")
+        panel.setAsPlaying(id == playerID)
+      })
+    }
 
   override def startTurn(): Unit =
     Swing.onEDT {
-      print("DuringGamePanel - startTurn")
+      println("DuringGamePanel - startTurn")
       this.disableAll()
       this.exitButton.enabled = true
       this.deckPanel.deckButton.enabled = true

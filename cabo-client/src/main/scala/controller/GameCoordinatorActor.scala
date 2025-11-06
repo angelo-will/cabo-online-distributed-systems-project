@@ -146,7 +146,8 @@ object GameCoordinatorActor:
               myTurnBeforeDraw(gameData.copy(turnLog = new DuringGameTurnLog(gameData.playerOwnUserID, 1)))
             else
               //TODO: insert player who play first
-              gameData.viewReference ! DGVMsg.PlayerIsPlaying(null)
+              val firstPlayer = gameData.game.players.find(_.rank == 1).get
+              gameData.viewReference ! DGVMsg.StartTurnPlayer(firstPlayer.userID)
               notMyTurn(gameData.copy(turnLog = new DuringGameTurnLog(gameData.playerOwnUserID, 1)))
         })
     }
@@ -217,9 +218,9 @@ object GameCoordinatorActor:
   private def notMyTurn(gameData: GameData): Behavior[Message] = Behaviors.receivePartial {
     log.log(s"notMyTurn called")
     handleSendGameStatus(gameData, notMyTurn)
-      .orElse({ 
+      .orElse({
         case (_, GCMsg.TurnTimeEnded()) => Behaviors.same
-        case (_, GCMsg.EndTurn()) => Behaviors.same  
+        case (_, GCMsg.EndTurn()) => Behaviors.same
       })
       .orElse(handleNewTurn(gameData))
   }
@@ -312,13 +313,17 @@ object GameCoordinatorActor:
       val gameDataTempUpdated = gameData.copy(temporaryGame = game)
       val actualTurn = game.currentRound + 1
       val actualGame = game.copy(currentRound = actualTurn)
-      val x = gameDataTempUpdated.copy(temporaryGame = actualGame, turnLog = new DuringGameTurnLog(gameData.playerOwnUserID, actualTurn))
-      val newGameData = x.syncAllTemporaryDecks
-      if isMyTurn(newGameData, actualGame) then
+      val newGameData = gameDataTempUpdated.copy(
+        game = actualGame,
+        temporaryGame = actualGame,
+        turnLog = new DuringGameTurnLog(gameData.playerOwnUserID, actualTurn))
+      val playerIDHaveToPlay = getPlayerIDWhoHasToPlay(actualGame)
+      if playerIDHaveToPlay == gameData.playerOwnUserID then
         newGameData.viewReference ! DGVMsg.LastTurnPlayed(turnLog, actualGame, true)
         myTurnBeforeDraw(newGameData)
       else
         newGameData.viewReference ! DGVMsg.LastTurnPlayed(turnLog, actualGame, false)
+        newGameData.viewReference ! DGVMsg.StartTurnPlayer(playerIDHaveToPlay)
         notMyTurn(newGameData)
 
   // POWERS implementation
@@ -386,10 +391,18 @@ object GameCoordinatorActor:
       notMyTurn(newGameData)
 
   // SUPPORT FUNCTIONS
-  private def isMyTurn(gameData: GameData, actualGame: GameInProgress): Boolean = {
+//  private def isMyTurn(gameData: GameData, actualGame: GameInProgress): Boolean = {
+//    val rankWhoPlay = ((actualGame.currentRound - 1) % actualGame.players.size) + 1
+//    print(s"isMyTurn called, rankWhoPlay = $rankWhoPlay, gameData = $gameData, actualGame = $actualGame")
+//    gameData.playerOwnRank == rankWhoPlay
+//  }
+  
+  private def getPlayerIDWhoHasToPlay(actualGame: GameInProgress): String = {
     val rankWhoPlay = ((actualGame.currentRound - 1) % actualGame.players.size) + 1
-    print(s"isMyTurn called, rankWhoPlay = $rankWhoPlay, gameData = $gameData, actualGame = $actualGame")
-    gameData.playerOwnRank == rankWhoPlay
+    actualGame.players.find(_.rank == rankWhoPlay) match {
+      case Some(player) => player.userID
+      case None => throw new IllegalArgumentException(s"No player found with rank $rankWhoPlay in the game players")
+    }
   }
 
   private def startTurnTimer(value: ActorContext[Message], data: GameCoordinatorActor.GameData) = {
