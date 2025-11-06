@@ -45,4 +45,6 @@ object GameCoordinatorMessage:
   
   case class NewTurn(game: Game.GameInProgress, turnLog: TurnLog) extends GameCoordinatorSyncMessage
 
-  case class SendGameStatus(toWhoSend: ActorRef[Message]) extends GameCoordinatorMessage
+  case class SendGameStatus(toWhoSend: ActorRef[Message]) extends GameCoordinatorSyncMessage
+  
+  case class TurnTimeEnded() extends GameCoordinatorSyncMessage

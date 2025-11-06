@@ -211,7 +211,12 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
   addEmptyColumn(6, 50)
 
   // TIMER PANEL - START
-  val timerPanel = new TimerPanel(() => this.disableButExit())
+  val timerPanel = new TimerPanel(
+    gameInProgress.gameParameters.maxTimeRound, 
+    () => {
+      this.disableButExit()
+      this.drawnCardButton.text = "Empty"
+    })
   c.gridy = TIMER_PANEL_ROW
   c.gridx = TIMER_PANEL_COLUMN
   layout(timerPanel) = c
@@ -510,10 +515,12 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
 
   override def startTurn(): Unit =
     Swing.onEDT {
+      print("DuringGamePanel - startTurn")
       this.disableAll()
       this.exitButton.enabled = true
       this.deckPanel.deckButton.enabled = true
       this.discardPanel.deckButton.enabled = true
+      this.timerPanel.resetTimer()
       this.timerPanel.startTimer()
     }
 

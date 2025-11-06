@@ -17,7 +17,8 @@ object TurnEvent:
       new JsonSubTypes.Type(value = classOf[TurnEvent.SeeAdversaryCard], name = "seeAdversaryCard"),
       new JsonSubTypes.Type(value = classOf[TurnEvent.ReplaceOwnCardWithAdversaryCard], name = "replaceOwnCard"),
       new JsonSubTypes.Type(value = classOf[TurnEvent.CardDrawnDiscarded], name = "cardDrawnDiscarded"),
-      new JsonSubTypes.Type(value = classOf[TurnEvent.OwnCardDiscarded], name = "ownCardDiscarded")
+      new JsonSubTypes.Type(value = classOf[TurnEvent.OwnCardDiscarded], name = "ownCardDiscarded"),
+      new JsonSubTypes.Type(value = classOf[TurnEvent.JumpTurnForTimerEnded], name = "jumpTurnForTimerEnded"),
     )
   )
   sealed trait TurnEvent extends Message
@@ -35,6 +36,8 @@ object TurnEvent:
   case class CardDrawnDiscarded(card: Card) extends TurnEvent
   
   case class OwnCardDiscarded(card: Card, index: Int) extends TurnEvent
+
+  case class JumpTurnForTimerEnded() extends TurnEvent
 
 object PhaseEvents:
   case class PhaseEvents(phase: TurnPhase, events: List[TurnEvent]) extends Message
@@ -108,6 +111,8 @@ class DuringGameTurnLog(val ofUserID: String, val round: Int) extends TurnLog wi
     case (AwaitDiscardCard(), CardDrawnDiscarded(card)) =>
       this.passToNewPhaseWithEvent(EndedTurn(), event)
     case (AwaitDiscardCard(), OwnCardDiscarded(card, index)) =>
+      this.passToNewPhaseWithEvent(EndedTurn(), event)
+    case (_, JumpTurnForTimerEnded()) =>
       this.passToNewPhaseWithEvent(EndedTurn(), event)
     case _ =>
       throw new InvalidTurnEventException(event)

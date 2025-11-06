@@ -53,7 +53,7 @@ class InitialPhaseTurnLogSpec extends AnyWordSpec
         an[InvalidTurnEventException] must be thrownBy this.initialPhaseLog.addEvent(DrawCardFromDiscardStack(genericCard02))
         an[InvalidTurnEventException] must be thrownBy this.initialPhaseLog.addEvent(SeeAdversaryCard("player2", 0))
         an[InvalidTurnEventException] must be thrownBy this.initialPhaseLog.addEvent(ReplaceOwnCardWithAdversaryCard(0, "player2", 0))
-        an[InvalidTurnEventException] must be thrownBy this.initialPhaseLog.addEvent(CardDiscarded(genericCard01))
+        an[InvalidTurnEventException] must be thrownBy this.initialPhaseLog.addEvent(OwnCardDiscarded(genericCard01,0))
       }
     }
   }  

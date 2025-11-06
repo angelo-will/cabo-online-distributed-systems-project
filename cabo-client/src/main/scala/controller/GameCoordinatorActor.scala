@@ -10,6 +10,7 @@ import utils.ClientMessages as CLMsg
 import utils.ClientMessages.ClientCommand as CCommand
 import utils.DuringGameViewMessages as DGVMsg
 import utils.GameCoordinatorMessage as GCMsg
+import scala.concurrent.duration._
 //import utils.InitialViewMessages.ViewCommand
 
 object GameCoordinatorActor:
@@ -30,8 +31,6 @@ object GameCoordinatorActor:
                                game: GameInProgress,
                                temporaryGame: GameInProgress,
                                turnLog: TurnLog,
-                               //                               temporaryDeck: CardStack,
-                               //                               temporaryDiscardDeck: CardStack
                              ):
     def getOurHand: Hand = this.getSelfPlayer.hand
 
@@ -42,8 +41,6 @@ object GameCoordinatorActor:
     def getPlayerWithID(playerID: String): PlayerPlaying = this.game.getPlayerWithID(playerID)
 
     def syncAllTemporaryDecks: GameData =
-      //      val newGameState = game.copy(deckStack = temporaryDeck, discardDeckStack = temporaryDiscardDeck)
-      //      this.copy(game = newGameState)
       this.copy(game = temporaryGame)
 
     override def toString: String =
@@ -51,8 +48,6 @@ object GameCoordinatorActor:
         "whoToSendResponse=" + viewReference + "\n" +
         "playerRank=" + playerOwnRank + "\n" +
         "game=" + game + "\n" +
-        //        "temporaryDeck=" + temporaryDeck + "\n" +
-        //        "temporaryDiscardDeck=" + temporaryDiscardDeck + "\n"
         "temporaryGame=" + temporaryGame + "\n" +
         "turnLog=" + turnLog + "\n"
 
@@ -83,8 +78,6 @@ object GameCoordinatorActor:
       game = gameInProgress,
       temporaryGame = gameInProgress,
       new InitialPhaseTurnLog(userId),
-      //      gameInProgress.deckStack,
-      //      gameInProgress.discardDeckStack
     )
 
     waitingStart(gameData)
@@ -161,11 +154,20 @@ object GameCoordinatorActor:
 
   // BEFORE DRAW
 
-  private def myTurnBeforeDraw(gameData: GameData): Behavior[Message] = Behaviors.receivePartial {
-    handleDrawCardFromDeck(gameData)
-      .orElse(handleDrawCardFromDiscardStack(gameData))
-      //.orElse(handleShowOwnNthCard(gameData, myTurnBeforeDraw))
-      .orElse(handleSendGameStatus(gameData, myTurnBeforeDraw))
+  private def myTurnBeforeDraw(gameData: GameData): Behavior[Message] = Behaviors.setup { ctx =>
+    Behaviors.withTimers { timers =>
+      // todo: handle offset seconds, gamecoordinator's timer should be longer than view's timer
+      ctx.log.info("Setting timer")
+      val timeForTurn = (gameData.game.gameParameters.maxTimeRound + 5).seconds
+      timers.startSingleTimer(GCMsg.TurnTimeEnded(), timeForTurn)
+      Behaviors.receivePartial {
+        handleDrawCardFromDeck(gameData)
+          .orElse(handleDrawCardFromDiscardStack(gameData))
+          //.orElse(handleShowOwnNthCard(gameData, myTurnBeforeDraw))
+          .orElse(handleTurnTimeEnded(gameData))
+          .orElse(handleSendGameStatus(gameData, myTurnBeforeDraw))
+      }
+    }
   }
 
   // AFTER DRAW
@@ -174,6 +176,7 @@ object GameCoordinatorActor:
     handleDiscardCardDrawn(gameData, cardInHand)
       //.orElse(handleShowOwnNthCard(gameData, myTurnAfterDrawNoPower(_, cardInHand)))
       .orElse(handleDiscardOwnNthCard(gameData, cardInHand))
+      .orElse(handleTurnTimeEnded(gameData))
       .orElse(handleSendGameStatus(gameData, myTurnAfterDrawNoPower(_, cardInHand)))
   }
 
@@ -182,6 +185,7 @@ object GameCoordinatorActor:
       case Power.SeeYourCard() => handleShowOwnNthCard(gameData, myTurnAfterDrawNoPower(_, cardInHand))
       case Power.SeeYourOpponentCard() => handleShowAdversaryNthCard(gameData, myTurnAfterDrawNoPower(_, cardInHand))
       case Power.ChangeOneOfYourCardWithOpponent() => handleChangeAdversaryCardWithOwnNthCard(gameData, myTurnAfterDrawNoPower(_, cardInHand)))
+      .orElse(handleTurnTimeEnded(gameData))
       .orElse(handleSendGameStatus(gameData, myTurnAfterDrawWithPower(_, cardInHand)))
   }
 
@@ -190,6 +194,7 @@ object GameCoordinatorActor:
     //       allo scadere del tempo una carta a caso verrà sostituita.
     //       Implementare questa cosa.
     handleDiscardOwnNthCard(gameData, cardInHand)
+      .orElse(handleTurnTimeEnded(gameData))
       .orElse(handleSendGameStatus(gameData, myTurnAfterDrawFromDiscard(_, cardInHand)))
   }
 
@@ -198,6 +203,7 @@ object GameCoordinatorActor:
   private def myTurnAfterDiscard(gameData: GameData): Behavior[Message] = Behaviors.receivePartial {
     handleSendGameStatus(gameData, myTurnAfterDiscard)
       //      .orElse(handleShowOwnNthCard(gameData, myTurnAfterDiscard))
+      .orElse(handleTurnTimeEnded(gameData))
       .orElse({ case (ctx, GCMsg.EndTurn()) =>
         ctx.log.info(s"myTurnAfterDiscard, gameData = $gameData")
         val newGameData = gameData.syncAllTemporaryDecks
@@ -211,6 +217,10 @@ object GameCoordinatorActor:
   private def notMyTurn(gameData: GameData): Behavior[Message] = Behaviors.receivePartial {
     log.log(s"notMyTurn called")
     handleSendGameStatus(gameData, notMyTurn)
+      .orElse({ 
+        case (_, GCMsg.TurnTimeEnded()) => Behaviors.same
+        case (_, GCMsg.EndTurn()) => Behaviors.same  
+      })
       .orElse(handleNewTurn(gameData))
   }
 
@@ -226,11 +236,6 @@ object GameCoordinatorActor:
       ctx.log.info(s"I draw $topCard from deck")
       gameData.turnLog.addEvent(TurnEvent.DrawCardFromDeck(topCard))
       gameData.viewReference ! DGVMsg.CardDrawn(topCard)
-      //
-      //      if topCard.power != Power.NoPower() then
-      //        myTurnAfterDrawWithPower(gameData.copy(temporaryDeck = newDeck), cardInHand = topCard)
-      //      else
-      //        myTurnAfterDrawNoPower(gameData.copy(temporaryDeck = newDeck), cardInHand = topCard)
       val newTempGame = gameData.temporaryGame.copy(deckStack = newDeck)
       if topCard.power != Power.NoPower() then
         myTurnAfterDrawWithPower(gameData.copy(temporaryGame = newTempGame), cardInHand = topCard)
@@ -257,10 +262,6 @@ object GameCoordinatorActor:
                                     ): PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
     case (ctx, GCMsg.DiscardCardDrawn()) =>
       gameData.turnLog.addEvent(TurnEvent.CardDrawnDiscarded(cardInHand))
-      //      val newGameState = gameData.game.copy(
-      //        deckStack = gameData.temporaryDeck,
-      //        discardDeckStack = gameData.temporaryDiscardDeck.addTopCard(cardInHand)
-      //      )
       val newTemporaryGame = gameData.temporaryGame.copy(
         discardDeckStack = gameData.temporaryGame.discardDeckStack.addTopCard(cardInHand)
       )
@@ -282,8 +283,6 @@ object GameCoordinatorActor:
       ctx.log.info(s"handleDiscardOwnNthCard - The card is ${oldHand.cards(index)}")
       gameData.turnLog.addEvent(TurnEvent.OwnCardDiscarded(oldHand.cards(index), index))
       val newHand = Hand(oldHand.cards.updated(index, cardInHand))
-      //
-      //      val gameStateAfterReplace = gameData.game.replaceHandOfPlayerWithID(gameData.playerOwnUserID, newHand)
       val gameStateAfterReplace = gameData.temporaryGame.replaceHandOfPlayerWithID(gameData.playerOwnUserID, newHand)
 
       val newTempGameState = gameStateAfterReplace.copy(
@@ -374,10 +373,35 @@ object GameCoordinatorActor:
 
   // END POWERS implementation
 
+  private def handleTurnTimeEnded(
+                                   gameData: GameData
+                                 ): PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
+    case (ctx, GCMsg.TurnTimeEnded()) =>
+      ctx.log.info(s"Turn time ended for player ${gameData.playerOwnUserID}, initializing game at before draw state")
+      val newTurnLogJumping = DuringGameTurnLog(gameData.turnLog.playerName, gameData.turnLog.round)
+      newTurnLogJumping.addEvent(TurnEvent.JumpTurnForTimerEnded())
+      val newGameData = gameData.copy(temporaryGame = gameData.game, turnLog = newTurnLogJumping)
+      gameData.viewReference ! DGVMsg.EndTurn()
+      gameData.clientReference ! CLMsg.TurnEnded(newGameData.game, newGameData.turnLog)
+      notMyTurn(newGameData)
+
   // SUPPORT FUNCTIONS
   private def isMyTurn(gameData: GameData, actualGame: GameInProgress): Boolean = {
     val rankWhoPlay = ((actualGame.currentRound - 1) % actualGame.players.size) + 1
     print(s"isMyTurn called, rankWhoPlay = $rankWhoPlay, gameData = $gameData, actualGame = $actualGame")
     gameData.playerOwnRank == rankWhoPlay
+  }
+
+  private def startTurnTimer(value: ActorContext[Message], data: GameCoordinatorActor.GameData) = {
+    Behaviors.withTimers { timers =>
+      timers.startTimerAtFixedRate(
+        GCMsg.EndTurn(),
+        scala.concurrent.duration.FiniteDuration(
+          data.game.gameParameters.maxTimeRound,
+          scala.concurrent.duration.SECONDS
+        )
+      )
+      Behaviors.same
+    }
   }
       

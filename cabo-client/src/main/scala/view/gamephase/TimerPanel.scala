@@ -4,9 +4,9 @@ import java.awt.event.{ActionEvent, ActionListener}
 import javax.swing.Timer
 import scala.swing.{Alignment, BoxPanel, Label, Orientation}
 
-class TimerPanel(endTimerBehavior: () => Unit) extends BoxPanel(Orientation.Vertical) {
+class TimerPanel(time: Int, endTimerBehavior: () => Unit) extends BoxPanel(Orientation.Vertical) {
   private val interval = 1000
-  private val turnTime = 20
+  private val turnTime = time
   private var counter = turnTime
   private val task: ActionListener = (e: ActionEvent) =>
     if counter >= 0 then {
