@@ -45,7 +45,7 @@ class DuringGameViewActor private(
   private var isAdversaryCardRequested: Boolean = false
   private var isOwnCardRequested: Boolean = false
 
-  private var canDiscardDrawnCard: Boolean = false
+  private var hasDrawnFromDeck: Boolean = false
 
   //  private var cardsSeenQuantity = 0
 
@@ -138,12 +138,12 @@ class DuringGameViewActor private(
           case (ctx, DeckSelected()) =>
             println(s"DuringGameViewActor of player $userID handling DeckSelected with message: ${DeckSelected()}")
             properties.gameCoordinatorRef ! GCMsg.DrawCardFromDeck()
-            canDiscardDrawnCard = true
+            hasDrawnFromDeck = true
             myTurnWaitDrawnCard(properties)
           case (ctx, DiscardStackSelected()) =>
             println(s"DuringGameViewActor of player $userID handling DiscardStackSelected with message: ${DiscardStackSelected()}")
             properties.gameCoordinatorRef ! GCMsg.DrawCardFromDiscardStack()
-            canDiscardDrawnCard = false
+            hasDrawnFromDeck = false
             myTurnWaitDrawnCard(properties)
         })
     }
@@ -156,13 +156,17 @@ class DuringGameViewActor private(
         .orElse({
           case (ctx, CardDrawn(card)) =>
             ctx.log.info(s"DuringGameViewActor of player $userID handling CardDrawn with message: ${CardDrawn(card)}")
-            properties.userInterface.afterDrawPhase(canDiscardDrawnCard)
-            properties.userInterface.showCardDrawnFromDeck(card)
-            card.power match
-              case Power.SeeYourCard() => myTurnPowerSeeMyCard(properties)
-              case Power.SeeYourOpponentCard() => myTurnPowerSeeOpponentCard(properties)
-              case Power.ChangeOneOfYourCardWithOpponent() => myTurnPowerExchange(properties)
-              case _ => myTurnAfterDraw(properties)
+            properties.userInterface.afterDrawPhase(hasDrawnFromDeck)
+            if hasDrawnFromDeck then
+              properties.userInterface.showCardDrawnFromDeck(card)
+              card.power match
+                case Power.SeeYourCard() => myTurnPowerSeeMyCard(properties)
+                case Power.SeeYourOpponentCard() => myTurnPowerSeeOpponentCard(properties)
+                case Power.ChangeOneOfYourCardWithOpponent() => myTurnPowerExchange(properties)
+                case _ => myTurnAfterDraw(properties)
+            else
+              properties.userInterface.showCardDrawnFromDiscards(card)
+              myTurnAfterDraw(properties)
         })
     }
   }
@@ -170,12 +174,12 @@ class DuringGameViewActor private(
   private def myTurnAfterDraw(
                                properties: PropertiesAfterInitialization
                              ): Behavior[Message] = {
-    properties.userInterface.afterDrawPhase(canDiscardDrawnCard)
+    properties.userInterface.afterDrawPhase(hasDrawnFromDeck)
     Behaviors.receivePartial {
       handleNewTopDiscardCard(properties)
         .orElse(handleEndTurn(properties))
         .orElse({
-          case (ctx, DiscardCardDrawn()) if canDiscardDrawnCard =>
+          case (ctx, DiscardCardDrawn()) if hasDrawnFromDeck =>
             println(s"DuringGameViewActor of player $userID in myTurnAfterDraw received DiscardCardDrawn")
             properties.gameCoordinatorRef ! GCMsg.DiscardCardDrawn()
             properties.userInterface.afterDiscarded()
@@ -282,7 +286,7 @@ class DuringGameViewActor private(
   }
 
   private def myTurnAfterDiscard(properties: PropertiesAfterInitialization): Behavior[Message] = {
-    canDiscardDrawnCard = false
+    hasDrawnFromDeck = false
     Behaviors.receivePartial {
       handleNewTopDiscardCard(properties)
         .orElse(handleEndTurn(properties))

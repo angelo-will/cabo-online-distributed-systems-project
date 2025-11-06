@@ -418,10 +418,19 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
     Swing.onEDT {
       println(s"DuringGamePanel - showCardDrawnFromDeck $cardDrawn")
       this.drawnCardButton.text = cardDrawn.toString
-      this.myTurnActionsLog.text = textInfoCardDrawn(cardDrawn)
+      this.myTurnActionsLog.text = textInfoCardDrawnFromDeck(cardDrawn)
     }
   }
 
+  override def showCardDrawnFromDiscards(cardDrawn: Card): Unit = {
+    Swing.onEDT {
+      println(s"DuringGamePanel - showCardDrawnFromDiscards $cardDrawn")
+      this.drawnCardButton.text = cardDrawn.toString
+      this.myTurnActionsLog.text = textInfoCardDrawnFromDiscards(cardDrawn)
+    }
+  }
+  
+  
   override def emptyDiscardStack(): Unit = {
     Swing.onEDT {
       println(s"DuringGamePanel - emptyDiscardStack")
@@ -436,7 +445,6 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
     }
   }
 
-  override def showCardDrawnFromDiscards(cardDrawn: Card): Unit = ???
 
   override def updateDiscardsTopCard(card: Card): Unit = {
     Swing.onEDT {
@@ -574,7 +582,7 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
     }
   }
 
-  private def textInfoCardDrawn(card: Card): String = {
+  private def textInfoCardDrawnFromDeck(card: Card): String = {
     s"You have drawn the card: $card."
       + {
       card.power match
@@ -583,5 +591,9 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
         case Power.ChangeOneOfYourCardWithOpponent() => "\nThis card allow you to swap one of your card with one of one adversary."
         case Power.NoPower() => ""
     }
+  }
+  
+  private def textInfoCardDrawnFromDiscards(card:Card):String = {
+    s"You have drawn the card: $card from discard pile."
   }
 }
