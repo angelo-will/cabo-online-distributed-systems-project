@@ -1,6 +1,7 @@
 package view.gamephase
 
 import model.Game.GameInProgress
+import model.TurnEvent.CaboCalled
 import model.{Card, PlayerPlaying, Power, TurnLog}
 import view.lobbyphase.ViewListener.IDuringGameViewListener
 
@@ -42,7 +43,9 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
   private val EMPTY_ROW_UNDER_DRAWN_PANEL = DRAWN_CARD_PANEL_ROW + 1
   private val EMPTY_ROW_UNDER_DRAWN_PANEL_ROWS_QUANTITY = 1
 
-  private val MY_TURN_LOG_ROW = EMPTY_ROW_UNDER_DRAWN_PANEL + EMPTY_ROW_UNDER_DRAWN_PANEL_ROWS_QUANTITY + 1
+  private val WHO_CALLED_CABO_ROW = EMPTY_ROW_UNDER_DRAWN_PANEL + EMPTY_ROW_UNDER_DRAWN_PANEL_ROWS_QUANTITY + 1
+  
+  private val MY_TURN_LOG_ROW = WHO_CALLED_CABO_ROW + 1
   private val MY_TURN_LOG_COLUMN = GAME_INFORMATION_PANEL_COLUMN
   private val MY_TURN_LOG_ROWS_QUANTITY = 2
   private val MY_TURN_LOG_COLUMNS_QUANTITY = GAME_INFORMATION_PANEL_COLUMNS_QUANTITY
@@ -77,6 +80,8 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
   // POSITIONIG ELEMENTS - END
 
   peer.setBorder(BorderFactory.createLineBorder(Color.CYAN, 3))
+  
+  private var caboHasCalled = false
 
   val c = new Constraints
 
@@ -172,6 +177,20 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
   layout(drawnCardPanel) = c
   resetConstraintsValues()
   // CREAZIONE CARTA PESCATA - FINE
+  
+  // WHO CALLED CABO PANEL - START
+  private val whoCalledCaboLabel = new Label("Nobody has called Cabo.") {
+    font = new AwtFont("Arial", AwtFont.BOLD, 12)
+    horizontalAlignment = Alignment.Center
+  }
+  c.gridy = WHO_CALLED_CABO_ROW
+  c.gridx = GAME_INFORMATION_PANEL_COLUMN
+  c.gridwidth = GAME_INFORMATION_PANEL_COLUMNS_QUANTITY
+  c.fill = Fill.Horizontal
+  layout(whoCalledCaboLabel) = c
+  resetConstraintsValues()
+  // WHO CALLED CABO PANEL - END
+  
 
   // PLAYER ACTIONS LOG PANEL - START
   private val myTurnActionsLog = new TextArea {
@@ -228,7 +247,7 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
   c.gridy = LOG_PANEL_ROW
   c.gridx = LOG_PANEL_COLUMN
   c.gridheight = LOG_PANEL_ROWS_QUANTITY
-  c.fill = Fill.Vertical
+  c.fill = Fill.Both
   layout(logPanel) = c
 
   resetConstraintsValues()
@@ -258,7 +277,11 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
     font = new AwtFont("Arial", AwtFont.BOLD, 12)
     reactions += {
       case ButtonClicked(_) =>
+        viewListener.callCabo()
         println("Call CABO button clicked")
+        whoCalledCaboLabel.text = "You have called CABO!"
+        timerPanel.stopTimer()
+        timerPanel.resetTimer()
     }
   }
   c.gridy = CALL_CABO_BUTTON_ROW
@@ -403,6 +426,9 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
   override def updateLastTurnLog(turnLog: TurnLog): Unit = {
     Swing.onEDT {
       println(s"DuringGamePanel - updateLastTurnLog: $turnLog")
+      if turnLog.events.contains(CaboCalled()) && !this.caboHasCalled then
+        whoCalledCaboLabel.text = s"${turnLog.playerName} has called CABO!"
+        this.caboHasCalled = true
       logPanel.updateLastTurnLog(turnLog)
     }
   }
@@ -429,8 +455,8 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
       this.myTurnActionsLog.text = textInfoCardDrawnFromDiscards(cardDrawn)
     }
   }
-  
-  
+
+
   override def emptyDiscardStack(): Unit = {
     Swing.onEDT {
       println(s"DuringGamePanel - emptyDiscardStack")
@@ -523,7 +549,7 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
   override def updatePlayerWhoIsPlaying(playerID: String): Unit =
     Swing.onEDT {
       adversariesPanelMap.foreach((id, panel) => {
-        println(s"$userID - DuringGamePanel - i'm setting as playing ${id==playerID} of player $id")
+        println(s"$userID - DuringGamePanel - i'm setting as playing ${id == playerID} of player $id")
         panel.setAsPlaying(id == playerID)
       })
     }
@@ -577,10 +603,19 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
       this.disableAll()
       this.exitButton.enabled = true
       this.endTurnButton.enabled = true
-      this.callCaboButton.enabled = true
+      if !this.caboHasCalled then this.callCaboButton.enabled = true
       this.emptyDrawnCardArea()
     }
   }
+  
+  override def gameEndedWithData(gameInProgress: GameInProgress): Unit = {
+    Swing.onEDT {
+      println(s"DuringGamePanel - gameEndedWithData: $gameInProgress")
+      val endingResultsDialog = new DisplayEndingResultsDialog(gameInProgress)
+      endingResultsDialog.open()
+    }
+  }
+
 
   private def textInfoCardDrawnFromDeck(card: Card): String = {
     s"You have drawn the card: $card."
@@ -592,8 +627,9 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
         case Power.NoPower() => ""
     }
   }
-  
-  private def textInfoCardDrawnFromDiscards(card:Card):String = {
+
+  private def textInfoCardDrawnFromDiscards(card: Card): String = {
     s"You have drawn the card: $card from discard pile."
   }
+
 }

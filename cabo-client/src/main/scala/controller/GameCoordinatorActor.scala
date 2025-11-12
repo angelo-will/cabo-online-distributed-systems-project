@@ -2,16 +2,14 @@ package controller
 
 import akka.actor.typed.Behavior
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
-import model.Suit.Spades
 import model.{Card, DuringGameTurnLog, GameParameters, Hand, InitialPhaseTurnLog, PlayerPlaying, Power, TurnEvent, TurnLog}
-import model.Game.{GameInConstruction, GameInProgress}
+import model.Game.{CaboState, GameInConstruction, GameInProgress}
 import utils.AppLogger
 import utils.ClientMessages as CLMsg
 import utils.ClientMessages.ClientCommand as CCommand
 import utils.DuringGameViewMessages as DGVMsg
 import utils.GameCoordinatorMessage as GCMsg
-import scala.concurrent.duration._
-//import utils.InitialViewMessages.ViewCommand
+import scala.concurrent.duration.*
 
 object GameCoordinatorActor:
 
@@ -203,13 +201,23 @@ object GameCoordinatorActor:
 
   private def myTurnAfterDiscard(gameData: GameData): Behavior[Message] = Behaviors.receivePartial {
     handleSendGameStatus(gameData, myTurnAfterDiscard)
-      //      .orElse(handleShowOwnNthCard(gameData, myTurnAfterDiscard))
       .orElse(handleTurnTimeEnded(gameData))
-      .orElse({ case (ctx, GCMsg.EndTurn()) =>
-        ctx.log.info(s"myTurnAfterDiscard, gameData = $gameData")
-        val newGameData = gameData.syncAllTemporaryDecks
-        gameData.clientReference ! CLMsg.TurnEnded(newGameData.game, gameData.turnLog)
-        notMyTurn(newGameData)
+      .orElse({
+        case (ctx, GCMsg.EndTurn()) =>
+          ctx.log.info(s"myTurnAfterDiscard, gameData = $gameData")
+          gameData.turnLog.addEvent(TurnEvent.EndTurn())
+          val newGameData = gameData.syncAllTemporaryDecks
+          gameData.clientReference ! CLMsg.TurnEnded(newGameData.game, gameData.turnLog)
+          notMyTurn(newGameData)
+        case (ctx, GCMsg.CallCabo()) =>
+          gameData.turnLog.addEvent(TurnEvent.CaboCalled())
+          ctx.log.info(s"myTurnAfterDiscard, player ${gameData.playerOwnUserID} called CABO, gameData = $gameData")
+          val tempGame = gameData.temporaryGame.copy(caboState = Some(CaboState(gameData.getSelfPlayer)))
+          ctx.log.info(s"myTurnAfterDiscard, player ${gameData.playerOwnUserID} - CALLED CABOOOOOOOOOOOOOOO - TEMPGAME = $tempGame")
+          val newGameData = gameData.copy(temporaryGame = tempGame).syncAllTemporaryDecks
+          ctx.log.info(s"myTurnAfterDiscard, player ${gameData.playerOwnUserID} - NEWGAMEDATA = $newGameData")
+          gameData.clientReference ! CLMsg.TurnEnded(newGameData.game, gameData.turnLog)
+          notMyTurn(newGameData)
       })
   }
 
@@ -224,6 +232,15 @@ object GameCoordinatorActor:
       })
       .orElse(handleNewTurn(gameData))
   }
+
+  //
+  private def gameEnded(gameData: GameData): Behavior[Message] =
+    log.log(s"gameEnded called")
+    Behaviors.receivePartial {
+      case (ctx, msg) =>
+        log.log("gameEnded - Received $msg")
+        Behaviors.same
+    }
 
   // END of Behaviors - states
 
@@ -318,13 +335,33 @@ object GameCoordinatorActor:
         temporaryGame = actualGame,
         turnLog = new DuringGameTurnLog(gameData.playerOwnUserID, actualTurn))
       val playerIDHaveToPlay = getPlayerIDWhoHasToPlay(actualGame)
-      if playerIDHaveToPlay == gameData.playerOwnUserID then
-        newGameData.viewReference ! DGVMsg.LastTurnPlayed(turnLog, actualGame, true)
-        myTurnBeforeDraw(newGameData)
-      else
-        newGameData.viewReference ! DGVMsg.LastTurnPlayed(turnLog, actualGame, false)
-        newGameData.viewReference ! DGVMsg.StartTurnPlayer(playerIDHaveToPlay)
-        notMyTurn(newGameData)
+
+      val isGameEnded = newGameData.game.caboState.isDefined && playerIDHaveToPlay == newGameData.game.caboState.get.whoCalledCabo.userID
+      val isMyTurnNext = playerIDHaveToPlay == gameData.playerOwnUserID
+
+      (isGameEnded, isMyTurnNext) match
+        case (true, _) =>
+          newGameData.viewReference ! DGVMsg.LastTurnPlayed(turnLog, actualGame, false)
+          transitionToShowingResults(newGameData, turnLog)
+        case (_, true) =>
+          newGameData.viewReference ! DGVMsg.LastTurnPlayed(turnLog, actualGame, true)
+          myTurnBeforeDraw(newGameData)
+        case _ =>
+          newGameData.viewReference ! DGVMsg.LastTurnPlayed(turnLog, actualGame, false)
+          newGameData.viewReference ! DGVMsg.StartTurnPlayer(playerIDHaveToPlay)
+          notMyTurn(newGameData)
+
+  //      if playerIDHaveToPlay == gameData.playerOwnUserID then
+  //
+  //        newGameData.viewReference ! DGVMsg.LastTurnPlayed(turnLog, actualGame, true)
+  //        myTurnBeforeDraw(newGameData)
+  //      else if newGameData.game.caboState.isDefined && playerIDHaveToPlay == newGameData.game.caboState.get.whoCalledCabo.userID then
+  //        // if cabo caller should start new turn end the game instead.
+  //        transitionToShowingResults(newGameData, turnLog)
+  //      else
+  //        newGameData.viewReference ! DGVMsg.LastTurnPlayed(turnLog, actualGame, false)
+  //        newGameData.viewReference ! DGVMsg.StartTurnPlayer(playerIDHaveToPlay)
+  //        notMyTurn(newGameData)
 
   // POWERS implementation
 
@@ -390,13 +427,21 @@ object GameCoordinatorActor:
       gameData.clientReference ! CLMsg.TurnEnded(newGameData.game, newGameData.turnLog)
       notMyTurn(newGameData)
 
+  private def transitionToShowingResults(gameData: GameData, lastTurnLog: TurnLog): Behavior[Message] = {
+    log.log(s"transitionToShowingResults called, gameData = $gameData")
+    val finalGameState = gameData.temporaryGame
+    gameData.viewReference ! DGVMsg.LastTurnPlayed(lastTurnLog, gameData.game, false)
+    gameData.viewReference ! DGVMsg.GameEnded(gameData.game)
+    gameEnded(gameData)
+  }
+
   // SUPPORT FUNCTIONS
-//  private def isMyTurn(gameData: GameData, actualGame: GameInProgress): Boolean = {
-//    val rankWhoPlay = ((actualGame.currentRound - 1) % actualGame.players.size) + 1
-//    print(s"isMyTurn called, rankWhoPlay = $rankWhoPlay, gameData = $gameData, actualGame = $actualGame")
-//    gameData.playerOwnRank == rankWhoPlay
-//  }
-  
+  //  private def isMyTurn(gameData: GameData, actualGame: GameInProgress): Boolean = {
+  //    val rankWhoPlay = ((actualGame.currentRound - 1) % actualGame.players.size) + 1
+  //    print(s"isMyTurn called, rankWhoPlay = $rankWhoPlay, gameData = $gameData, actualGame = $actualGame")
+  //    gameData.playerOwnRank == rankWhoPlay
+  //  }
+
   private def getPlayerIDWhoHasToPlay(actualGame: GameInProgress): String = {
     val rankWhoPlay = ((actualGame.currentRound - 1) % actualGame.players.size) + 1
     actualGame.players.find(_.rank == rankWhoPlay) match {

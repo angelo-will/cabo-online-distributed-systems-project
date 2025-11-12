@@ -53,6 +53,8 @@ object DuringGameViewMessages {
   case class CardSeen(card: Card) extends DuringGameViewCommand
 
   case class PlayThisTurn(viewRef: ActorRef[ViewCommand]) extends DuringGameViewCommand
+  
+  case class GameEnded(game: GameInProgress) extends DuringGameViewCommand
 
   // TODO: create message of game ending with the winner, his points, ecc.
   // i parametri attuali sono solo indicativi

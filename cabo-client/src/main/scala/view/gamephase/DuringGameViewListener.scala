@@ -39,4 +39,4 @@ case class DuringGameViewListener(whoToResponse: ActorRef[Message]) extends IDur
     whoToResponse ! DuringGameViewMessages.EndTurn()
 
   override def callCabo(): Unit =
-    whoToResponse ! CallCabo()
+    whoToResponse ! DuringGameViewMessages.CallCaboSelected ()

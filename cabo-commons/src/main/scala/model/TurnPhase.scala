@@ -13,6 +13,7 @@ object TurnPhase:
       new JsonSubTypes.Type(value = classOf[TurnPhase.AwaitDrawCard], name = "awaitDrawCard"),
       new JsonSubTypes.Type(value = classOf[TurnPhase.AwaitUsePower], name = "awaitUsePower"),
       new JsonSubTypes.Type(value = classOf[TurnPhase.AwaitDiscardCard], name = "awaitDiscardCard"),
+      new JsonSubTypes.Type(value = classOf[TurnPhase.AwaitEndTurn], name = "awaitEndTurn"),
       new JsonSubTypes.Type(value = classOf[TurnPhase.EndedTurn], name = "endedTurn")
     )
   )
@@ -27,5 +28,7 @@ object TurnPhase:
   case class AwaitUsePower() extends TurnPhase
 
   case class AwaitDiscardCard() extends TurnPhase
+  
+  case class AwaitEndTurn() extends TurnPhase
 
   case class EndedTurn() extends TurnPhase

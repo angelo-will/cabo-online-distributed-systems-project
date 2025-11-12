@@ -14,6 +14,8 @@ object Game:
 
   val cardsInitialVisible = 2
 
+  case class CaboState(whoCalledCabo: PlayerPlaying)
+  
   case class GameInConstruction(
                                  code: String,
                                  gameParameters: IGameParameters,
@@ -30,8 +32,10 @@ object Game:
                              players: List[PlayerPlaying],
                              deckStack: CardStack,
                              discardDeckStack: CardStack,
-                             currentRound: Int
+                             currentRound: Int,
+                             caboState: Option[CaboState] = None,
                            ):
+
     override def toString: String = "GameInProgress\n" +
       "\tcode=" + code + "\n" +
       "\tgameParameters=" + gameParameters + "\n" +
@@ -39,19 +43,23 @@ object Game:
       "\tplayers=" + players + "\n" +
       "\tdeckStack=" + deckStack + "\n" +
       "\tdiscardDeckStack=" + discardDeckStack + "\n" +
-      "\tcurrentRound=" + currentRound + ""
+      "\tcurrentRound=" + currentRound + "\n" +
+      "\tcaboState=" + {if caboState.isEmpty then "Nobody've called cabo" else s"${caboState.get.whoCalledCabo.userID} has called cabo"} + "\n"
 
-    def getPlayerWithID(userID: String) = PlayerPlaying.getPlayerWithID(userID, this.players)
-    
-    def getCardOfPlayerWithID(userID: String, index: Int) = this.getPlayerWithID(userID).getCard(index)
+    def getPlayerWithID(userID: String): PlayerPlaying = PlayerPlaying.getPlayerWithID(userID, this.players)
 
-    def getHandOfPlayerWithID(userID: String) = this.getPlayerWithID(userID).hand
+    def getCardOfPlayerWithID(userID: String, index: Int): Card = this.getPlayerWithID(userID).getCard(index)
 
-    def replaceHandOfPlayerWithID(userID: String, hand: Hand) =
+    def getHandOfPlayerWithID(userID: String): Hand = this.getPlayerWithID(userID).hand
+
+    def replaceHandOfPlayerWithID(userID: String, hand: Hand): GameInProgress =
       this.copy(players = PlayerPlaying.replaceHandOfPlayerWithID(userID, hand, this.players))
 
-    def replaceNthCardOfPlayerWithID(userID: String, card: Card, index: Int) =
+    def replaceNthCardOfPlayerWithID(userID: String, card: Card, index: Int): GameInProgress =
       this.copy(players = PlayerPlaying.replaceNthCardOfPlayerWithID(userID, card, index, this.players))
+      
+    def isCaboCalled: Boolean = 
+      this.caboState.isDefined  
 
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")

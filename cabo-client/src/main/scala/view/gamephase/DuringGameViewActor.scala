@@ -121,6 +121,10 @@ class DuringGameViewActor private(
             ctx.log.info(s"DuringGameViewActor of player $userID handling StartTurnPlayer with message: ${StartTurnPlayer(playerID)}")
             properties.userInterface.updatePlayerWhoIsPlaying(playerID)
             Behaviors.same
+          case (ctx, GameEnded(game)) =>
+            ctx.log.info(s"DuringGameViewActor of player $userID handling GameEnded with message: ${GameEnded(game)}")
+            properties.userInterface.gameEndedWithData(game)
+            waitingCloseGameFrame()
           case msg =>
             println(s"DuringGameViewActor of player $userID in waitMyTurn received message: $msg")
             Behaviors.same
@@ -128,6 +132,8 @@ class DuringGameViewActor private(
     }
   }
 
+  private def waitingCloseGameFrame() : Behavior[Message] = Behaviors.same
+  
   private def myTurnBeforeDraw(properties: PropertiesAfterInitialization): Behavior[Message] = {
     properties.userInterface.startTurn()
     properties.userInterface.updatePlayerWhoIsPlaying(userID)

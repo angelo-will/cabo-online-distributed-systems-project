@@ -18,6 +18,8 @@ object TurnEvent:
       new JsonSubTypes.Type(value = classOf[TurnEvent.ReplaceOwnCardWithAdversaryCard], name = "replaceOwnCard"),
       new JsonSubTypes.Type(value = classOf[TurnEvent.CardDrawnDiscarded], name = "cardDrawnDiscarded"),
       new JsonSubTypes.Type(value = classOf[TurnEvent.OwnCardDiscarded], name = "ownCardDiscarded"),
+      new JsonSubTypes.Type(value = classOf[TurnEvent.CaboCalled], name = "caboCalled"),
+      new JsonSubTypes.Type(value = classOf[TurnEvent.EndTurn], name = "endTurn"),
       new JsonSubTypes.Type(value = classOf[TurnEvent.JumpTurnForTimerEnded], name = "jumpTurnForTimerEnded"),
     )
   )
@@ -37,6 +39,10 @@ object TurnEvent:
   
   case class OwnCardDiscarded(card: Card, index: Int) extends TurnEvent
 
+  case class CaboCalled() extends TurnEvent
+  
+  case class EndTurn() extends TurnEvent
+  
   case class JumpTurnForTimerEnded() extends TurnEvent
 
 object PhaseEvents:
@@ -87,7 +93,9 @@ class DuringGameTurnLog(val ofUserID: String, val round: Int) extends TurnLog wi
    * - [[AwaitUsePower]]: Allows [[SeeSelfCard]], [[SeeAdversaryCard]], or [[ReplaceOwnCardWithAdversaryCard]],
    * all of which transition to [[AwaitDiscardCard]].
    *
-   * - [[AwaitDiscardCard]]: Allows [[CardDrawnDiscarded]] or [[OwnCardDiscarded]] which transitions to [[EndedTurn]].
+   * - [[AwaitDiscardCard]]: Allows [[CardDrawnDiscarded]] or [[OwnCardDiscarded]] which transitions to [[AwaitEndTurn]].
+   * 
+   * - [[AwaitEndTurn]]: Allows [[CallCabo]] or [[EndTurn]] which transitions to [[EndedTurn]].
    *
    * - [[EndedTurn]]: Does not allow any further events to be added.
    *
@@ -109,8 +117,12 @@ class DuringGameTurnLog(val ofUserID: String, val round: Int) extends TurnLog wi
     case (AwaitUsePower(), ReplaceOwnCardWithAdversaryCard(ownCardIndex, adversaryID, adversaryCardIndex)) =>
       this.passToNewPhaseWithEvent(AwaitDiscardCard(), event)
     case (AwaitDiscardCard(), CardDrawnDiscarded(card)) =>
-      this.passToNewPhaseWithEvent(EndedTurn(), event)
+      this.passToNewPhaseWithEvent(AwaitEndTurn(), event)
     case (AwaitDiscardCard(), OwnCardDiscarded(card, index)) =>
+      this.passToNewPhaseWithEvent(AwaitEndTurn(), event)
+    case (AwaitEndTurn(), CaboCalled()) => 
+      this.passToNewPhaseWithEvent(EndedTurn(), event)
+    case (AwaitEndTurn(), EndTurn()) =>
       this.passToNewPhaseWithEvent(EndedTurn(), event)
     case (_, JumpTurnForTimerEnded()) =>
       this.passToNewPhaseWithEvent(EndedTurn(), event)
