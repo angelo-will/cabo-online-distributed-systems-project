@@ -20,6 +20,26 @@ object GameCoordinatorActor:
   import model.GameStatus
   import model.Game
 
+  abstract class EndingGame
+
+  def gameEnded(game: GameInProgress, nextWhoPlayID: String): EndingGame = {
+    if game.caboState.isDefined && nextWhoPlayID == game.caboState.get.whoCalledCabo.userID then
+      EndedByCabo()
+    else if game.gameParameters.roundLimitation.isRoundsEnded(game.currentRound) then
+      EndedByTurnsLimit()
+    else if game.deckStack.isEmpty then
+      EndedByEmptyDeck()
+    else NotEnded()
+  }
+
+  private case class EndedByCabo() extends EndingGame
+
+  private case class EndedByTurnsLimit() extends EndingGame
+
+  private case class EndedByEmptyDeck() extends EndingGame
+
+  private case class NotEnded() extends EndingGame
+
   private case class GameData(
                                clientReference: ActorRef[CCommand],
                                // todo: change type in ViewCommand moving the messages of GameCoordinatorMessage in ViewMessages?
@@ -54,6 +74,9 @@ object GameCoordinatorActor:
   def apply(client: ActorRef[CCommand], viewToContact: ActorRef[Message], userId: String, gameToStart: GameInConstruction): Behavior[Message] = {
 
     val game = generateGameInProgressFromInConstruction(gameToStart)
+    // todo: this one is used to test rounds limit
+    // val game = generateGameInProgressFromInConstruction(gameToStart.copy(gameParameters = GameParameters(roundLimitation = 3)))
+
 
     client ! CLMsg.TakeGetInProgressGame(game)
 
@@ -93,12 +116,15 @@ object GameCoordinatorActor:
     })
     val (firstCardDiscard, remainingDeck) = fullDeckShuffled.drawNCards(1)
 
+    //    val (_, fewCardsToTestEndByEmptyDeck) = remainingDeck.drawNCards(remainingDeck.cards.size - playersPlaying.size)
+
     GameInProgress(
       gameInConstruction.code,
       gameInConstruction.gameParameters,
       GameStatus.InProgress(),
       playersPlaying,
       remainingDeck,
+      //      fewCardsToTestEndByEmptyDeck,
       firstCardDiscard,
       //todo: 0 or 1?
       currentRound = 1
@@ -336,32 +362,32 @@ object GameCoordinatorActor:
         turnLog = new DuringGameTurnLog(gameData.playerOwnUserID, actualTurn))
       val playerIDHaveToPlay = getPlayerIDWhoHasToPlay(actualGame)
 
-      val isGameEnded = newGameData.game.caboState.isDefined && playerIDHaveToPlay == newGameData.game.caboState.get.whoCalledCabo.userID
+      val isGameEnded = gameEnded(actualGame, playerIDHaveToPlay)
+
       val isMyTurnNext = playerIDHaveToPlay == gameData.playerOwnUserID
 
       (isGameEnded, isMyTurnNext) match
-        case (true, _) =>
-          newGameData.viewReference ! DGVMsg.LastTurnPlayed(turnLog, actualGame, false)
-          transitionToShowingResults(newGameData, turnLog)
-        case (_, true) =>
+        case (NotEnded(), true) =>
           newGameData.viewReference ! DGVMsg.LastTurnPlayed(turnLog, actualGame, true)
           myTurnBeforeDraw(newGameData)
-        case _ =>
+        case (NotEnded(), _) =>
           newGameData.viewReference ! DGVMsg.LastTurnPlayed(turnLog, actualGame, false)
           newGameData.viewReference ! DGVMsg.StartTurnPlayer(playerIDHaveToPlay)
           notMyTurn(newGameData)
+        case (_, _) => transitionToShowingResults(isGameEnded, newGameData, turnLog)
 
-  //      if playerIDHaveToPlay == gameData.playerOwnUserID then
-  //
-  //        newGameData.viewReference ! DGVMsg.LastTurnPlayed(turnLog, actualGame, true)
-  //        myTurnBeforeDraw(newGameData)
-  //      else if newGameData.game.caboState.isDefined && playerIDHaveToPlay == newGameData.game.caboState.get.whoCalledCabo.userID then
-  //        // if cabo caller should start new turn end the game instead.
-  //        transitionToShowingResults(newGameData, turnLog)
-  //      else
-  //        newGameData.viewReference ! DGVMsg.LastTurnPlayed(turnLog, actualGame, false)
-  //        newGameData.viewReference ! DGVMsg.StartTurnPlayer(playerIDHaveToPlay)
-  //        notMyTurn(newGameData)
+
+  //      (isGameEnded, isMyTurnNext) match
+  //        case (true, _) =>
+  //          newGameData.viewReference ! DGVMsg.LastTurnPlayed(turnLog, actualGame, false)
+  //          transitionToShowingResults(newGameData, turnLog)
+  //        case (_, true) =>
+  //          newGameData.viewReference ! DGVMsg.LastTurnPlayed(turnLog, actualGame, true)
+  //          myTurnBeforeDraw(newGameData)
+  //        case _ =>
+  //          newGameData.viewReference ! DGVMsg.LastTurnPlayed(turnLog, actualGame, false)
+  //          newGameData.viewReference ! DGVMsg.StartTurnPlayer(playerIDHaveToPlay)
+  //          notMyTurn(newGameData)
 
   // POWERS implementation
 
@@ -427,11 +453,14 @@ object GameCoordinatorActor:
       gameData.clientReference ! CLMsg.TurnEnded(newGameData.game, newGameData.turnLog)
       notMyTurn(newGameData)
 
-  private def transitionToShowingResults(gameData: GameData, lastTurnLog: TurnLog): Behavior[Message] = {
+  private def transitionToShowingResults(gameEnd: EndingGame, gameData: GameData, lastTurnLog: TurnLog): Behavior[Message] = {
     log.log(s"transitionToShowingResults called, gameData = $gameData")
-    val finalGameState = gameData.temporaryGame
+    //    val finalGameState = gameData.temporaryGame
     gameData.viewReference ! DGVMsg.LastTurnPlayed(lastTurnLog, gameData.game, false)
-    gameData.viewReference ! DGVMsg.GameEnded(gameData.game)
+    gameEnd match
+      case EndedByCabo() => gameData.viewReference ! DGVMsg.GameEndedByCabo(gameData.game)
+      case EndedByTurnsLimit() => gameData.viewReference ! DGVMsg.GameEndedByTurnsLimit(gameData.game)
+      case EndedByEmptyDeck() => gameData.viewReference ! DGVMsg.GameEndedByEmptyDeck(gameData.game)
     gameEnded(gameData)
   }
 
@@ -462,4 +491,7 @@ object GameCoordinatorActor:
       Behaviors.same
     }
   }
-      
+
+//  private def isGameEnded(gameData: GameData): Boolean = {
+//    gameData.game.caboState.isDefined && playerIDHaveToPlay == gameData.newGameData.game.caboState.get.whoCalledCabo.userID
+//  }

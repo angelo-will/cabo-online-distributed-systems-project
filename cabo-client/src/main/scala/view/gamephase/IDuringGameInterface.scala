@@ -9,8 +9,8 @@ trait IDuringGameInterface {
   def updateLastTurnLog(turnLog: TurnLog): Unit
 
   def updateGameInfo(gameInfo: GameInProgress): Unit
-  
-  def updatePlayerWhoIsPlaying(playerID:String): Unit
+
+  def updatePlayerWhoIsPlaying(playerID: String): Unit
 
   def showCardDrawnFromDeck(cardDrawn: Card): Unit
 
@@ -31,8 +31,12 @@ trait IDuringGameInterface {
   def playerIsDisconnected(player: PlayerPlaying): Unit
 
   def lostYourConnection(): Unit
-  
-  def gameEndedWithData(gameInProgress: GameInProgress): Unit
+
+  def gameEndedByCabo(game: GameInProgress): Unit
+
+  def gameEndedByTurns(game: GameInProgress): Unit
+
+  def gameEndedByEmptyDeck(game: GameInProgress): Unit
 
   /**
    * Notify to interface to enter in waiting phase. Games button are disbled during this phase except the one for exit.

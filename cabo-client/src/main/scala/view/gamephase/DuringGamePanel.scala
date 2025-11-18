@@ -1,6 +1,6 @@
 package view.gamephase
 
-import model.Game.GameInProgress
+import model.Game.GameInProgress as GProg
 import model.TurnEvent.CaboCalled
 import model.{Card, PlayerPlaying, Power, TurnLog}
 import view.lobbyphase.ViewListener.IDuringGameViewListener
@@ -11,7 +11,7 @@ import scala.swing.GridBagPanel.Fill
 import java.awt.{Color, GridBagLayout, Font as AwtFont}
 import javax.swing.{BorderFactory, SwingUtilities, UIManager}
 
-class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: GameInProgress, userID: String) extends GridBagPanel with IDuringGameInterface {
+class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: GProg, userID: String) extends GridBagPanel with IDuringGameInterface {
 
   // POSITIONIG ELEMENTS - START
   private val GAME_INFORMATION_PANEL_ROW = 1
@@ -44,7 +44,7 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
   private val EMPTY_ROW_UNDER_DRAWN_PANEL_ROWS_QUANTITY = 1
 
   private val WHO_CALLED_CABO_ROW = EMPTY_ROW_UNDER_DRAWN_PANEL + EMPTY_ROW_UNDER_DRAWN_PANEL_ROWS_QUANTITY + 1
-  
+
   private val MY_TURN_LOG_ROW = WHO_CALLED_CABO_ROW + 1
   private val MY_TURN_LOG_COLUMN = GAME_INFORMATION_PANEL_COLUMN
   private val MY_TURN_LOG_ROWS_QUANTITY = 2
@@ -80,7 +80,7 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
   // POSITIONIG ELEMENTS - END
 
   peer.setBorder(BorderFactory.createLineBorder(Color.CYAN, 3))
-  
+
   private var caboHasCalled = false
 
   val c = new Constraints
@@ -177,7 +177,7 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
   layout(drawnCardPanel) = c
   resetConstraintsValues()
   // CREAZIONE CARTA PESCATA - FINE
-  
+
   // WHO CALLED CABO PANEL - START
   private val whoCalledCaboLabel = new Label("Nobody has called Cabo.") {
     font = new AwtFont("Arial", AwtFont.BOLD, 12)
@@ -190,7 +190,7 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
   layout(whoCalledCaboLabel) = c
   resetConstraintsValues()
   // WHO CALLED CABO PANEL - END
-  
+
 
   // PLAYER ACTIONS LOG PANEL - START
   private val myTurnActionsLog = new TextArea {
@@ -433,7 +433,7 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
     }
   }
 
-  override def updateGameInfo(gameInfo: GameInProgress): Unit = {
+  override def updateGameInfo(gameInfo: GProg): Unit = {
     Swing.onEDT {
       println(s"DuringGamePanel - updateGameInfo: $gameInfo")
       this.gameInfoPanel.updateCurrentTurn(gameInfo)
@@ -607,11 +607,17 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: Gam
       this.emptyDrawnCardArea()
     }
   }
-  
-  override def gameEndedWithData(gameInProgress: GameInProgress): Unit = {
+
+  override def gameEndedByCabo(game: GProg): Unit = this.gameEndedWithData(game)(ByCabo())
+
+  override def gameEndedByTurns(game: GProg): Unit = this.gameEndedWithData(game)(ByTurns())
+
+  override def gameEndedByEmptyDeck(game: GProg): Unit = this.gameEndedWithData(game)(ByEmptyDeck())
+
+  private def gameEndedWithData(game: GProg)(ending: Ending): Unit = {
     Swing.onEDT {
-      println(s"DuringGamePanel - gameEndedWithData: $gameInProgress")
-      val endingResultsDialog = new DisplayEndingResultsDialog(gameInProgress)
+      println(s"DuringGamePanel - gameEndedWithData: $game")
+      val endingResultsDialog = new DisplayEndingResultsDialog(game)(ending)
       endingResultsDialog.open()
     }
   }

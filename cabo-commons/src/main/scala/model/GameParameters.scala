@@ -9,13 +9,13 @@ import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
     new JsonSubTypes.Type(value = classOf[NoRoundLimitation], name = "noRoundLimitation"),
     new JsonSubTypes.Type(value = classOf[RoundLimitation], name = "roundLimitation")))
 abstract class RoundLimitationParameter:
-  def isRoundsEnded: Boolean
+  def isRoundsEnded(currentRound: Int): Boolean
 
 final case class NoRoundLimitation() extends RoundLimitationParameter:
-  override def isRoundsEnded: Boolean = false
+  override def isRoundsEnded(currentRound: Int): Boolean = false
 
 final case class RoundLimitation(maxRound: Int) extends RoundLimitationParameter:
-  override def isRoundsEnded: Boolean = maxRound <= 0
+  override def isRoundsEnded(currentRound: Int): Boolean = currentRound > maxRound 
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
 @JsonSubTypes(

@@ -121,9 +121,17 @@ class DuringGameViewActor private(
             ctx.log.info(s"DuringGameViewActor of player $userID handling StartTurnPlayer with message: ${StartTurnPlayer(playerID)}")
             properties.userInterface.updatePlayerWhoIsPlaying(playerID)
             Behaviors.same
-          case (ctx, GameEnded(game)) =>
-            ctx.log.info(s"DuringGameViewActor of player $userID handling GameEnded with message: ${GameEnded(game)}")
-            properties.userInterface.gameEndedWithData(game)
+          case (ctx, GameEndedByCabo(game)) =>
+            ctx.log.info(s"DuringGameViewActor of player $userID handling GameEnded with message: ${GameEndedByCabo(game)}")
+            properties.userInterface.gameEndedByCabo(game)
+            waitingCloseGameFrame()
+          case (ctx, GameEndedByTurnsLimit(game)) =>
+            ctx.log.info(s"DuringGameViewActor of player $userID handling GameEnded with message: ${GameEndedByTurnsLimit(game)}")
+            properties.userInterface.gameEndedByTurns(game)
+            waitingCloseGameFrame()
+          case (ctx, GameEndedByEmptyDeck(game)) =>
+            ctx.log.info(s"DuringGameViewActor of player $userID handling GameEnded with message: ${GameEndedByEmptyDeck(game)}")
+            properties.userInterface.gameEndedByEmptyDeck(game)
             waitingCloseGameFrame()
           case msg =>
             println(s"DuringGameViewActor of player $userID in waitMyTurn received message: $msg")
@@ -132,8 +140,8 @@ class DuringGameViewActor private(
     }
   }
 
-  private def waitingCloseGameFrame() : Behavior[Message] = Behaviors.same
-  
+  private def waitingCloseGameFrame(): Behavior[Message] = Behaviors.same
+
   private def myTurnBeforeDraw(properties: PropertiesAfterInitialization): Behavior[Message] = {
     properties.userInterface.startTurn()
     properties.userInterface.updatePlayerWhoIsPlaying(userID)

@@ -6,7 +6,15 @@ import model.Hand
 import java.awt.Font
 import scala.swing.{BoxPanel, Dialog, Label, Orientation, Swing}
 
-class DisplayEndingResultsDialog(gameResult: GameInProgress) extends Dialog {
+abstract class Ending
+
+case class ByCabo() extends Ending
+
+case class ByTurns() extends Ending
+
+case class ByEmptyDeck() extends Ending
+
+class DisplayEndingResultsDialog(gameResult: GameInProgress)(ending: Ending) extends Dialog {
 
   private case class DataDisplay(playerName: String, score: Int, hand: String) {
     override def toString: String = s"$playerName,  $score points - $hand"
@@ -25,10 +33,19 @@ class DisplayEndingResultsDialog(gameResult: GameInProgress) extends Dialog {
     contents += new Label(s"Game Ended!") {
       font = new Font("SansSerif", java.awt.Font.BOLD, 30)
     }
+    
     contents += Swing.VStrut(10)
-    x.zipWithIndex.foreach{
-      case (pl,index) =>
-        val player = new Label(s"${index+1}° - " + pl)
+    private val howGameEnd = ending match
+      case ByCabo() => s"Cabo called by ${gameResult.caboState.get.whoCalledCabo.name}"
+      case ByTurns() => "Reached maximum turns number"
+      case ByEmptyDeck() => "Cards in deck are ended"
+    contents += new Label(howGameEnd) {
+      font = new Font("SansSerif", java.awt.Font.PLAIN, 25)
+    }  
+    contents += Swing.VStrut(10)
+    x.zipWithIndex.foreach {
+      case (pl, index) =>
+        val player = new Label(s"${index + 1}° - " + pl)
         player.font = if index == 0 then new Font("SansSerif", java.awt.Font.BOLD, 20)
         else new Font("SansSerif", java.awt.Font.PLAIN, 15)
         contents += player
