@@ -170,7 +170,6 @@ class DuringGameViewActor private(
         .orElse({
           case (ctx, CardDrawn(card)) =>
             ctx.log.info(s"DuringGameViewActor of player $userID handling CardDrawn with message: ${CardDrawn(card)}")
-            properties.userInterface.afterDrawPhase(hasDrawnFromDeck)
             if hasDrawnFromDeck then
               properties.userInterface.showCardDrawnFromDeck(card)
               card.power match
@@ -209,7 +208,7 @@ class DuringGameViewActor private(
 
 
   private def myTurnPowerSeeMyCard(properties: PropertiesAfterInitialization): Behavior[Message] = {
-    //    properties.userInterface.enterSeeYourCardPhase()
+    properties.userInterface.usePowerToSeeOwnCard()
     Behaviors.receivePartial {
       handleShowCard(properties, myTurnAfterDraw)
         .orElse(handleEndTurn(properties))

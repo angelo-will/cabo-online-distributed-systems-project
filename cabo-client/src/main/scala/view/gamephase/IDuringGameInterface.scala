@@ -49,6 +49,8 @@ trait IDuringGameInterface {
 
   def afterDrawPhase(canDiscardDrawnCard: Boolean): Unit
 
+  def usePowerToSeeOwnCard(): Unit
+
   def usePowerToSeeAdversaryCard(): Unit
 
   def usePowerToExchangeCardWithAdversary(): Unit

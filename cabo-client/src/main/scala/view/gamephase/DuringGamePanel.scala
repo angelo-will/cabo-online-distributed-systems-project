@@ -501,6 +501,7 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: GPr
 
   override def usePowerToExchangeCardWithAdversary(): Unit = {
     Swing.onEDT {
+      println(s"$userID - DuringGamePanel - usePowerToExchangeCardWithAdversary called")
       this.disableAll()
       this.exitButton.enabled = true
       this.activateAdversariesCards(true)
@@ -535,10 +536,10 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: GPr
   override def changeCardWithAdversaryIsDone(): Unit = {
     Swing.onEDT {
       this.myTurnActionsLog.text = s"\nCard exchange with adversary completed!"
-      //      this.disableAll()
-      //      this.exitButton.enabled = true
-      //      this.endTurnButton.enabled = true
-      //      this.callCaboButton.enabled = true
+      this.disableAll()
+      this.exitButton.enabled = true
+      this.endTurnButton.enabled = true
+      this.callCaboButton.enabled = true
     }
   }
 
@@ -575,8 +576,19 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: GPr
     }
   }
 
+  override def usePowerToSeeOwnCard(): Unit = {
+    Swing.onEDT {
+      println(s"$userID - DuringGamePanel - usePowerToSeeOwnCard called")
+      this.disableAll()
+      this.exitButton.enabled = true
+      this.playerPanel.enabled = true
+      this.playerPanel.enableCardsButton(true)
+    }
+  }
+
   override def usePowerToSeeAdversaryCard(): Unit = {
     Swing.onEDT {
+      println(s"$userID - DuringGamePanel - usePowerToSeeAdversaryCard called")
       this.disableAll()
       this.exitButton.enabled = true
       this.adversariesPanelMap.foreach(_._2.enableCardsButton(true))
