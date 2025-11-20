@@ -7,9 +7,9 @@ import akka.cluster.ClusterEvent.MemberExited
 import model.Game.{GameInConstruction, GameInProgress}
 import model.{GameParameters, PlayerInLobby, PlayerPlaying, TurnLog}
 import utils.ClientMessages.*
-import utils.GameCoordinatorMessage.{NewTurn, PlayerCommand}
+import utils.GameCoordinatorMessage.{NewTurn, GameCoordinatorMessage}
 import utils.ServerMessages.{AbortGame, ServerKey}
-import utils.{InitialViewMessages, Message, ServerMessages}
+import utils.{Message, ServerMessages, InitialViewMessages}
 
 import scala.concurrent.duration.DurationInt
 
@@ -45,7 +45,7 @@ object Client:
   case class FailedToSynchronize() extends ClientInternalCommand
 
   case class GameInProgressUpdate(replyTo: ActorRef[ClientInternalCommand],game: GameInProgress, turnLog: TurnLog) extends ClientInternalCommand
-  
+
   case class StartGameBehavior(thisBehavior: () => Behavior[Message], hostRef: ActorRef[ClientInternalCommand]) extends ClientInternalCommand
 
   case class ElectionStarted(candidateRank: Int, replyTo: ActorRef[ClientInternalCommand]) extends ClientInternalCommand
@@ -318,14 +318,14 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
 
 //        //todo - check if we need to keep it for re-entering the game
 //        ctx.system.receptionist ! Receptionist.deregister(akka.actor.typed.receptionist.ServiceKey[Message](game.code), ctx.self)
-        
+
         //todo - fix this, you can't call the method directly
         ctx.self ! StartGameBehavior(() => GameCoordinatorActor(ctx.self, viewActorRef, userId, game), ctx.self)
-        
+
         Behaviors.same
 
         //automandati un messaggio con il behavior da spawnare così per il testo lo mandi da fuori diretto
-        
+
 //        val gameCoordinator = ctx.spawn(GameCoordinatorActor(ctx.self, viewActorRef, userId, game), "GameCoordinatorActor")
 //
 //        Behaviors.receiveMessagePartial {
@@ -474,7 +474,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
 
         case (ctx, GameHasStarted(hostRef, gameInProgress)) =>
           ctx.log.info(s"Game has started: ${game.code}")
-          val index = gameInProgress.players.indexWhere(p => p.userID == userId && p.name == name)
+//          val index = gameInProgress.players.indexWhere(p => p.userID == userId && p.name == name)
           val gameCoordinator = ctx.spawn(GameCoordinatorActor(ctx.self, viewActorRef, userId, gameInProgress), "GameCoordinatorActor")
           viewActorRef ! InitialViewMessages.ReadyToPlay(gameCoordinator)
           hostRef ! SynchronizationAck(userId)
@@ -497,7 +497,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
 
   //todo - retrieve who am i, so the rank, by id from the game players?
   //todo - change the hostRef with a boolean if not needed
-  private def inGameBehavior(gameCoordinator: ActorRef[PlayerCommand], playersStatus: List[PlayerStatus], hostRef: ActorRef[ClientInternalCommand]): Behavior[Message] = {
+  private def inGameBehavior(gameCoordinator: ActorRef[GameCoordinatorMessage], playersStatus: List[PlayerStatus], hostRef: ActorRef[ClientInternalCommand]): Behavior[Message] = {
 
     def otherPlayers = playersStatus.filterNot(_.playerID.equals(this.userId))
 
@@ -633,7 +633,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
         //todo - update gameCoordinator
 //        ctx.log.info(s"Game info update: ${this.userId}")
         logInfo(ctx, s"Game info update")
-        gameCoordinator ! NewTurn(game)
+        gameCoordinator ! NewTurn(game, log)
         //todo - sync to all the players, wait for gameCoordinator ack?
         withShared( {
           case (ctx, TurnUpdated()) =>

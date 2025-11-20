@@ -2,11 +2,11 @@ import akka.actor.testkit.typed.scaladsl.{ScalaTestWithActorTestKit, TestProbe}
 import akka.actor.typed.ActorRef
 import controller.GameCoordinatorActor
 import model.Suit.*
-import model.{Card, Game, Power}
+import model.{Card, DuringGameTurnLog, Game, Power}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
-import utils.{ClientMessages, GameCoordinatorMessage, DuringGameViewMessages,Message}
+import utils.{ClientMessages, DuringGameViewMessages, GameCoordinatorMessage, Message}
 
 class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
   with AnyWordSpecLike
@@ -23,13 +23,14 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
 
   // TODO: TEST WORK ONLY WITH SORTED DECK TO GARANTEE THE REPRODUCIBILTY OF IT
 
+  // TODO: init actor to run test
   private var gameCoordinatorActor: ActorRef[Message] = _
   private var gameCoordinatorProbe: TestProbe[Message] = _
 
   override def beforeEach(): Unit = {
     super.beforeEach()
     gameCoordinatorProbe = createTestProbe[Message]()
-    gameCoordinatorActor = testKit.spawn(GameCoordinatorActor(gameCoordinatorProbe.ref, playerRank = 0))
+    //    gameCoordinatorActor = testKit.spawn(GameCoordinatorActor(gameCoordinatorProbe.ref, playerRank = 0))
     gameCoordinatorActor ! GameCoordinatorMessage.StartGame()
   }
 
@@ -240,7 +241,7 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
 
   private def endTurn(): Unit = gameCoordinatorActor ! GameCoordinatorMessage.EndTurn()
 
-  private def newTurn(game: Game.GameInProgress): Unit = gameCoordinatorActor ! GameCoordinatorMessage.NewTurn(game)
+  private def newTurn(game: Game.GameInProgress): Unit = gameCoordinatorActor ! GameCoordinatorMessage.NewTurn(game, new DuringGameTurnLog("", 0))
 
   private def discardMessage(): Unit = discardMessages(1)
 

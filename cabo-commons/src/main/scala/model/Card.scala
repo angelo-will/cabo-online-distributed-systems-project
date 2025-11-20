@@ -1,9 +1,38 @@
 package model
 
 import scala.concurrent.ExecutionContext.Implicits.global
+import akka.serialization.jackson.CborSerializable
+import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+@JsonSubTypes(
+  Array(
+    new JsonSubTypes.Type(value = classOf[Suit.Clubs], name = "clubs"),
+    new JsonSubTypes.Type(value = classOf[Suit.Spades], name = "spades"),
+    new JsonSubTypes.Type(value = classOf[Suit.Diamonds], name = "diamonds"),
+    new JsonSubTypes.Type(value = classOf[Suit.Hearts], name = "hearts")
+  )
+)
 abstract class Suit(val name: String, val shortName: String)
 
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+@JsonSubTypes(
+  Array(
+    new JsonSubTypes.Type(value = classOf[Rank.Ace], name = "ace"),
+    new JsonSubTypes.Type(value = classOf[Rank.Two], name = "two"),
+    new JsonSubTypes.Type(value = classOf[Rank.Three], name = "three"),
+    new JsonSubTypes.Type(value = classOf[Rank.Four], name = "four"),
+    new JsonSubTypes.Type(value = classOf[Rank.Five], name = "five"),
+    new JsonSubTypes.Type(value = classOf[Rank.Six], name = "six"),
+    new JsonSubTypes.Type(value = classOf[Rank.Seven], name = "seven"),
+    new JsonSubTypes.Type(value = classOf[Rank.Eight], name = "eight"),
+    new JsonSubTypes.Type(value = classOf[Rank.Nine], name = "nine"),
+    new JsonSubTypes.Type(value = classOf[Rank.Ten], name = "ten"),
+    new JsonSubTypes.Type(value = classOf[Rank.Jack], name = "jack"),
+    new JsonSubTypes.Type(value = classOf[Rank.Queen], name = "queen"),
+    new JsonSubTypes.Type(value = classOf[Rank.King], name = "king")
+  )
+)
 abstract class Rank(val value: Int, val name: String, val shortName: String)
 
 object Suit:
@@ -116,7 +145,8 @@ case class Card(rank: Rank, suit: Suit):
     if (rank == Rank.Jack()) true
     else this == other
 
-  override def toString: String = name
+//  override def toString: String = name
+  override def toString: String = shortName
 
 object CardStack:
   /**

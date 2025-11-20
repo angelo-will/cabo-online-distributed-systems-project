@@ -3,7 +3,7 @@ package utils
 import akka.actor.typed.ActorRef
 import model.Game.GameInConstruction
 import model.PlayerInLobby
-import utils.GameCoordinatorMessage.PlayerCommand
+import utils.GameCoordinatorMessage.GameCoordinatorMessage
 
 object InitialViewMessages {
 
@@ -53,7 +53,7 @@ object InitialViewMessages {
    * Reply to the previous message sent by the client when the game has been started
    */
   case class GameStarted() extends ViewCommand
-  
+
   /**
    * Message sent by the client to the view when the game has been aborted
    */
@@ -69,6 +69,6 @@ object InitialViewMessages {
    * Message sent to the view by the client when all the players a ready to play
    * @param gameCoordinator
    */
-  case class ReadyToPlay(gameCoordinator: ActorRef[PlayerCommand]) extends ViewCommand
+  case class ReadyToPlay(gameCoordinator: ActorRef[GameCoordinatorMessage]) extends ViewCommand
 
 }

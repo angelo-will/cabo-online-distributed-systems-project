@@ -20,7 +20,11 @@ class DuringGameTurnLogSpec extends AnyWordSpec
 
   override def beforeEach(): Unit =
     super.beforeEach()
-    turnLog = new DuringGameTurnLog("Player01")
+    turnLog = new DuringGameTurnLog("Player01", 1)
+
+  override def afterEach(): Unit =
+    super.afterEach()
+    println(s"Final turn log events: ${turnLog}")
 
   "A TurnLog" when {
     "initially created" must {
@@ -68,16 +72,17 @@ class DuringGameTurnLogSpec extends AnyWordSpec
         turnLog.addEvent(DrawCardFromDeck(cardWithPowerSeeYourCard))
         an[InvalidTurnEventException] must be thrownBy turnLog.addEvent(DrawCardFromDeck(genericCard))
         an[InvalidTurnEventException] must be thrownBy turnLog.addEvent(DrawCardFromDiscardStack(genericCard))
-        an[InvalidTurnEventException] must be thrownBy turnLog.addEvent(CardDiscarded(genericCard))
+        an[InvalidTurnEventException] must be thrownBy turnLog.addEvent(OwnCardDiscarded(genericCard, 0))
+        an[InvalidTurnEventException] must be thrownBy turnLog.addEvent(CardDrawnDiscarded(genericCard))
         turnLog.events must contain only DrawCardFromDeck(cardWithPowerSeeYourCard)
       }
     }
 
     "draw a card with no power from deck" must {
-      "allow discard the card or one of own cards" in {
+      "allow discard one of own cards" in {
         checkTurnLogCorrectSequence(turnLog, List(
           DrawCardFromDeck(genericCard),
-          CardDiscarded(genericCard)))
+          OwnCardDiscarded(genericCard, 0)))
       }
 
       "not allow other events" in {
@@ -91,7 +96,7 @@ class DuringGameTurnLogSpec extends AnyWordSpec
       "allow discard one of own cards" in {
         checkTurnLogCorrectSequence(turnLog, List(
           DrawCardFromDiscardStack(genericCard),
-          CardDiscarded(genericCard)))
+          OwnCardDiscarded(genericCard, 0)))
       }
       "not allow other events" in {
         turnLog.addEvent(DrawCardFromDiscardStack(genericCard))
@@ -101,41 +106,41 @@ class DuringGameTurnLogSpec extends AnyWordSpec
     }
 
     "after use power to see own card" must {
-      "allow discard the card or one of own cards" in {
+      "allow discard one of own cards" in {
         checkTurnLogCorrectSequence(turnLog, List(
           DrawCardFromDeck(cardWithPowerSeeYourCard),
           SeeSelfCard(0),
-          CardDiscarded(cardWithPowerSeeYourCard)
+          OwnCardDiscarded(genericCard, 0)
         ))
       }
     }
 
     "after use power to see adversary card" must {
-      "allow discard the card or one of own cards" in {
+      "allow discard one of own cards" in {
         checkTurnLogCorrectSequence(turnLog, List(
           DrawCardFromDeck(cardWithPowerSeeYourCard),
           SeeAdversaryCard("adversary", 0),
-          CardDiscarded(cardWithPowerSeeYourCard)
+          OwnCardDiscarded(genericCard, 0)
         ))
       }
     }
 
     "after use power to replace one of own card with one of adversary" must {
-      "allow discard the card or one of own cards" in {
+      "allow discard one of own cards" in {
         checkTurnLogCorrectSequence(turnLog, List(
           DrawCardFromDeck(cardWithPowerSeeYourCard),
           ReplaceOwnCardWithAdversaryCard(0, "adversary", 0),
-          CardDiscarded(cardWithPowerSeeYourCard)
+          OwnCardDiscarded(genericCard, 0)
         ))
       }
     }
 
-    "after discar card" must {
+    "after discard card" must {
       "not allow any events" in {
         turnLog.addEvent(DrawCardFromDeck(genericCard))
-        turnLog.addEvent(CardDiscarded(genericCard))
+        turnLog.addEvent(OwnCardDiscarded(genericCard, 0))
         checkThrowErrorAfterCardDiscarded(turnLog)
-        turnLog.events must contain inOrder(DrawCardFromDeck(genericCard), CardDiscarded(genericCard))
+        turnLog.events must contain inOrder(DrawCardFromDeck(genericCard), OwnCardDiscarded(genericCard, 0))
       }
     }
   }
@@ -144,7 +149,8 @@ class DuringGameTurnLogSpec extends AnyWordSpec
     an[InvalidTurnEventException] must be thrownBy turnLog.addEvent(SeeSelfCard(0))
     an[InvalidTurnEventException] must be thrownBy turnLog.addEvent(SeeAdversaryCard("player2", 0))
     an[InvalidTurnEventException] must be thrownBy turnLog.addEvent(ReplaceOwnCardWithAdversaryCard(0, "player2", 0))
-    an[InvalidTurnEventException] must be thrownBy turnLog.addEvent(CardDiscarded(genericCard))
+    an[InvalidTurnEventException] must be thrownBy turnLog.addEvent(OwnCardDiscarded(genericCard, 0))
+    an[InvalidTurnEventException] must be thrownBy turnLog.addEvent(CardDrawnDiscarded(genericCard))
 
   private def checkThrowExceptionAfterDrawNoPowerPhase(turnLog: DuringGameTurnLog): Unit =
     an[InvalidTurnEventException] must be thrownBy turnLog.addEvent(DrawCardFromDeck(cardWithPowerSeeYourCard))
@@ -158,7 +164,7 @@ class DuringGameTurnLogSpec extends AnyWordSpec
 
   private def checkThrowErrorAfterCardDiscarded(turnLog: DuringGameTurnLog): Unit =
     checkThrowExceptionAfterDrawNoPowerPhase(turnLog)
-    an[InvalidTurnEventException] must be thrownBy turnLog.addEvent(CardDiscarded(genericCard))
+    an[InvalidTurnEventException] must be thrownBy turnLog.addEvent(OwnCardDiscarded(genericCard, 0))
 
 
   private def checkTurnLogCorrectSequence(turnLog: DuringGameTurnLog, events: List[TurnEvent]): Unit =
