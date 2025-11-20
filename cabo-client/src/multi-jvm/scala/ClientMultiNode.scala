@@ -231,6 +231,8 @@ abstract class ClientMultiNode extends MultiNodeSpec(MultiNodeConfig) with STMul
         host ! StartTheGame()
         probeHost.expectMessageType[StartTheGame]
 
+        probeHost.expectMessageType[StartGameBehavior]
+
         probeHost.expectMessageType[TakeGetInProgressGame]
 
         enterBarrier("game-started")
