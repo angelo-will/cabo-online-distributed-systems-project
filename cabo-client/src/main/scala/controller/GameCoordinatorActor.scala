@@ -4,7 +4,7 @@ import akka.actor.typed.Behavior
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import model.{Card, DuringGameTurnLog, GameParameters, Hand, InitialPhaseTurnLog, PlayerPlaying, Power, TurnEvent, TurnLog}
 import model.Game.{CaboState, GameInConstruction, GameInProgress}
-import utils.{AppLogger, ClientMessages, ClientMessages as CLMsg, DuringGameViewMessages as DGVMsg, GameCoordinatorMessage as GCMsg}
+import utils.{AppLogger, ClientMessages as CLMsg, DuringGameViewMessages as DGVMsg, GameCoordinatorMessage as GCMsg}
 import utils.ClientMessages.ClientCommand as CCommand
 
 import scala.concurrent.duration.*
@@ -350,7 +350,7 @@ object GameCoordinatorActor:
     //       Se un giocatore per problemi o altro non gioca non fa andare avanti il mazzo, quindi può arrivarmi un messaggio con niente
     case (ctx, GCMsg.NewTurn(game, turnLog)) =>
       ctx.log.info(s"NewTurn received, \ngameData = $gameData \ngameReceived = $game")
-      gameData.clientReference ! ClientMessages.TurnUpdated()
+      gameData.clientReference ! CLMsg.TurnUpdated()
       val gameDataTempUpdated = gameData.copy(temporaryGame = game)
       val actualTurn = game.currentRound + 1
       val actualGame = game.copy(currentRound = actualTurn)

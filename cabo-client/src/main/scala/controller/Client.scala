@@ -506,7 +506,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
 //    case class ElectionWon() extends ClientInternalCommand
 //    case class NewHostElected(replyTo: ActorRef[ClientInternalCommand]) extends ClientInternalCommand
 
-    def checkNextTurn(gameCoordinator: ActorRef[PlayerCommand], gameInProgress: GameInProgress, ctx: ActorContext[Message]): Unit = {
+    def checkNextTurn(gameCoordinator: ActorRef[GameCoordinatorMessage], gameInProgress: GameInProgress, ctx: ActorContext[Message]): Unit = {
 
       ctx.log.info(s"Checking who has turn after ${gameInProgress.currentRound} in game: ${gameInProgress.code}")
 
