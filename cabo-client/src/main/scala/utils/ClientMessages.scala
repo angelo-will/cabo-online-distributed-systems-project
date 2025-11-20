@@ -15,11 +15,14 @@ object ClientMessages {
    * @param maxTimeRound
    * @param maxNumRound
    * @param maxPlayers
+   * @param gameCode
    */
+  //todo: reflect about gameCode
   case class CreateNewGame(makePublic: Boolean = GameParameters.defaultIsPublic,
                            maxTimeRound: Int = GameParameters.defaultMaxTimeRound,
                            maxNumRound: Int = GameParameters.defaultRoundLimitation, 
-                           maxPlayers: Int = GameParameters.defaultMaxPlayers
+                           maxPlayers: Int = GameParameters.defaultMaxPlayers, 
+                           gameCode: Option[String] = None
                           ) extends ClientCommand
 
   /**
