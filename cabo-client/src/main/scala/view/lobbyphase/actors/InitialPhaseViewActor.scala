@@ -4,7 +4,8 @@ import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
 import com.typesafe.config.ConfigFactory
 import model.Game
-import utils.{Message, InitialViewMessages}
+import utils.InitialViewMessages.WhoToSendResponse
+import utils.{InitialViewMessages, Message}
 import view.lobbyphase.{InitialPhaseMainFrame, ViewApplication}
 import view.*
 import view.lobbyphase.components.{IWaitingToStartListener, WaitingFrame}
@@ -19,16 +20,25 @@ object InitialPhaseViewActor:
   private case class ViewEndCreation(mainFrame: InitialPhaseMainFrame) extends Message
 
 
-  def apply(whoToSendResponse: ActorRef[Message]): Behavior[Message] =
+  def apply(ref: ActorRef[Message]): Behavior[Message] =
     Behaviors.setup { (ctx: ActorContext[Message]) =>
       ctx.log.info("InitialPhaseViewActor started")
       //      ViewApplication.startView(ViewActorListener(whoToSendResponse), afterCreation = frame => {
       //        println("Creating view of InitialPhaseViewActor")
       //        ctx.self ! ViewEndCreation(frame)
       //      })
-      startInitialViewBehavior(ctx, whoToSendResponse)
+      //      startInitialViewBehavior(ctx, whoToSendResponse)
+      waitClientRef()
     }
 
+  private def waitClientRef(): Behavior[Message] = {
+    Behaviors.receivePartial {
+      case (ctx, WhoToSendResponse(ref)) => startInitialViewBehavior(ctx, ref)
+      case (ctx, msg) =>
+        ctx.log.error(s"InitialPaseViewActor-waitClientRef-ERROR received $msg")
+        Behaviors.same
+    }
+  }
 
   private def idle(
                     frame: InitialPhaseMainFrame,

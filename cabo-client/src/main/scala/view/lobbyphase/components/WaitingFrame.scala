@@ -78,12 +78,26 @@ class WaitingFrame(
       font = new Font("Arial", java.awt.Font.BOLD, 22)
       horizontalAlignment = Alignment.Center
     }
-    private val gameProperties = new Label("<html>" +
-      "<p>Game Properties</p>" +
-      "<br> Max players per game: " + game.gameParameters.maxPlayers +
-      "<br> Max time per round: " + game.gameParameters.maxTimeRound +
-      "<br> Max rounds per game: " + game.gameParameters.roundLimitation +
-      "</html>")
+    //    private val gameProperties = new TextField("<html>" +
+    //      "<p>Game Properties</p>" +
+    //      "<br> Game Code:" + game.code +
+    //      "<br> Max players per game: " + game.gameParameters.maxPlayers +
+    //      "<br> Max time per round: " + game.gameParameters.maxTimeRound +
+    //      "<br> Max rounds per game: " + game.gameParameters.roundLimitation +
+    //      "</html>")
+    private val propertiesText: String =
+      "Game Properties\n\n" +
+        "Game Code: " + game.code + "\n" +
+        "Max players per game: " + game.gameParameters.maxPlayers + "\n" +
+        "Max time per round: " + game.gameParameters.maxTimeRound + "\n" +
+        "Max rounds per game: " + game.gameParameters.roundLimitation
+    private val gameProperties = new TextArea {
+      text = propertiesText
+      editable = false
+      border = Swing.EmptyBorder(0)
+      opaque = false
+      lineWrap = true
+    }
     private val introPlayersListLabel = new Label("Players in the game:") {
       font = new Font("Arial", java.awt.Font.BOLD, 16)
       horizontalAlignment = Alignment.Center

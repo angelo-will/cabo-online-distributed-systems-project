@@ -21,6 +21,7 @@ case class ViewActorListener(ref: ActorRef[Message]) extends IInitialViewListene
     ref ! ClientMessages.JoinGame(game)
 
   override def joinWithAddress(address: String): Unit =
+    ref ! ClientMessages.JoinAGame()
     ref ! ClientMessages.JoinAddress(address)
 
   override def startGame(): Unit =

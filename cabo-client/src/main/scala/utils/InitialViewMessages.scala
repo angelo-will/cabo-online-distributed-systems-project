@@ -9,6 +9,7 @@ object InitialViewMessages {
 
   trait ViewCommand extends Message
 
+  case class WhoToSendResponse(ref: ActorRef[Message]) extends ViewCommand
   /**
    * Message sent by the client to the view if it's not possible to share the game with the server
    *
