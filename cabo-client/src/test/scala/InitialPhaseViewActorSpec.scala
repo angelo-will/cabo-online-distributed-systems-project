@@ -37,7 +37,8 @@ class InitialPhaseViewActorSpec extends ScalaTestWithActorTestKit
   "Initial Phase View Actor" must {
     "create view" when {
       "it's spawned" in {
-        val actorView = testKit.spawn(InitialPhaseViewActor(probe.ref))
+        val actorView = testKit.spawn(InitialPhaseViewActor(probe.ref, "player01"))
+        actorView ! InitialViewMessages.WhoToSendResponse(probe.ref)
         createCheckFrame("Initial Phase View Actor must create the view when it's spawned.", probe.ref).open()
         probe.expectMessageType[ViewCreated]
         probe.expectMessage(FiniteDuration(20, SECONDS), Passed())
@@ -45,7 +46,8 @@ class InitialPhaseViewActorSpec extends ScalaTestWithActorTestKit
     }
     "close the waiting creation game view" when {
       "receive the message the game is created" in {
-        val actorView = testKit.spawn(InitialPhaseViewActor(probe.ref))
+        val actorView = testKit.spawn(InitialPhaseViewActor(probe.ref, "player01"))
+        actorView ! InitialViewMessages.WhoToSendResponse(probe.ref)
         createCheckFrame("<html>" +
           "Initial Phase View Actor<br>" +
           "- must close the waiting creation game view<br>" +
@@ -64,7 +66,8 @@ class InitialPhaseViewActorSpec extends ScalaTestWithActorTestKit
     }
     "close the waiting join game view" when {
       "receive the message the game is joined" in {
-        val actorView = testKit.spawn(InitialPhaseViewActor(probe.ref))
+        val actorView = testKit.spawn(InitialPhaseViewActor(probe.ref, "player01"))
+        actorView ! InitialViewMessages.WhoToSendResponse(probe.ref)
         createCheckFrame("<html>" +
           "Initial Phase View Actor<br>" +
           "- must close the waiting join game view<br>" +
@@ -100,7 +103,7 @@ class InitialPhaseViewActorSpec extends ScalaTestWithActorTestKit
     }
 //    "show to host request to partecipate dialog" when {
 //      "another player ask to join the game" in {
-//        val actorView = testKit.spawn(InitialPhaseViewActor(probe.ref))
+//        val actorView = testKit.spawn(InitialPhaseViewActor(probe.ref, "player01"))
 //        createCheckFrame("<html>" +
 //          "Initial Phase View Actor<br>" +
 //          "- make the host waiting view startable<br>" +
@@ -136,7 +139,8 @@ class InitialPhaseViewActorSpec extends ScalaTestWithActorTestKit
 //    }
     "show the waiting lobby view to player who requested to enter" when {
       "the host accepted the player" in {
-        val actorViewPlayerJoiner = testKit.spawn(InitialPhaseViewActor(probe.ref))
+        val actorViewPlayerJoiner = testKit.spawn(InitialPhaseViewActor(probe.ref, "player01"))
+        actorViewPlayerJoiner ! InitialViewMessages.WhoToSendResponse(probe.ref)
         val hostRef = probe.ref
         createCheckFrame("<html>" +
           "Initial Phase View Actor<br>" +
@@ -165,9 +169,11 @@ class InitialPhaseViewActorSpec extends ScalaTestWithActorTestKit
       }
     }
     "allow a normal game simulation" in {
-      val actorViewHost = testKit.spawn(InitialPhaseViewActor(probe.ref))
+      val actorViewHost = testKit.spawn(InitialPhaseViewActor(probe.ref, "player01"))
+      actorViewHost ! InitialViewMessages.WhoToSendResponse(probe.ref)
       Thread.sleep(3000)
-      val actorViewJoiner = testKit.spawn(InitialPhaseViewActor(probe.ref))
+      val actorViewJoiner = testKit.spawn(InitialPhaseViewActor(probe.ref, "player02"))
+      actorViewJoiner ! InitialViewMessages.WhoToSendResponse(probe.ref)
 
       probe.expectMessageType[ViewCreated]
       probe.expectMessageType[ViewCreated]
@@ -202,7 +208,8 @@ class InitialPhaseViewActorSpec extends ScalaTestWithActorTestKit
 
   "open error to publish on server dialog" when {
     "server send error" in {
-      val actorView = testKit.spawn(InitialPhaseViewActor(probe.ref))
+      val actorView = testKit.spawn(InitialPhaseViewActor(probe.ref, "player01"))
+      actorView ! InitialViewMessages.WhoToSendResponse(probe.ref)
       createCheckFrame("<html>" +
         "Initial Phase View Actor<br>" +
         "- must open error to publish on server dialog<br>" +

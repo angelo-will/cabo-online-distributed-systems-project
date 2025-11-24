@@ -2,14 +2,11 @@ package view.lobbyphase.actors
 
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
-import com.typesafe.config.ConfigFactory
 import model.Game
-import utils.InitialViewMessages.WhoToSendResponse
 import utils.{InitialViewMessages, Message}
-import view.lobbyphase.{InitialPhaseMainFrame, ViewApplication}
-import view.*
+import utils.InitialViewMessages.WhoToSendResponse
 import view.lobbyphase.components.{IWaitingToStartListener, WaitingFrame}
-
+import view.lobbyphase.{InitialPhaseMainFrame, ViewApplication}
 
 object InitialPhaseViewActor:
 
@@ -17,222 +14,136 @@ object InitialPhaseViewActor:
 
   case class RestartView() extends Message
 
+  def apply(ref: ActorRef[Message], playerName: String): Behavior[Message] =
+    Behaviors.setup { ctx =>
+      ctx.log.info(s"InitialPhaseViewActor started for player: $playerName")
+      waitClientRef(playerName)
+    }
+
+  private def waitClientRef(playerName: String): Behavior[Message] =
+    Behaviors.receive { (ctx, msg) =>
+      msg match
+        case WhoToSendResponse(clientRef) =>
+          ctx.log.info("Client reference received. Starting View Logic.")
+          new InitialPhaseViewLogic(ctx, clientRef, playerName).startViewCreation()
+
+        case other =>
+          ctx.log.error(s"Unexpected message while waiting for client ref: $other")
+          Behaviors.same
+    }
+
+
+private class InitialPhaseViewLogic(
+                                     ctx: ActorContext[Message],
+                                     clientRef: ActorRef[Message],
+                                     playerName: String
+                                   ):
+
+  import InitialPhaseViewActor.*
+
   private case class ViewEndCreation(mainFrame: InitialPhaseMainFrame) extends Message
 
 
-  def apply(ref: ActorRef[Message]): Behavior[Message] =
-    Behaviors.setup { (ctx: ActorContext[Message]) =>
-      ctx.log.info("InitialPhaseViewActor started")
-      //      ViewApplication.startView(ViewActorListener(whoToSendResponse), afterCreation = frame => {
-      //        println("Creating view of InitialPhaseViewActor")
-      //        ctx.self ! ViewEndCreation(frame)
-      //      })
-      //      startInitialViewBehavior(ctx, whoToSendResponse)
-      waitClientRef()
-    }
-
-  private def waitClientRef(): Behavior[Message] = {
-    Behaviors.receivePartial {
-      case (ctx, WhoToSendResponse(ref)) => startInitialViewBehavior(ctx, ref)
-      case (ctx, msg) =>
-        ctx.log.error(s"InitialPaseViewActor-waitClientRef-ERROR received $msg")
-        Behaviors.same
-    }
-  }
-
-  private def idle(
-                    frame: InitialPhaseMainFrame,
-                    whoToSendResponse: ActorRef[Message],
-                  ): Behavior[Message] =
-    println("Enter in idle")
-    Behaviors.receivePartial {
-      handleGameCreated(frame, whoToSendResponse, lobbyWaitingRoom)
-        .orElse(handleGameListFromServer(frame, whoToSendResponse, idle))
-        .orElse(handlePositiveGameJoinedAnswer(frame, whoToSendResponse, lobbyWaitingRoom))
-      //        .orElse(handleNegativeGameJoinedAnswer(frame, whoToSendResponse, idle))
-    }
-
-  private def lobbyWaitingRoom(frame: WaitingFrame, whoToSendResponse: ActorRef[Message]): Behavior[Message] =
-    Behaviors.receivePartial {
-      handleGameUpdate(frame, whoToSendResponse, lobbyWaitingRoom)
-        //        .orElse(handlePlayerRequestToJoinTheGame(frame, whoToSendResponse, lobbyWaitingRoom))
-        .orElse(handleFailedToPublishToServer(frame, whoToSendResponse, lobbyWaitingRoom))
-        .orElse(handleGameAborted(frame, whoToSendResponse, lobbyWaitingRoom))
-        .orElse(handleRestartView(frame, whoToSendResponse, idle))
-        .orElse({
-          case _ => Behaviors.same
-        })
-      //        .orElse(handleGameStarted(infoInLobby))
-    }
-
-  // handlers for messages from View
-  private def startInitialViewBehavior(ctx: ActorContext[Message], whoToSendResponse: ActorRef[Message]): Behavior[Message] =
-    ViewApplication.startView(ViewActorListener(whoToSendResponse), afterCreation = frame => {
-      println("Creating view of InitialPhaseViewActor")
-      ctx.self ! ViewEndCreation(frame)
-    })
-    // TODO: delete remove this than -AAA- decide if wait a message to create view or create it directly
-    Behaviors.receivePartial {
-      case (ctx, ViewEndCreation(frame)) =>
-        ctx.log.info("Inside handleViewEndCreation")
-        whoToSendResponse ! ViewCreated()
-        idle(
-          frame,
-          whoToSendResponse,
-        )
-
-    }
-
-
-  // Handlers for messages from Client
-
-  private def handleRestartView(
-                                 waitingFrame: WaitingFrame,
-                                 whoToSendResponse: ActorRef[Message],
-                                 nextBehavior: (InitialPhaseMainFrame, ActorRef[Message]) => Behavior[Message]
-                               ):
-  PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
-    case (ctx, RestartView()) =>
-      ctx.log.info("Restarting the view to initial state")
-      startInitialViewBehavior(ctx, whoToSendResponse)
-
-
-  private def handleGameCreated(
-                                 initialPhaseMainFrame: InitialPhaseMainFrame,
-                                 whoToSendResponse: ActorRef[Message],
-                                 nextBehavior: (WaitingFrame, ActorRef[Message]) => Behavior[Message]
-                               ):
-  PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
-    case (ctx, InitialViewMessages.GameCreated(game)) =>
-      ctx.log.info("Game created successfully")
-      ctx.log.info(s"Game created at context $ctx")
-      initialPhaseMainFrame.dispose()
-      //      whoToSendResponse ! InitialViewMessages.GameCreated(game)
-      val waitingFrame = new WaitingFrame(
-        new IWaitingToStartListener {
-          override def startGame(): Unit =
-            initialPhaseMainFrame.viewListener.startGame()
-
-          override def exitFromTheGame(): Unit =
-            initialPhaseMainFrame.viewListener.exitFromTheGame()
-            ctx.self ! RestartView()
-          //            startInitialViewBehavior(ctx, whoToSendResponse)
-        },
-        game,
-        true
-      )
-      waitingFrame.open()
-      nextBehavior(waitingFrame, whoToSendResponse)
-  //    case (ctx, some) =>
-  //      ctx.log.warn(s"Unhandled message in handleGameCreated: $some")
-  //      Behaviors.unhandled
-
-  private def handleFailedToPublishToServer(
-                                             waitingFrame: WaitingFrame,
-                                             whoToSendResponse: ActorRef[Message],
-                                             nextBehavior: (WaitingFrame, ActorRef[Message]) => Behavior[Message]
-                                           ):
-  PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
-    case (ctx, InitialViewMessages.FailedToPublishToServer()) =>
-      ctx.log.error(s"Failed to publish to server the game created")
-      waitingFrame.openErrorPubOnServerDialog()
-      nextBehavior(waitingFrame, whoToSendResponse)
-
-  private def handleGameListFromServer(
-                                        initialPhaseMainFrame: InitialPhaseMainFrame,
-                                        whoToSendResponse: ActorRef[Message],
-                                        nextBehavior: (InitialPhaseMainFrame, ActorRef[Message]) => Behavior[Message]
-                                      ):
-  PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
-    case (ctx, InitialViewMessages.GameList(games)) =>
-      initialPhaseMainFrame.updateGameList(games)
-      ctx.log.info(s"Received game list from server: $games")
-      nextBehavior(initialPhaseMainFrame, whoToSendResponse)
-
-  private def handlePositiveGameJoinedAnswer(
-                                              initialPhaseMainFrame: InitialPhaseMainFrame,
-                                              whoToSendResponse: ActorRef[Message],
-                                              nextBehavior: (WaitingFrame, ActorRef[Message]) => Behavior[Message]
-                                            ):
-  PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
-    case (ctx, InitialViewMessages.GameJoined(game)) =>
-      ctx.log.info(s"Successfully joined game: $game")
-      initialPhaseMainFrame.dispose()
-      val waitingFrame = new WaitingFrame(
-        new IWaitingToStartListener {
-          override def startGame(): Unit = {}
-
-          //            initialPhaseMainFrame.viewListener.startGame()
-          override def exitFromTheGame(): Unit =
-            initialPhaseMainFrame.viewListener.exitFromTheGame()
-            ctx.self ! RestartView()
-          //            startInitialViewBehavior(ctx, whoToSendResponse)
-        },
-        game,
-        false
-      )
-      waitingFrame.open()
-      nextBehavior(waitingFrame, whoToSendResponse)
-
-  //  private def handleNegativeGameJoinedAnswer(
-  //                                              initialPhaseMainFrame: InitialPhaseMainFrame,
-  //                                              whoToSendResponse: ActorRef[Message],
-  //                                              nextBehavior: (InitialPhaseMainFrame, ActorRef[Message]) => Behavior[Message]
-  //                                            ):
-  //  PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
-  //    case (ctx, InitialViewMessages.GameJoinedFailed(game)) =>
-  //      ctx.log.info(s"Unsuccessfully joined game: $game")
-  //      // initialPhaseMainFrame.userFailedToEnterInTheGame(game)
-  //      // T ODO: inform the view
-  //      // T ODO: change ending behavior
-  //      nextBehavior(initialPhaseMainFrame, whoToSendResponse)
-
-  //
-  private def handleGameUpdate(
-                                waitingFrame: WaitingFrame,
-                                whoToSendResponse: ActorRef[Message],
-                                nextBehavior: (WaitingFrame, ActorRef[Message]) => Behavior[Message]
-                              ):
-  PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
-    case (ctx, InitialViewMessages.GameInfoUpdate(game)) =>
-      ctx.log.info(s"Arrived new info about the game: $game")
-      waitingFrame.updatePlayersList(game.players)
-      nextBehavior(waitingFrame, whoToSendResponse)
-  //
-  //  private def handleGameStarted(info: ViewActorInfoWaitingRoom):
-  //  PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
-  //    case (ctx, InitialViewMessages.GameStarted()) =>
-  //      ctx.log.info(s"Received message to start the game: GameStarted")
-  //      // TODO: inform the view to start the game
-  //      // TODO: change ending behavior
-  //      Behaviors.same
-
-  private def handleGameAborted(
-                                 waitingFrame: WaitingFrame,
-                                 whoToSendResponse: ActorRef[Message],
-                                 nextBehavior: (WaitingFrame, ActorRef[Message]) => Behavior[Message]
-                               ):
-  PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
-    case (ctx, InitialViewMessages.GameAborted()) =>
-      ctx.log.info(s"Arrived message that the game has been aborted")
-      waitingFrame.dispose()
-      startInitialViewBehavior(ctx, whoToSendResponse)
-
-// TODO: delete remove this than -AAA- remove this in deploy phase
-// to use rename application.conf to something in common resources.
-// This allow to run the test without a full application configuration.
-@main def runViewActorTest(): Unit =
-  import akka.actor.typed.ActorSystem
-
-  object ApplicationRootActor:
-    def apply(): Behavior[Message] = Behaviors.setup { ctx =>
-      ctx.log.info("ApplicationRootActor: Avvio...")
-      ctx.spawn(InitialPhaseViewActor(ctx.self), "ViewActor")
-      Behaviors.receive { (context, message) =>
-        println("Received message in ApplicationRootActor: " + message)
-        Behaviors.same
+  def startViewCreation(): Behavior[Message] =
+    ViewApplication.startView(
+      ViewActorListener(clientRef),
+      playerName,
+      afterCreation = frame => {
+        println("View constructed, sending ViewEndCreation to self")
+        ctx.self ! ViewEndCreation(frame)
       }
+    )
+
+    Behaviors.receiveMessage {
+      case ViewEndCreation(frame) =>
+        ctx.log.info("View creation completed. Transitioning to IDLE.")
+        clientRef ! ViewCreated()
+        idle(frame)
+
+      case other =>
+        ctx.log.warn(s"Received unexpected message during view creation: $other")
+        Behaviors.same
     }
-  println("Avvio test del ActorSystem...")
-  val system: ActorSystem[Message] = ActorSystem(ApplicationRootActor(), "ViewActorTestSystem", ConfigFactory.empty())
-  
+
+  def idle(frame: InitialPhaseMainFrame): Behavior[Message] =
+    Behaviors.receiveMessage {
+
+      case InitialViewMessages.GameList(games) =>
+        ctx.log.info(s"Received game list: ${games.size} games")
+        frame.updateGameList(games)
+        Behaviors.same
+
+      case InitialViewMessages.GameCreated(game) =>
+        ctx.log.info(s"Game created: ${game.code}. Switching to Waiting Room (Host).")
+        frame.dispose()
+        val waitingFrame = createWaitingFrame(game, isHost = true,
+          new IWaitingToStartListener {
+            override def startGame(): Unit =
+              frame.viewListener.startGame()
+
+            override def exitFromTheGame(): Unit =
+              frame.viewListener.exitFromTheGame()
+              ctx.self ! RestartView()
+          })
+        waitingFrame.open()
+        waiting(waitingFrame)
+
+      case InitialViewMessages.GameJoined(game) =>
+        ctx.log.info(s"Joined game: ${game.code}. Switching to Waiting Room (Guest).")
+        frame.dispose()
+        val waitingFrame = createWaitingFrame(game, isHost = false,
+          new IWaitingToStartListener {
+            override def startGame(): Unit = {}
+
+            override def exitFromTheGame(): Unit =
+              frame.viewListener.exitFromTheGame()
+              ctx.self ! RestartView()
+          })
+        waitingFrame.open()
+        waiting(waitingFrame)
+
+      case RestartView() =>
+        ctx.log.info("Restart requested while in IDLE. Reloading view.")
+        frame.dispose()
+        startViewCreation()
+
+      case other =>
+        ctx.log.warn(s"Unhandled message in IDLE: $other")
+        Behaviors.same
+    }
+
+  private def waiting(frame: WaitingFrame): Behavior[Message] =
+    Behaviors.receiveMessage {
+
+      case InitialViewMessages.GameInfoUpdate(game) =>
+        ctx.log.info(s"Update received for game ${game.code}. Updating player list.")
+        frame.updatePlayersList(game.players)
+        Behaviors.same
+
+      case InitialViewMessages.FailedToPublishToServer() =>
+        ctx.log.error("Failed to publish game to server.")
+        frame.openErrorPubOnServerDialog()
+        Behaviors.same
+
+      case InitialViewMessages.GameAborted() =>
+        ctx.log.info("Game aborted. returning to Main Menu.")
+        frame.dispose()
+        startViewCreation() // Torna all'inizio
+
+      case RestartView() =>
+        ctx.log.info("User left or restart requested. Returning to Main Menu.")
+        frame.dispose()
+        startViewCreation()
+
+      case other =>
+        ctx.log.warn(s"Unhandled message in WAITING: $other")
+        Behaviors.same
+    }
+
+
+  private def createWaitingFrame(
+                                  game: Game.GameInConstruction,
+                                  isHost: Boolean,
+                                  listener: IWaitingToStartListener
+                                ): WaitingFrame =
+    new WaitingFrame(listener, game, isHost)
