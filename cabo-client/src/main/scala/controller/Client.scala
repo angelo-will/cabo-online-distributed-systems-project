@@ -59,6 +59,9 @@ object Client:
 
   case class NewHostElected(replyTo: ActorRef[ClientInternalCommand]) extends ClientInternalCommand
 
+  // todo: inserito da angelo per far passare la prima fase fino che non è definito come farla
+  case class RevealingCardsPhaseForOtherClients(log: TurnLog) extends ClientInternalCommand
+
   case class PlayerStatus(playerID: String, address: ActorRef[ClientInternalCommand], rank: Int, isOnline: Boolean)
 
   private def viewDefaultBehavior: Behavior[Message] = Behaviors.setup { ctx =>
@@ -75,7 +78,7 @@ object Client:
     //todo - create a view actor
     val viewActorRef = optionalViewActor match {
       //      case null => ctx.spawnAnonymous(viewDefaultBehavior)
-      case null => ctx.spawn(InitialPhaseViewActor(ctx.self), "actor-initialphaseview")
+      case null => ctx.spawn(InitialPhaseViewActor(ctx.self, name), "actor-initialphaseview")
       case ref => ref
     }
 
@@ -88,6 +91,9 @@ object Client:
 private case class Client(userId: String, var name: String, viewActorRef: ActorRef[Message], connectionHandler: ActorRef[ConnectionHandler.InternalCommand]):
 
   import controller.Client.*
+
+  // todo: aggiunto da angelo ma si può rimuovere quando la revealing first phase sarà definita
+  private var howManyHaveWatchedCards = 0
 
   private case class ListingResponse(listing: Receptionist.Listing) extends Message
 
@@ -206,7 +212,6 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
         Behaviors.same
     })
   }
-
 
 
   def createPlayersStatus(playersInLobby: List[PlayerInLobby], playersPlaying: List[PlayerPlaying]): List[PlayerStatus] = {
@@ -416,7 +421,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
           logInfo(ctx, s"All players synchronized, starting the game: ${gameInProgress.code}")
           viewActorRef ! DuringGameViewMessages.StartGame(gameInProgress, gameCoordinator)
           gameCoordinator ! GameCoordinatorMessage.StartGame()
-//          viewActorRef ! InitialViewMessages.ReadyToPlay(gameCoordinator)
+          //          viewActorRef ! InitialViewMessages.ReadyToPlay(gameCoordinator)
           inGameBehavior(gameCoordinator, createPlayersStatus(game.players, gameInProgress.players), hostRef)
         }, () => {
           //If failed to synchronize
@@ -576,7 +581,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
         //          val index = gameInProgress.players.indexWhere(p => p.userID == userId && p.name == name)
         hostRef ! SynchronizationAck(userId)
         val duringGameViewActor = ctx.spawn(DuringGameViewActor(userId, ctx.self, null), s"duringGameView-$userId")
-//        viewActorRef ! InitialViewMessages.ReadyToPlay(gameCoordinator)
+        //        viewActorRef ! InitialViewMessages.ReadyToPlay(gameCoordinator)
         val gameCoordinator = ctx.spawn(GameCoordinatorActor(ctx.self, duringGameViewActor, userId, gameInProgress), "GameCoordinatorActor")
         gameCoordinator ! GameCoordinatorMessage.StartGame()
         duringGameViewActor ! DuringGameViewMessages.StartGame(gameInProgress, gameCoordinator)
@@ -633,6 +638,37 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
     }
 
     withShared({
+      // GAME LOGIC LEVEL MESSAGES - START
+
+      // todo: aggiunti da Angelo fino che non è definito come far passare la fase di reveal delle carte - START
+      case (ctx, RevealingCardsPhaseLog(log)) =>
+        logInfo(ctx, s"Received ${RevealingCardsPhaseLog(log)}")
+        howManyHaveWatchedCards += 1
+        playersStatus.filter(l => !l.playerID.equals(this.userId) && l.isOnline).map(_.address).foreach(_ ! RevealingCardsPhaseForOtherClients(log))
+        ctx.log.info(s"Number of players that have watched the cards: $howManyHaveWatchedCards")
+        if howManyHaveWatchedCards == playersStatus.size then {
+          ctx.log.info(s"All players have watched the cards, resetting counter and informing GameCoordinator to proceed")
+          howManyHaveWatchedCards = 0
+          gameCoordinator ! GameCoordinatorMessage.StartPlayCycle()
+        }
+        Behaviors.same
+
+      case (ctx, RevealingCardsPhaseForOtherClients(log)) =>
+        logInfo(ctx, s"Received ${RevealingCardsPhaseForOtherClients(log)}")
+        viewActorRef ! DuringGameViewMessages.RevealingCardsPhaseAdversaryLog(log)
+        //        if hostRef == ctx.self then
+        howManyHaveWatchedCards += 1
+        ctx.log.info(s"Number of players that have watched the cards: $howManyHaveWatchedCards")
+        if howManyHaveWatchedCards == playersStatus.size then {
+          ctx.log.info(s"All players have watched the cards, resetting counter and informing GameCoordinator to proceed")
+          howManyHaveWatchedCards = 0
+          gameCoordinator ! GameCoordinatorMessage.StartPlayCycle()
+        }
+
+        Behaviors.same
+      // todo: aggiunti da Angelo fino che non è definito come far passare la fase di reveal delle carte - END
+
+
       case (ctx, TurnEnded(game, log)) =>
         ctx.log.info(s"My turn ended: ${this.userId}")
         playersStatus.filter(l => !l.playerID.equals(this.userId) && l.isOnline).map(_.address).foreach(_ ! GameInProgressUpdate(ctx.self, game, log))
@@ -646,6 +682,21 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
           Behaviors.same
         })
 
+      // TODO: Questo non so se dovrebbe esserci o se si può cancellare 
+      //      case (ctx, GameInProgressUpdate(replyTo, game, log)) =>
+      //        //todo - update gameCoordinator
+      //        //        ctx.log.info(s"Game info update: ${this.userId}")
+      //        logInfo(ctx, s"Game info update")
+      //        gameCoordinator ! NewTurn(game, log)
+      //        //todo - sync to all the players, wait for gameCoordinator ack?
+      //        withShared({
+      //          case (ctx, TurnUpdated()) =>
+      //            //            ctx.log.info(s"GameCoordinator updated the turn")
+      //            logInfo(ctx, s"GameCoordinator updated the turn")
+      //            replyTo ! SynchronizationAck(userId)
+      //            inGameBehavior(gameCoordinator, playersStatus, hostRef)
+      //        })
+
       case (ctx, LeaveTheGame()) =>
         //todo
         //        ctx.log.info(s"Leaving game, informing other players like I am unreachable")
@@ -654,6 +705,8 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
         ctx.stop(gameCoordinator)
         connectionHandler ! ConnectionHandler.UpdateList(List())
         start
+
+      // GAME LOGIC LEVEL MESSAGES - END
 
       case (ctx, PlayerUnreachable(playerInLobby)) =>
         //todo - host management
@@ -700,6 +753,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
 
         }
 
+      // ELECTION HOST LOGIC MESSAGES - START
       case (ctx, ElectionStarted(candidateRank, replyTo)) =>
         //another player is starting an election
         //        ctx.log.info(s"Election started by another player: ${replyTo}")
@@ -732,18 +786,8 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
         logInfo(ctx, s"New host elected: $replyTo")
         inGameBehavior(gameCoordinator, playersStatus, replyTo)
 
-      case (ctx, GameInProgressUpdate(replyTo, game, log)) =>
-        //todo - update gameCoordinator
-        //        ctx.log.info(s"Game info update: ${this.userId}")
-        logInfo(ctx, s"Game info update")
-        gameCoordinator ! NewTurn(game, log)
-        //todo - sync to all the players, wait for gameCoordinator ack?
-        withShared({
-          case (ctx, TurnUpdated()) =>
-            //            ctx.log.info(s"GameCoordinator updated the turn")
-            logInfo(ctx, s"GameCoordinator updated the turn")
-            replyTo ! SynchronizationAck(userId)
-            inGameBehavior(gameCoordinator, playersStatus, hostRef)
-        })
+      // ELECTION HOST LOGIC MESSAGES - END
+
+
     })
   }
