@@ -5,11 +5,11 @@ import model.{Game, PlayerInLobby}
 import view.lobbyphase.ScreenNavigator
 import view.lobbyphase.ViewListener.IInitialViewListener
 
-import java.awt.GridBagConstraints
+import java.awt.{Font, GridBagConstraints, Insets, Toolkit}
 import java.awt.GridBagConstraints.*
-import java.awt.Insets
-import java.awt.Font
+import java.awt.datatransfer.StringSelection
 import javax.swing.SwingUtilities
+import scala.swing.GridBagPanel.Fill
 import scala.swing.event.ButtonClicked
 //import scala.swing.{Alignment, BoxPanel, Button, Dialog, Dimension, Label, MainFrame, Orientation, ScrollPane, Swing}
 import scala.swing._
@@ -38,6 +38,11 @@ class WaitingFrame(
     isHost
   )
 
+  private val copyGameCodeButton = new Button {
+    text = "Copy Game Code"
+    tooltip = "Click here to copy game code in clipboard"
+  }
+
   private val startGameButton = new Button("Start Game") {
     font = new Font("Arial", java.awt.Font.PLAIN, 16)
     enabled = game.players.size >= 2 && isHost
@@ -51,7 +56,7 @@ class WaitingFrame(
     // horizontalAlignment = Alignment.Center
   }
 
-  listenTo(startGameButton, exitButton)
+  listenTo(startGameButton, exitButton, copyGameCodeButton)
 
   peer.addWindowListener(new java.awt.event.WindowAdapter() {
     override def windowClosing(e: java.awt.event.WindowEvent): Unit =
@@ -69,6 +74,11 @@ class WaitingFrame(
       println("Exit button clicked.")
       listener.exitFromTheGame()
       this.dispose()
+    case ButtonClicked(`copyGameCodeButton`) =>
+      val clipboard = Toolkit.getDefaultToolkit.getSystemClipboard
+      val selection = new StringSelection(game.code)
+      clipboard.setContents(selection, selection)
+      println(s"Game code '${game.code}' copied to clipboard.")
   }
 
   contents = new GridBagPanel {
@@ -99,6 +109,7 @@ class WaitingFrame(
       opaque = false
       lineWrap = true
     }
+
     private val introPlayersListLabel = new Label("Players in the game:") {
       font = new Font("Arial", java.awt.Font.BOLD, 16)
       horizontalAlignment = Alignment.Center
@@ -131,6 +142,14 @@ class WaitingFrame(
     c.gridwidth = GridBagConstraints.REMAINDER
     c.weighty = 0.0 // Non si espande verticalmente
     layout(gameProperties) = c
+
+    nextRow()
+
+    c.gridy = row
+    c.gridx = column
+    c.fill = Fill.Horizontal
+    layout(copyGameCodeButton) = c
+    c.fill = Fill.None
 
     nextRow()
 
@@ -192,7 +211,6 @@ class WaitingFrame(
     })
 
 class WaitingLobbyPlayersContainer(
-                                    //                                    listener: IInitialViewListener,
                                     players: List[PlayerInLobby],
                                     canKickOut: Boolean
                                   ) extends ScrollPane:
