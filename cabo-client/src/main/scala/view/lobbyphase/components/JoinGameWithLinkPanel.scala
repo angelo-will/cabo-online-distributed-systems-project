@@ -25,19 +25,21 @@ class JoinGameWithLinkPanel(navigator: ScreenNavigator, viewListener: IJoinGameW
     maximumSize = new Dimension(300, preferredSize.height)
   }
 
-  private val joinButton = new Button("Unisciti")
-  private val backButton = new Button("Indietro")
+  private val pasteLinkButton = new Button("Paste game code")
+  private val joinButton = new Button("Join")
+  private val backButton = new Button("Go Back")
 
   contents += titleLabel
   contents += Swing.VStrut(20)
   contents += gameInsertLinkLabel
   contents += gameCodeField
   contents += Swing.VStrut(10)
+  contents += pasteLinkButton
   contents += joinButton
   contents += backButton
   contents += Swing.VGlue
 
-  listenTo(joinButton, backButton)
+  listenTo(joinButton, backButton, pasteLinkButton)
 
   reactions += {
     case ButtonClicked(b) =>
@@ -47,5 +49,11 @@ class JoinGameWithLinkPanel(navigator: ScreenNavigator, viewListener: IJoinGameW
         viewListener.joinWithAddress(gameCodeField.text)
       else if b == backButton then
         println("JoinGamePanel: Cliccato 'Indietro'. Chiedo al navigatore di mostrare 'welcomeScreen'.")
-        navigator.goToPreviousPanel() 
+        navigator.goToPreviousPanel()
+      else if b == pasteLinkButton then
+        val clipboard = java.awt.Toolkit.getDefaultToolkit.getSystemClipboard
+        val contents = clipboard.getContents(null)
+        if contents != null && contents.isDataFlavorSupported(java.awt.datatransfer.DataFlavor.stringFlavor) then
+          val clipboardText = contents.getTransferData(java.awt.datatransfer.DataFlavor.stringFlavor).asInstanceOf[String]
+          gameCodeField.text = clipboardText
   }
