@@ -165,8 +165,7 @@ class InitialPhaseMainFrame(val viewListener: IInitialViewListener, val playerNa
     })
 
 object ViewApplication:
-  def startView(viewListener: IInitialViewListener, afterCreation: (frame: InitialPhaseMainFrame) => Unit): Unit =
-    val playerName = "playerName"
+  def startView(viewListener: IInitialViewListener, playerName: String, afterCreation: (frame: InitialPhaseMainFrame) => Unit): Unit =
     var mainFrame: InitialPhaseMainFrame = null
     SwingUtilities.invokeLater(() =>
       mainFrame = new InitialPhaseMainFrame(viewListener, playerName)
