@@ -232,6 +232,7 @@ object GameCoordinatorActor:
           gameData.turnLog.addEvent(TurnEvent.EndTurn())
           val newGameData = gameData.syncAllTemporaryDecks
           gameData.clientReference ! CLMsg.TurnEnded(newGameData.game, gameData.turnLog)
+          ctx.self ! GCMsg.NewTurn(newGameData.game, newGameData.turnLog)
           notMyTurn(newGameData)
         case (ctx, GCMsg.CallCabo()) =>
           gameData.turnLog.addEvent(TurnEvent.CaboCalled())
@@ -374,19 +375,6 @@ object GameCoordinatorActor:
           notMyTurn(newGameData)
         case (_, _) => transitionToShowingResults(isGameEnded, newGameData, turnLog)
 
-
-  //      (isGameEnded, isMyTurnNext) match
-  //        case (true, _) =>
-  //          newGameData.viewReference ! DGVMsg.LastTurnPlayed(turnLog, actualGame, false)
-  //          transitionToShowingResults(newGameData, turnLog)
-  //        case (_, true) =>
-  //          newGameData.viewReference ! DGVMsg.LastTurnPlayed(turnLog, actualGame, true)
-  //          myTurnBeforeDraw(newGameData)
-  //        case _ =>
-  //          newGameData.viewReference ! DGVMsg.LastTurnPlayed(turnLog, actualGame, false)
-  //          newGameData.viewReference ! DGVMsg.StartTurnPlayer(playerIDHaveToPlay)
-  //          notMyTurn(newGameData)
-
   // POWERS implementation
 
   private def handleShowOwnNthCard(
@@ -426,7 +414,7 @@ object GameCoordinatorActor:
 
       ctx.log.info(s"ownOldCard $ownOldCard, ownNewCard $ownNewCard")
 
-      val newGameState = gameData.game
+      val newGameState = gameData.temporaryGame
         .replaceNthCardOfPlayerWithID(gameData.playerOwnUserID, ownNewCard, ownCardIndex)
         .replaceNthCardOfPlayerWithID(adversaryID, ownOldCard, adversaryCardIndex)
 
@@ -434,7 +422,7 @@ object GameCoordinatorActor:
 
       gameData.viewReference ! DGVMsg.ChangeCardWithAdversaryAck()
 
-      nextBehaviors(gameData.copy(game = newGameState))
+      nextBehaviors(gameData.copy(temporaryGame = newGameState))
   }
 
   // END POWERS implementation
@@ -463,11 +451,6 @@ object GameCoordinatorActor:
   }
 
   // SUPPORT FUNCTIONS
-  //  private def isMyTurn(gameData: GameData, actualGame: GameInProgress): Boolean = {
-  //    val rankWhoPlay = ((actualGame.currentRound - 1) % actualGame.players.size) + 1
-  //    print(s"isMyTurn called, rankWhoPlay = $rankWhoPlay, gameData = $gameData, actualGame = $actualGame")
-  //    gameData.playerOwnRank == rankWhoPlay
-  //  }
 
   private def getPlayerIDWhoHasToPlay(actualGame: GameInProgress): String = {
     val rankWhoPlay = ((actualGame.currentRound - 1) % actualGame.players.size) + 1
@@ -490,6 +473,3 @@ object GameCoordinatorActor:
     }
   }
 
-//  private def isGameEnded(gameData: GameData): Boolean = {
-//    gameData.game.caboState.isDefined && playerIDHaveToPlay == gameData.newGameData.game.caboState.get.whoCalledCabo.userID
-//  }
