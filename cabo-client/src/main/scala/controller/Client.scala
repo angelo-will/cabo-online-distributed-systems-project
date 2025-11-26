@@ -46,7 +46,13 @@ object Client:
 
   case class GameInProgressUpdate(replyTo: ActorRef[ClientInternalCommand],game: GameInProgress, turnLog: TurnLog) extends ClientInternalCommand
 
+  // messages to test correct behavior
+
   case class StartGameBehavior(thisBehavior: () => Behavior[Message], hostRef: ActorRef[ClientInternalCommand]) extends ClientInternalCommand
+
+  case class RemoveCheckPlayerStatus() extends ClientInternalCommand
+
+  //messages for new host election
 
   case class ElectionStarted(candidateRank: Int, replyTo: ActorRef[ClientInternalCommand]) extends ClientInternalCommand
 
@@ -499,7 +505,8 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
   //todo - change the hostRef with a boolean if not needed
   private def inGameBehavior(gameCoordinator: ActorRef[GameCoordinatorMessage], playersStatus: List[PlayerStatus], hostRef: ActorRef[ClientInternalCommand]): Behavior[Message] = {
 
-    def otherPlayers = playersStatus.filterNot(_.playerID.equals(this.userId))
+    //    lazy val otherPlayers = playersStatus.filterNot(_.playerID.equals(this.userId))
+    val otherPlayers = playersStatus.filterNot(_.playerID.equals(this.userId))
 
 //    case class ElectionStarted(candidateRank: Int, replyTo: ActorRef[ClientInternalCommand]) extends ClientInternalCommand
 //    case class NoYouCanNot() extends ClientInternalCommand
@@ -529,6 +536,54 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
 
     }
 
+    def inElectionBehavior(myRank: Int): Behavior[Message] = {
+      Behaviors.withStash(50) { buffer =>
+        Behaviors.withTimers { timers =>
+          timers.startSingleTimer(ElectionWon(), 5.seconds)
+          withShared({
+            case (ctx, NoYouCanNot()) =>
+              logInfo(ctx, "Someone has a lower rank, stopping my election")
+              timers.cancelAll()
+              buffer.unstashAll(inGameBehavior(gameCoordinator, playersStatus, hostRef))
+
+            case (ctx, ElectionStarted(candidateRank, replyTo)) =>
+              //another player is starting an election
+              ctx.log.info(s"Election started by another player: $replyTo")
+              if myRank < candidateRank then {
+                //i have lower rank, so i can not accept the election
+                logInfo(ctx, s"My rank ($myRank) is lower than sender rank ($candidateRank), refusing his election")
+                replyTo ! NoYouCanNot()
+                // reset the election to give time to the others to align
+                buffer.unstashAll(inElectionBehavior(myRank))
+              } else {
+                logInfo(ctx, s"My rank ($myRank) is higher than sender rank ($candidateRank), accepting his election")
+                timers.cancelAll()
+                buffer.unstashAll(inGameBehavior(gameCoordinator, playersStatus, hostRef))
+              }
+
+            case (ctx, ElectionWon()) =>
+              logInfo(ctx, s"I won the election, becoming the new host")
+              otherPlayers.filter(p => p.isOnline).foreach(_.address ! NewHostElected(ctx.self))
+              buffer.unstashAll(inGameBehavior(gameCoordinator, playersStatus, ctx.self))
+
+            case (ctx, NewHostElected(replyTo)) =>
+              //todo - should not happen, should start a new election?
+              logInfo(ctx, s"New host elected while there was an election: $replyTo")
+              timers.cancelAll()
+              buffer.unstashAll(inGameBehavior(gameCoordinator, playersStatus, replyTo))
+
+            case (ctx, other) =>
+              logInfo(ctx, s"Stashing message during election: $other")
+              buffer.stash(other)
+              Behaviors.same
+          })
+        }
+      }
+    }
+
+
+    //todo - receive GameCancelled if the host failed to synchronize with the other players
+    //todo - initial phase when exchanging log about cards viewed
     withShared( {
       case (ctx, TurnEnded(game, log)) =>
         ctx.log.info(s"My turn ended: ${this.userId}")
@@ -583,14 +638,20 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
 //                ctx.log.info(s"Player: ${playerInLobby.userID} was the host, starting election")
                 logInfo(ctx, s"Player: ${playerInLobby.userID} was the host, starting election")
                 //start election
-                //for now we just pick the next online player as host
                 val myRank = playersStatus.find(_.playerID == userId).map(_.rank).getOrElse(-1)
 //                otherPlayers.filter(p => p.isOnline && p.rank < myRank).foreach(_.address ! ElectionStarted(myRank, ctx.self))
                 onlineUpdate.filter(p => !p.playerID.equals(this.userId) && p.isOnline && p.rank < myRank).foreach(_.address ! ElectionStarted(myRank, ctx.self))
                 Behaviors.withTimers(timer => {
                   timer.startSingleTimer(ElectionWon(), 5.seconds)
-                  inGameBehavior(gameCoordinator, onlineUpdate, hostRef)
+                  inElectionBehavior(myRank)
+//                  Behaviors.receiveMessagePartial {
+//                    case NoYouCanNot() =>
+//                      logInfo(ctx, "Someone has a lower rank, stopping my election")
+//                      timer.cancelAll()
+//                      inGameBehavior(gameCoordinator, onlineUpdate, hostRef)
+//                  }
                 })
+//                  inGameBehavior(gameCoordinator, onlineUpdate, hostRef)
               } else
                 inGameBehavior(gameCoordinator, onlineUpdate, hostRef)
             }
@@ -609,25 +670,26 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
           replyTo ! NoYouCanNot()
           // i start my own election
           otherPlayers.filter(p => p.isOnline && p.rank < myRank).foreach(_.address ! ElectionStarted(myRank, ctx.self))
-          Behaviors.withTimers(timer => {
-            timer.startSingleTimer(ElectionWon(), 5.seconds)
-            inGameBehavior(gameCoordinator, playersStatus, hostRef)
-          })
+          inElectionBehavior(myRank)
+//          Behaviors.withTimers(timer => {
+//            timer.startSingleTimer(ElectionWon(), 5.seconds)
+//            inGameBehavior(gameCoordinator, playersStatus, hostRef)
+//          })
         } else {
           inGameBehavior(gameCoordinator, playersStatus, hostRef)
         }
 
-      case (ctx, ElectionWon()) =>
-        //i won the election
-//        ctx.log.info(s"I won the election, becoming the new host")
-        logInfo(ctx, s"I won the election, becoming the new host")
-        otherPlayers.filter(p => p.isOnline).foreach(_.address ! NewHostElected(ctx.self))
-        inGameBehavior(gameCoordinator, playersStatus, ctx.self)
-
-      case (ctx, NewHostElected(replyTo)) =>
-//        ctx.log.info(s"New host elected: $replyTo")
-        logInfo(ctx, s"New host elected: $replyTo")
-        inGameBehavior(gameCoordinator, playersStatus, replyTo)
+//      case (ctx, ElectionWon()) =>
+//        //i won the election
+////        ctx.log.info(s"I won the election, becoming the new host")
+//        logInfo(ctx, s"I won the election, becoming the new host")
+//        otherPlayers.filter(p => p.isOnline).foreach(_.address ! NewHostElected(ctx.self))
+//        inGameBehavior(gameCoordinator, playersStatus, ctx.self)
+//
+//      case (ctx, NewHostElected(replyTo)) =>
+////        ctx.log.info(s"New host elected: $replyTo")
+//        logInfo(ctx, s"New host elected: $replyTo")
+//        inGameBehavior(gameCoordinator, playersStatus, replyTo)
 
       case (ctx, GameInProgressUpdate(replyTo, game, log)) =>
         //todo - update gameCoordinator
@@ -642,5 +704,10 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
             replyTo ! SynchronizationAck(userId)
             inGameBehavior(gameCoordinator, playersStatus, hostRef)
         })
+
+      case (ctx, RemoveCheckPlayerStatus()) =>
+        logInfo(ctx, s"Removing player status checking, clearing player list")
+        connectionHandler ! ConnectionHandler.UpdateList(List())
+        Behaviors.same
     })
   }
