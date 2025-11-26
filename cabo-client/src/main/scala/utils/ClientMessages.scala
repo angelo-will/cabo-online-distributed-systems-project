@@ -84,5 +84,7 @@ object ClientMessages {
   case class DuringGameViewReady(viewRef: ActorRef[Message]) extends ClientCommand
 
   case class RevealingCardsPhaseLog(turnLog: TurnLog) extends ClientCommand
+  
+  case class GameEnded() extends ClientCommand
 
 }
