@@ -75,17 +75,17 @@ object Client:
   def apply(userId: String = "Player", name: String = "defaultCoolName", optionalViewActor: ActorRef[Message] = null): Behavior[Message] = Behaviors.setup { ctx =>
     //    val clientID = userId+ctx.self.path.address.hashCode()
     val clientID = userId + UUID.randomUUID().hashCode()
-    //todo - create a view actor
-    val viewActorRef = optionalViewActor match {
-      //      case null => ctx.spawnAnonymous(viewDefaultBehavior)
-      case null => ctx.spawn(InitialPhaseViewActor(ctx.self, name), "actor-initialphaseview")
-      case ref => ref
-    }
+    //    //todo - create a view actor
+    //    val viewActorRef = optionalViewActor match {
+    //      //      case null => ctx.spawnAnonymous(viewDefaultBehavior)
+    //      case null => ctx.spawn(InitialPhaseViewActor(ctx.self, name), "actor-initialphaseview")
+    //      case ref => ref
+    //    }
 
     val connectionHandler = ctx.spawn(ConnectionHandler[MemberExited](ctx.self), "ConnectionHandler")
 
-    ctx.log.info(s"CLIENT - start creating Client\n\twith ID: $clientID\n\twith name: $name\n\twith viewactorref:$viewActorRef")
-    new Client(clientID, name, viewActorRef, connectionHandler).start
+    //    ctx.log.info(s"CLIENT - start creating Client\n\twith ID: $clientID\n\twith name: $name\n\twith viewactorref:$viewActorRef")
+    new Client(clientID, name, null, connectionHandler).initialize()
   }
 
 private case class Client(userId: String, var name: String, viewActorRef: ActorRef[Message], connectionHandler: ActorRef[ConnectionHandler.InternalCommand]):
@@ -169,6 +169,14 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
                           specific: PartialFunction[(ActorContext[Message], Message), Behavior[Message]]
                         ): Behavior[Message] =
     Behaviors.receivePartial(sharedHandler.orElse(specific))
+
+  private def initialize(): Behavior[Message] = {
+    Behaviors.setup { ctx =>
+      val viewActorRef = ctx.spawn(InitialPhaseViewActor(ctx.self, name), "actor-initialphaseview")
+      this.copy(viewActorRef = viewActorRef).start
+    }
+  }
+
 
   private def start: Behavior[Message] = Behaviors.setup { ctx =>
 
@@ -335,6 +343,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
         //        //todo - check if we need to keep it for re-entering the game
         //        ctx.system.receptionist ! Receptionist.deregister(akka.actor.typed.receptionist.ServiceKey[Message](game.code), ctx.self)
 
+        ctx.stop(viewActorRef)
         val duringGameViewActor = ctx.spawn(DuringGameViewActor(userId, ctx.self, null), s"duringGameView-$userId")
         //todo - fix this, you can't call the method directly
         ctx.self ! StartGameBehavior(() => GameCoordinatorActor(ctx.self, duringGameViewActor, userId, game), ctx.self)
@@ -588,6 +597,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
         //todo - a joiner initially check connection only with the host, in the game he should check also with other players?
 
         connectionHandler ! ConnectionHandler.UpdateList(game.players)
+        viewActorRef ! InitialViewMessages.GameStarted()
         this.copy(viewActorRef = duringGameViewActor).inGameBehavior(gameCoordinator, createPlayersStatus(game.players, gameInProgress.players), hostRef)
       //          ctx.self ! StartGameBehavior(GameCoordinatorActor(ctx.self, viewActorRef, userId, gameInProgress), hostRef)
       //          Behaviors.same
@@ -682,20 +692,19 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
           Behaviors.same
         })
 
-      // TODO: Questo non so se dovrebbe esserci o se si può cancellare 
-      //      case (ctx, GameInProgressUpdate(replyTo, game, log)) =>
-      //        //todo - update gameCoordinator
-      //        //        ctx.log.info(s"Game info update: ${this.userId}")
-      //        logInfo(ctx, s"Game info update")
-      //        gameCoordinator ! NewTurn(game, log)
-      //        //todo - sync to all the players, wait for gameCoordinator ack?
-      //        withShared({
-      //          case (ctx, TurnUpdated()) =>
-      //            //            ctx.log.info(s"GameCoordinator updated the turn")
-      //            logInfo(ctx, s"GameCoordinator updated the turn")
-      //            replyTo ! SynchronizationAck(userId)
-      //            inGameBehavior(gameCoordinator, playersStatus, hostRef)
-      //        })
+      case (ctx, GameInProgressUpdate(replyTo, game, log)) =>
+        //todo - update gameCoordinator
+        //        ctx.log.info(s"Game info update: ${this.userId}")
+        logInfo(ctx, s"Game info update")
+        gameCoordinator ! NewTurn(game, log)
+        //todo - sync to all the players, wait for gameCoordinator ack?
+        withShared({
+          case (ctx, TurnUpdated()) =>
+            //            ctx.log.info(s"GameCoordinator updated the turn")
+            logInfo(ctx, s"GameCoordinator updated the turn")
+            replyTo ! SynchronizationAck(userId)
+            inGameBehavior(gameCoordinator, playersStatus, hostRef)
+        })
 
       case (ctx, LeaveTheGame()) =>
         //todo
@@ -704,7 +713,13 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
         otherPlayers.filter(_.isOnline).foreach(_.address ! PlayerUnreachable(PlayerInLobby(userId, name, ctx.self)))
         ctx.stop(gameCoordinator)
         connectionHandler ! ConnectionHandler.UpdateList(List())
-        start
+        initialize()
+
+      case (ctx, GameEnded()) =>
+        ctx.log.info(s"Game has ended, returning to initial phase")
+        connectionHandler ! ConnectionHandler.UpdateList(List())
+        ctx.stop(gameCoordinator)
+        initialize()
 
       // GAME LOGIC LEVEL MESSAGES - END
 
