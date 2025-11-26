@@ -163,13 +163,12 @@ object GameCoordinatorActor:
       handleSendGameStatus(gameData, waitOtherHaveSeenOwnCard)
         .orElse({
           case (ctx, GCMsg.StartPlayCycle()) =>
-            if gameData.playerOwnRank == 1 then
-              gameData.viewReference ! DGVMsg.FirstTurn()
+            val firstPlayer = gameData.game.players.find(_.rank == 1).get.userID
+            gameData.viewReference ! DGVMsg.StartTurnPlayer(firstPlayer)
+            if gameData.playerOwnUserID == firstPlayer then
               myTurnBeforeDraw(gameData.copy(turnLog = new DuringGameTurnLog(gameData.playerOwnUserID, 1)))
             else
               //TODO: insert player who play first
-              val firstPlayer = gameData.game.players.find(_.rank == 1).get
-              gameData.viewReference ! DGVMsg.StartTurnPlayer(firstPlayer.userID)
               notMyTurn(gameData.copy(turnLog = new DuringGameTurnLog(gameData.playerOwnUserID, 1)))
         })
     }
@@ -435,7 +434,7 @@ object GameCoordinatorActor:
       val newTurnLogJumping = DuringGameTurnLog(gameData.turnLog.playerName, gameData.turnLog.round)
       newTurnLogJumping.addEvent(TurnEvent.JumpTurnForTimerEnded())
       val newGameData = gameData.copy(temporaryGame = gameData.game, turnLog = newTurnLogJumping)
-      gameData.viewReference ! DGVMsg.EndTurn()
+      gameData.viewReference ! DGVMsg.EndTurnSelected()
       gameData.clientReference ! CLMsg.TurnEnded(newGameData.game, newGameData.turnLog)
       notMyTurn(newGameData)
 
