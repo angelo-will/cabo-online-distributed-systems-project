@@ -9,6 +9,7 @@ import java.awt.{Font, GridBagConstraints, Insets, Toolkit}
 import java.awt.GridBagConstraints.*
 import java.awt.datatransfer.StringSelection
 import javax.swing.SwingUtilities
+import scala.swing.Dialog as result
 import scala.swing.GridBagPanel.Fill
 import scala.swing.event.ButtonClicked
 //import scala.swing.{Alignment, BoxPanel, Button, Dialog, Dimension, Label, MainFrame, Orientation, ScrollPane, Swing}
@@ -30,8 +31,10 @@ class WaitingFrame(
   preferredSize = new Dimension(600, 400)
   centerOnScreen()
   peer.setDefaultCloseOperation(
-    javax.swing.WindowConstants.DISPOSE_ON_CLOSE
+    javax.swing.WindowConstants.DO_NOTHING_ON_CLOSE
   )
+
+  override def closeOperation(): Unit = onExitDuringWaitingLobbyPolicy()
 
   private val playersListContainer = new WaitingLobbyPlayersContainer(
     game.players,
@@ -58,12 +61,12 @@ class WaitingFrame(
 
   listenTo(startGameButton, exitButton, copyGameCodeButton)
 
-  peer.addWindowListener(new java.awt.event.WindowAdapter() {
-    override def windowClosing(e: java.awt.event.WindowEvent): Unit =
-      println("Window closing, exiting from the game.")
-      listener.exitFromTheGame()
-      dispose()
-  })
+//  peer.addWindowListener(new java.awt.event.WindowAdapter() {
+//    override def windowClosing(e: java.awt.event.WindowEvent): Unit =
+//      println("Window closing, exiting from the game.")
+//      listener.exitFromTheGame()
+//      dispose()
+//  })
 
   reactions += {
     case ButtonClicked(`startGameButton`) =>
@@ -72,8 +75,8 @@ class WaitingFrame(
       this.dispose()
     case ButtonClicked(`exitButton`) =>
       println("Exit button clicked.")
-      listener.exitFromTheGame()
-      this.dispose()
+      onExitDuringWaitingLobbyPolicy()
+    //      this.dispose()
     case ButtonClicked(`copyGameCodeButton`) =>
       val clipboard = Toolkit.getDefaultToolkit.getSystemClipboard
       val selection = new StringSelection(game.code)
@@ -199,7 +202,7 @@ class WaitingFrame(
     playersListContainer.repaint()
     repaint()
 
-  def openErrorPubOnServerDialog(): Unit =
+  def openErrorPubOnServerDialog(): Unit = {
     SwingUtilities.invokeLater(() => {
       Dialog.showMessage(
         this,
@@ -209,6 +212,47 @@ class WaitingFrame(
         messageType = Dialog.Message.Error
       )
     })
+  }
+
+  def onExitDuringWaitingLobbyPolicy(): Unit = {
+    val message = s"Are you sure you want to close lobby?"
+    + s"${if isHost then "Every participant will be expelled." else ""}"
+    val title = "Confirm Closing"
+
+    val options = List("Yes, Close", "No, Stay")
+
+    val result: Dialog.Result.Value = Dialog.showConfirmation(
+      parent = this, // La finestra corrente è il genitore
+      message = message,
+      title = title,
+      optionType = Dialog.Options.YesNo,
+    )
+
+    result match {
+      case Dialog.Result.Yes =>
+        println("User confirmed exit. Initiating exit procedure...")
+        listener.exitFromTheGame()
+
+      case Dialog.Result.No | Dialog.Result.Cancel | Dialog.Result.Closed =>
+        println("User cancelled exit.")
+    }
+  }
+
+
+  def hostCancelledTheGame(f: () => Unit): Unit = {
+    //    Swing.onEDT{
+    //      this.dispose()
+    //    }
+    Swing.onEDT {
+      Dialog.showMessage(
+        parent = this,
+        message = "La partita è stata chiusa dall'Host. Verrai riportato al Menu Principale.",
+        title = "Partita Chiusa",
+        messageType = Dialog.Message.Warning
+      )
+      f()
+    }
+  }
 
 class WaitingLobbyPlayersContainer(
                                     players: List[PlayerInLobby],
