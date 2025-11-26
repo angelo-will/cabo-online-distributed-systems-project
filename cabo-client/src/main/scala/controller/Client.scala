@@ -51,6 +51,10 @@ object Client:
 
   case class StartGameBehavior(thisBehavior: () => Behavior[Message], hostRef: ActorRef[ClientInternalCommand]) extends ClientInternalCommand
 
+  case class RemoveCheckPlayerStatus() extends ClientInternalCommand
+
+  //messages for new host election
+
   case class ElectionStarted(candidateRank: Int, replyTo: ActorRef[ClientInternalCommand]) extends ClientInternalCommand
 
   case class NoYouCanNot() extends ClientInternalCommand
@@ -75,17 +79,10 @@ object Client:
   def apply(userId: String = "Player", name: String = "defaultCoolName", optionalViewActor: ActorRef[Message] = null): Behavior[Message] = Behaviors.setup { ctx =>
     //    val clientID = userId+ctx.self.path.address.hashCode()
     val clientID = userId + UUID.randomUUID().hashCode()
-    //    //todo - create a view actor
-    //    val viewActorRef = optionalViewActor match {
-    //      //      case null => ctx.spawnAnonymous(viewDefaultBehavior)
-    //      case null => ctx.spawn(InitialPhaseViewActor(ctx.self, name), "actor-initialphaseview")
-    //      case ref => ref
-    //    }
 
     val connectionHandler = ctx.spawn(ConnectionHandler[MemberExited](ctx.self), "ConnectionHandler")
 
-    //    ctx.log.info(s"CLIENT - start creating Client\n\twith ID: $clientID\n\twith name: $name\n\twith viewactorref:$viewActorRef")
-    new Client(clientID, name, null, connectionHandler).initialize()
+    new Client(clientID, name, optionalViewActor, connectionHandler).initialize(optionalViewActor)
   }
 
 private case class Client(userId: String, var name: String, viewActorRef: ActorRef[Message], connectionHandler: ActorRef[ConnectionHandler.InternalCommand]):
@@ -170,9 +167,9 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
                         ): Behavior[Message] =
     Behaviors.receivePartial(sharedHandler.orElse(specific))
 
-  private def initialize(): Behavior[Message] = {
+  private def initialize(initialViewRef: ActorRef[Message]): Behavior[Message] = {
     Behaviors.setup { ctx =>
-      val viewActorRef = ctx.spawn(InitialPhaseViewActor(ctx.self, name), "actor-initialphaseview")
+      val viewActorRef = if initialViewRef != null then initialViewRef else ctx.spawn(InitialPhaseViewActor(ctx.self, name), "actor-initialphaseview")
       this.copy(viewActorRef = viewActorRef).start
     }
   }
@@ -184,7 +181,6 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
 
     withShared({
       case (ctx, CreateNewGame(makePublic, maxTimeRound, maxNumRound, maxPlayers, gameCode)) =>
-        ctx.log.info(s"$userId-client CreateNewGame received.")
 
         val player: PlayerInLobby = PlayerInLobby(userId, name, ctx.self)
 
@@ -350,32 +346,6 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
 
         this.copy(viewActorRef = duringGameViewActor).hostBehavior(game)
 
-      //automandati un messaggio con il behavior da spawnare così per il testo lo mandi da fuori diretto
-
-      //        val gameCoordinator = ctx.spawn(GameCoordinatorActor(ctx.self, viewActorRef, userId, game), "GameCoordinatorActor")
-      //
-      //        Behaviors.receiveMessagePartial {
-      //          case TakeGetInProgressGame(gameInProgress) =>
-      //            ctx.log.info(s"Game in progress received: ${gameInProgress.code}")
-      //            game.players.filter(!_.address.equals(ctx.self)).foreach(_.address ! GameHasStarted(ctx.self, gameInProgress))
-      //            awaitSynchronization(ctx, game.players.filter(!_.address.equals(ctx.self)).map(_.userID), () => {
-      //              ctx.log.info(s"All players synchronized, starting the game: ${gameInProgress.code}")
-      //              viewActorRef ! InitialViewMessages.ReadyToPlay(gameCoordinator)
-      //              inGameBehavior(gameCoordinator, game.players.map(p => p -> true).toMap, ctx.self)
-      //            }, () => {
-      //              //If failed to synchronize
-      //              //Brutal policy, we abort the game
-      //              ctx.log.error(s"Failed to synchronize all players, aborting the game: ${gameInProgress.code}")
-      //              //todo - check if this is ok
-      //              ctx.stop(gameCoordinator)
-      //              game.players.filter(!_.address.equals(ctx.self)).foreach(_.address ! GameCancelled())
-      //              viewActorRef ! InitialViewMessages.GameAborted()
-      //              //todo - if we use the variable argument this has to be changed
-      //              connectionHandler ! ConnectionHandler.UpdateList(List())
-      //              start
-      //            })
-      //        }
-
       case (ctx, StartGameBehavior(thisBehavior, hostRef)) =>
 
         logInfo(ctx, s"Starting game behavior for game: ${game.code}")
@@ -383,39 +353,9 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
         //todo - check if we need to keep it for re-entering the game
         ctx.system.receptionist ! Receptionist.deregister(akka.actor.typed.receptionist.ServiceKey[Message](game.code), ctx.self)
 
-        // creazione view ctx.spawn(DuringGameViewActor(userID, clientRef, null), s"duringGameView-$userID")
-
-        // passo indirizzo a game coordinator
-
-        //        val gameCoordinator = ctx.spawn(GameCoordinatorActor(ctx.self, duringGameViewActor, userId, game), "GameCoordinatorActor")
         val gameCoordinator = ctx.spawn(thisBehavior(), "GameCoordinatorActor")
 
         hostWaitGameFromCoordinator(hostRef, game, gameCoordinator)
-
-      //        Behaviors.receiveMessagePartial {
-      //          case TakeGetInProgressGame(gameInProgress) =>
-      //            //            ctx.log.info(s"Game in progress received: ${gameInProgress.code}")
-      //            logInfo(ctx, s"Game in progress received: ${gameInProgress.code}")
-      //            game.players.filter(!_.address.equals(ctx.self)).foreach(_.address ! GameHasStarted(hostRef, gameInProgress))
-      //            awaitSynchronization(ctx, game.players.filter(!_.address.equals(ctx.self)).map(_.userID), () => {
-      //              //              ctx.log.info(s"All players synchronized, starting the game: ${gameInProgress.code}")
-      //              logInfo(ctx, s"All players synchronized, starting the game: ${gameInProgress.code}")
-      //              viewActorRef ! InitialViewMessages.ReadyToPlay(gameCoordinator)
-      //              inGameBehavior(gameCoordinator, createPlayersStatus(game.players, gameInProgress.players), hostRef)
-      //            }, () => {
-      //              //If failed to synchronize
-      //              //Brutal policy, we abort the game
-      //              //              ctx.log.error(s"Failed to synchronize all players, aborting the game: ${gameInProgress.code}")
-      //              logError(ctx, s"Failed to synchronize all players, aborting the game: ${gameInProgress.code}")
-      //              //todo - check if this is ok
-      //              ctx.stop(gameCoordinator)
-      //              game.players.filter(!_.address.equals(ctx.self)).foreach(_.address ! GameCancelled())
-      //              viewActorRef ! InitialViewMessages.GameAborted()
-      //              //todo - if we use the variable argument this has to be changed
-      //              connectionHandler ! ConnectionHandler.UpdateList(List())
-      //              start
-      //            })
-      //        }
     })
   }
 
@@ -447,58 +387,6 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
         })
     }
   }
-
-  //  private def waitGameFromCoordinator(game: GameInConstruction, gameCoordinator: ActorRef[Message]): Behavior[Message] = {
-  ////    Behaviors.receivePartial {
-  ////      case (ctx, TakeGetInProgressGame(gameInProgress)) =>
-  ////        ctx.log.info(s"Game in progress received: ${gameInProgress.code}")
-  ////        game.players.filter(!_.address.equals(ctx.self)).foreach(_.address ! GameHasStarted(ctx.self, gameInProgress))
-  ////        awaitSynchronization(ctx, game.players.filter(!_.address.equals(ctx.self)).map(_.userID), () => {
-  ////          ctx.log.info(s"All players synchronized, starting the game: ${gameInProgress.code}")
-  ////          viewActorRef ! DuringGameViewMessages.StartGame(gameInProgress, gameCoordinator)
-  ////          gameCoordinator ! GameCoordinatorMessage.StartGame()
-  ////          //          viewActorRef ! InitialViewMessages.ReadyToPlay(gameCoordinator)
-  //////          inGameBehavior(gameCoordinator, game.players.map(p => p -> true).toMap)
-  ////          inGameBehavior(gameCoordinator, createPlayersStatus(game.players, gameInProgress.players), hostRef)
-  ////        }, () => {
-  ////          //If failed to synchronize
-  ////          //Brutal policy, we abort the game
-  ////          ctx.log.error(s"Failed to synchronize all players, aborting the game: ${gameInProgress.code}")
-  ////          //todo - check if this is ok
-  ////          ctx.stop(gameCoordinator)
-  ////          game.players.filter(!_.address.equals(ctx.self)).foreach(_.address ! GameCancelled())
-  ////          viewActorRef ! InitialViewMessages.GameAborted()
-  ////          //todo - if we use the variable argument this has to be changed
-  ////          connectionHandler ! ConnectionHandler.UpdateList(List())
-  ////          start
-  ////        })
-  ////    }
-  //
-  ////    Behaviors.receiveMessagePartial {
-  ////      case TakeGetInProgressGame(gameInProgress) =>
-  ////        //            ctx.log.info(s"Game in progress received: ${gameInProgress.code}")
-  ////        logInfo(ctx, s"Game in progress received: ${gameInProgress.code}")
-  ////        game.players.filter(!_.address.equals(ctx.self)).foreach(_.address ! GameHasStarted(hostRef, gameInProgress))
-  ////        awaitSynchronization(ctx, game.players.filter(!_.address.equals(ctx.self)).map(_.userID), () => {
-  ////          //              ctx.log.info(s"All players synchronized, starting the game: ${gameInProgress.code}")
-  ////          logInfo(ctx, s"All players synchronized, starting the game: ${gameInProgress.code}")
-  ////          viewActorRef ! InitialViewMessages.ReadyToPlay(gameCoordinator)
-  ////          inGameBehavior(gameCoordinator, createPlayersStatus(game.players, gameInProgress.players), hostRef)
-  ////        }, () => {
-  ////          //If failed to synchronize
-  ////          //Brutal policy, we abort the game
-  ////          //              ctx.log.error(s"Failed to synchronize all players, aborting the game: ${gameInProgress.code}")
-  ////          logError(ctx, s"Failed to synchronize all players, aborting the game: ${gameInProgress.code}")
-  ////          //todo - check if this is ok
-  ////          ctx.stop(gameCoordinator)
-  ////          game.players.filter(!_.address.equals(ctx.self)).foreach(_.address ! GameCancelled())
-  ////          viewActorRef ! InitialViewMessages.GameAborted()
-  ////          //todo - if we use the variable argument this has to be changed
-  ////          connectionHandler ! ConnectionHandler.UpdateList(List())
-  ////          start
-  ////        })
-  ////    }
-  //  }
 
   private def joiningAGame: Behavior[Message] = {
 
@@ -617,7 +505,8 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
   //todo - change the hostRef with a boolean if not needed
   private def inGameBehavior(gameCoordinator: ActorRef[GameCoordinatorMessage], playersStatus: List[PlayerStatus], hostRef: ActorRef[ClientInternalCommand]): Behavior[Message] = {
 
-    def otherPlayers = playersStatus.filterNot(_.playerID.equals(this.userId))
+    //    lazy val otherPlayers = playersStatus.filterNot(_.playerID.equals(this.userId))
+    val otherPlayers = playersStatus.filterNot(_.playerID.equals(this.userId))
 
     //    case class ElectionStarted(candidateRank: Int, replyTo: ActorRef[ClientInternalCommand]) extends ClientInternalCommand
     //    case class NoYouCanNot() extends ClientInternalCommand
@@ -647,6 +536,54 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
 
     }
 
+    def inElectionBehavior(myRank: Int): Behavior[Message] = {
+      Behaviors.withStash(50) { buffer =>
+        Behaviors.withTimers { timers =>
+          timers.startSingleTimer(ElectionWon(), 5.seconds)
+          withShared({
+            case (ctx, NoYouCanNot()) =>
+              logInfo(ctx, "Someone has a lower rank, stopping my election")
+              timers.cancelAll()
+              buffer.unstashAll(inGameBehavior(gameCoordinator, playersStatus, hostRef))
+
+            case (ctx, ElectionStarted(candidateRank, replyTo)) =>
+              //another player is starting an election
+              ctx.log.info(s"Election started by another player: $replyTo")
+              if myRank < candidateRank then {
+                //i have lower rank, so i can not accept the election
+                logInfo(ctx, s"My rank ($myRank) is lower than sender rank ($candidateRank), refusing his election")
+                replyTo ! NoYouCanNot()
+                // reset the election to give time to the others to align
+                buffer.unstashAll(inElectionBehavior(myRank))
+              } else {
+                logInfo(ctx, s"My rank ($myRank) is higher than sender rank ($candidateRank), accepting his election")
+                timers.cancelAll()
+                buffer.unstashAll(inGameBehavior(gameCoordinator, playersStatus, hostRef))
+              }
+
+            case (ctx, ElectionWon()) =>
+              logInfo(ctx, s"I won the election, becoming the new host")
+              otherPlayers.filter(p => p.isOnline).foreach(_.address ! NewHostElected(ctx.self))
+              buffer.unstashAll(inGameBehavior(gameCoordinator, playersStatus, ctx.self))
+
+            case (ctx, NewHostElected(replyTo)) =>
+              //todo - should not happen, should start a new election?
+              logInfo(ctx, s"New host elected while there was an election: $replyTo")
+              timers.cancelAll()
+              buffer.unstashAll(inGameBehavior(gameCoordinator, playersStatus, replyTo))
+
+            case (ctx, other) =>
+              logInfo(ctx, s"Stashing message during election: $other")
+              buffer.stash(other)
+              Behaviors.same
+          })
+        }
+      }
+    }
+
+
+    //todo - receive GameCancelled if the host failed to synchronize with the other players
+    //todo - initial phase when exchanging log about cards viewed
     withShared({
       // GAME LOGIC LEVEL MESSAGES - START
 
@@ -713,13 +650,13 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
         otherPlayers.filter(_.isOnline).foreach(_.address ! PlayerUnreachable(PlayerInLobby(userId, name, ctx.self)))
         ctx.stop(gameCoordinator)
         connectionHandler ! ConnectionHandler.UpdateList(List())
-        initialize()
+        initialize(null)
 
       case (ctx, GameEnded()) =>
         ctx.log.info(s"Game has ended, returning to initial phase")
         connectionHandler ! ConnectionHandler.UpdateList(List())
         ctx.stop(gameCoordinator)
-        initialize()
+        initialize(null)
 
       // GAME LOGIC LEVEL MESSAGES - END
 
@@ -754,14 +691,20 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
                 //                ctx.log.info(s"Player: ${playerInLobby.userID} was the host, starting election")
                 logInfo(ctx, s"Player: ${playerInLobby.userID} was the host, starting election")
                 //start election
-                //for now we just pick the next online player as host
                 val myRank = playersStatus.find(_.playerID == userId).map(_.rank).getOrElse(-1)
                 //                otherPlayers.filter(p => p.isOnline && p.rank < myRank).foreach(_.address ! ElectionStarted(myRank, ctx.self))
                 onlineUpdate.filter(p => !p.playerID.equals(this.userId) && p.isOnline && p.rank < myRank).foreach(_.address ! ElectionStarted(myRank, ctx.self))
                 Behaviors.withTimers(timer => {
                   timer.startSingleTimer(ElectionWon(), 5.seconds)
-                  inGameBehavior(gameCoordinator, onlineUpdate, hostRef)
+                  inElectionBehavior(myRank)
+                  //                  Behaviors.receiveMessagePartial {
+                  //                    case NoYouCanNot() =>
+                  //                      logInfo(ctx, "Someone has a lower rank, stopping my election")
+                  //                      timer.cancelAll()
+                  //                      inGameBehavior(gameCoordinator, onlineUpdate, hostRef)
+                  //                  }
                 })
+                //                  inGameBehavior(gameCoordinator, onlineUpdate, hostRef)
               } else
                 inGameBehavior(gameCoordinator, onlineUpdate, hostRef)
             }
@@ -781,28 +724,32 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
           replyTo ! NoYouCanNot()
           // i start my own election
           otherPlayers.filter(p => p.isOnline && p.rank < myRank).foreach(_.address ! ElectionStarted(myRank, ctx.self))
-          Behaviors.withTimers(timer => {
-            timer.startSingleTimer(ElectionWon(), 5.seconds)
-            inGameBehavior(gameCoordinator, playersStatus, hostRef)
-          })
+          inElectionBehavior(myRank)
+          //          Behaviors.withTimers(timer => {
+          //            timer.startSingleTimer(ElectionWon(), 5.seconds)
+          //            inGameBehavior(gameCoordinator, playersStatus, hostRef)
+          //          })
         } else {
           inGameBehavior(gameCoordinator, playersStatus, hostRef)
         }
 
-      case (ctx, ElectionWon()) =>
-        //i won the election
-        //        ctx.log.info(s"I won the election, becoming the new host")
-        logInfo(ctx, s"I won the election, becoming the new host")
-        otherPlayers.filter(p => p.isOnline).foreach(_.address ! NewHostElected(ctx.self))
-        inGameBehavior(gameCoordinator, playersStatus, ctx.self)
-
-      case (ctx, NewHostElected(replyTo)) =>
-        //        ctx.log.info(s"New host elected: $replyTo")
-        logInfo(ctx, s"New host elected: $replyTo")
-        inGameBehavior(gameCoordinator, playersStatus, replyTo)
-
-      // ELECTION HOST LOGIC MESSAGES - END
+      //      case (ctx, ElectionWon()) =>
+      //        //i won the election
+      ////        ctx.log.info(s"I won the election, becoming the new host")
+      //        logInfo(ctx, s"I won the election, becoming the new host")
+      //        otherPlayers.filter(p => p.isOnline).foreach(_.address ! NewHostElected(ctx.self))
+      //        inGameBehavior(gameCoordinator, playersStatus, ctx.self)
+      //
+      //      case (ctx, NewHostElected(replyTo)) =>
+      ////        ctx.log.info(s"New host elected: $replyTo")
+      //        logInfo(ctx, s"New host elected: $replyTo")
+      //        inGameBehavior(gameCoordinator, playersStatus, replyTo)
 
 
+
+      case (ctx, RemoveCheckPlayerStatus()) =>
+        logInfo(ctx, s"Removing player status checking, clearing player list")
+        connectionHandler ! ConnectionHandler.UpdateList(List())
+        Behaviors.same
     })
   }
