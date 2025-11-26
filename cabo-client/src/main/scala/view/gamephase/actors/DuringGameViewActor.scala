@@ -2,10 +2,11 @@ package view.gamephase.actors
 
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
-import model.{Card, Game, Power, TurnLog}
+import model.{Card, EndGameReason, Game, Power, TurnLog}
 import utils.DuringGameViewMessages.*
 import utils.{DuringGameViewMessages, InitialViewMessages, Message, GameCoordinatorMessage as GCMsg}
-import view.gamephase.{DuringGameMainFrame, IDuringGameInterface}
+import view.gamephase.DuringGameMainFrame
+import view.gamephase.traits.IDuringGameInterface
 
 object DuringGameViewActor {
   def apply(
@@ -117,15 +118,15 @@ private class DuringGameViewActor private(
             Behaviors.same
           case (ctx, GameEndedByCabo(game)) =>
             ctx.log.info(s"DuringGameViewActor of player $userID handling GameEnded with message: ${GameEndedByCabo(game)}")
-            properties.ui.gameEndedByCabo(game)
+            properties.ui.gameEndedWithData(game)(EndGameReason.Cabo)
             waitingCloseGameFrame(properties)
           case (ctx, GameEndedByTurnsLimit(game)) =>
             ctx.log.info(s"DuringGameViewActor of player $userID handling GameEnded with message: ${GameEndedByTurnsLimit(game)}")
-            properties.ui.gameEndedByTurns(game)
+            properties.ui.gameEndedWithData(game)(EndGameReason.TurnsLimit)
             waitingCloseGameFrame(properties)
           case (ctx, GameEndedByEmptyDeck(game)) =>
             ctx.log.info(s"DuringGameViewActor of player $userID handling GameEnded with message: ${GameEndedByEmptyDeck(game)}")
-            properties.ui.gameEndedByEmptyDeck(game)
+            properties.ui.gameEndedWithData(game)(EndGameReason.EmptyDeck)
             waitingCloseGameFrame(properties)
           case msg =>
             println(s"DuringGameViewActor of player $userID in waitMyTurn received message: $msg")

@@ -2,7 +2,8 @@ package view.gamephase.components
 
 import model.Game.GameInProgress
 import DisplayEndingResultsDialog.*
-import model.Hand
+import model.{EndGameReason, Hand}
+import model.EndGameReason.*
 
 import java.awt.Font
 import scala.swing.*
@@ -10,19 +11,11 @@ import scala.swing.event.WindowClosing
 
 object DisplayEndingResultsDialog {
 
-  abstract class Ending
-
-  case class ByCabo() extends Ending
-
-  case class ByTurns() extends Ending
-
-  case class ByEmptyDeck() extends Ending
-
-  def apply(gameResult: GameInProgress)(ending: Ending)(onClose: () => Unit): DisplayEndingResultsDialog =
+  def apply(gameResult: GameInProgress)(ending: EndGameReason)(onClose: () => Unit): DisplayEndingResultsDialog =
     new DisplayEndingResultsDialog(gameResult)(ending)(onClose)
 }
 
-private class DisplayEndingResultsDialog(gameResult: GameInProgress)(ending: Ending)(onClose: () => Unit) extends Dialog {
+private class DisplayEndingResultsDialog(gameResult: GameInProgress)(ending: EndGameReason)(onClose: () => Unit) extends Dialog {
 
 
   private case class DataDisplay(playerName: String, score: Int, hand: String) {
@@ -46,9 +39,9 @@ private class DisplayEndingResultsDialog(gameResult: GameInProgress)(ending: End
 
     contents += Swing.VStrut(10)
     private val howGameEnd = ending match
-      case ByCabo() => s"Cabo called by ${gameResult.caboState.get.whoCalledCabo.name}"
-      case ByTurns() => "Reached maximum turns number"
-      case ByEmptyDeck() => "Cards in deck are ended"
+      case Cabo => s"Cabo called by ${gameResult.caboState.get.whoCalledCabo.name}"
+      case TurnsLimit => "Reached maximum turns number"
+      case EmptyDeck => "Cards in deck are ended"
     contents += new Label(howGameEnd) {
       font = new Font("SansSerif", java.awt.Font.PLAIN, 25)
     }

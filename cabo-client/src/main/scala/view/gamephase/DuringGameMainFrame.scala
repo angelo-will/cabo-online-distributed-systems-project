@@ -2,6 +2,7 @@ package view.gamephase
 
 import model.{CardStack, GameParameters, GameStatus, Hand, IGameParameters, PlayerPlaying}
 import model.Game.GameInProgress
+import view.gamephase.traits.IDuringGameInterface
 import view.lobbyphase.ViewListener.IDuringGameViewListener
 
 import java.awt.{Dimension, Toolkit}

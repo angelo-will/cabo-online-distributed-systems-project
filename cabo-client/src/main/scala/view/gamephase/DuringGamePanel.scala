@@ -2,9 +2,10 @@ package view.gamephase
 
 import model.Game.GameInProgress as GProg
 import model.TurnEvent.CaboCalled
-import model.{Card, PlayerPlaying, Power, TurnLog}
+import model.{Card, EndGameReason, PlayerPlaying, Power, TurnLog}
 import view.gamephase.components.*
 import view.gamephase.components.DisplayEndingResultsDialog.*
+import view.gamephase.traits.IDuringGameInterface
 import view.lobbyphase.ViewListener.IDuringGameViewListener
 
 import scala.swing.*
@@ -624,13 +625,7 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: GPr
     }
   }
 
-  override def gameEndedByCabo(game: GProg): Unit = this.gameEndedWithData(game)(ByCabo())
-
-  override def gameEndedByTurns(game: GProg): Unit = this.gameEndedWithData(game)(ByTurns())
-
-  override def gameEndedByEmptyDeck(game: GProg): Unit = this.gameEndedWithData(game)(ByEmptyDeck())
-
-  private def gameEndedWithData(game: GProg)(ending: Ending): Unit = {
+  override def gameEndedWithData(game: GProg)(ending: EndGameReason): Unit = {
     Swing.onEDT {
       println(s"DuringGamePanel - gameEndedWithData: $game")
       val endingResultsDialog = DisplayEndingResultsDialog(game)(ending)(onClose = this.viewListener.consultingResultsEnded)
