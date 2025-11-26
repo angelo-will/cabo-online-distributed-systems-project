@@ -310,6 +310,8 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: GPr
     reactions += {
       case ButtonClicked(_) =>
         println("Exit Game button clicked")
+        onExitDuringGamePolicy()
+
     }
   }
   c.gridy = EXIT_BUTTON_ROW
@@ -629,11 +631,33 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: GPr
   private def gameEndedWithData(game: GProg)(ending: Ending): Unit = {
     Swing.onEDT {
       println(s"DuringGamePanel - gameEndedWithData: $game")
-      val endingResultsDialog = new DisplayEndingResultsDialog(game)(ending)
+      val endingResultsDialog = new DisplayEndingResultsDialog(game)(ending)(onClose = this.viewListener.consultingResultsEnded)
       endingResultsDialog.open()
     }
   }
 
+  def onExitDuringGamePolicy(): Unit = {
+    val message = "Are you sure you want to exit the current game? Your progress might be lost."
+    val title = "Confirm Exit"
+
+    val options = List("Yes, Exit", "No, Stay")
+
+    val result: Dialog.Result.Value = Dialog.showConfirmation(
+      parent = this, // La finestra corrente è il genitore
+      message = message,
+      title = title,
+      optionType = Dialog.Options.YesNo,
+    )
+
+    result match {
+      case Dialog.Result.Yes =>
+        println("User confirmed exit. Initiating exit procedure...")
+        viewListener.exit()
+
+      case Dialog.Result.No | Dialog.Result.Cancel | Dialog.Result.Closed =>
+        println("User cancelled exit.")
+    }
+  }
 
   private def textInfoCardDrawnFromDeck(card: Card): String = {
     s"You have drawn the card: $card."

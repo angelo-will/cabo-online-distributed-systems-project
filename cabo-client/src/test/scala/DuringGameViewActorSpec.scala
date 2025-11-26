@@ -4,9 +4,10 @@ import model.Game.GameInProgress
 import model.{Card, CardStack, DuringGameTurnLog, Game, GameParameters, GameStatus, Hand, IGameParameters, InvalidTurnEventException, PlayerPlaying, Power, TurnEvent, TurnLog, TurnPhase}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
-import org.scalatest.{BeforeAndAfterEach}
+import org.scalatest.BeforeAndAfterEach
 import org.scalatest.matchers.must.Matchers.mustBe
 import utils.{ClientMessages, DuringGameViewMessages, GameCoordinatorMessage, Message}
+import view.gamephase
 import view.gamephase.DuringGameViewActor
 import view.lobbyphase.ViewApplication
 import view.lobbyphase.actors.InitialPhaseViewActor.ViewCreated
@@ -52,13 +53,13 @@ class DuringGameViewActorSpec extends ScalaTestWithActorTestKit
   "DuringGameViewActor" must {
     "start and send DuringGameViewReady message to clientRef" when {
       "spawned" in {
-        val duringGameViewActor = testKit.spawn(view.gamephase.DuringGameViewActor("user1", probeAsClient.ref, probeAsMainMenu.ref))
+        val duringGameViewActor = testKit.spawn(gamephase.DuringGameViewActor("user1", probeAsClient.ref, probeAsMainMenu.ref))
         probeAsClient.expectMessageType[ClientMessages.DuringGameViewReady](FiniteDuration(3, SECONDS))
       }
     }
     "change view from waiting to game started" when {
       "receive StartGame message" in {
-        val duringGameViewActor = testKit.spawn(view.gamephase.DuringGameViewActor(userID, probeAsClient.ref, probeAsMainMenu.ref))
+        val duringGameViewActor = testKit.spawn(gamephase.DuringGameViewActor(userID, probeAsClient.ref, probeAsMainMenu.ref))
         probeAsClient.expectMessageType[ClientMessages.DuringGameViewReady](FiniteDuration(3, SECONDS))
         Thread.sleep(2000) // wait for the view to update
         duringGameViewActor ! DuringGameViewMessages.StartGame(game, probeAsGameCoordinator.ref)
@@ -67,7 +68,7 @@ class DuringGameViewActorSpec extends ScalaTestWithActorTestKit
     }
     "send to GameCoordinator showYourCard request" when {
       "user click on own card during revealing at start own card phase" in {
-        val duringGameViewActor = testKit.spawn(view.gamephase.DuringGameViewActor(userID, probeAsClient.ref, probeAsMainMenu.ref))
+        val duringGameViewActor = testKit.spawn(gamephase.DuringGameViewActor(userID, probeAsClient.ref, probeAsMainMenu.ref))
         probeAsClient.receiveMessages(1)
         Thread.sleep(2000) // wait for the view to update
         duringGameViewActor ! DuringGameViewMessages.StartGame(game, probeAsGameCoordinator.ref)
@@ -76,7 +77,7 @@ class DuringGameViewActorSpec extends ScalaTestWithActorTestKit
     }
     "show own card after receiving CardSeen message from GameCoordinator" when {
       "user click on own card during revealing at start own card phase and receive CardSeen message from GameCoordinator" in {
-        val duringGameViewActor = testKit.spawn(view.gamephase.DuringGameViewActor(userID, probeAsClient.ref, probeAsMainMenu.ref))
+        val duringGameViewActor = testKit.spawn(gamephase.DuringGameViewActor(userID, probeAsClient.ref, probeAsMainMenu.ref))
         probeAsClient.receiveMessages(1)
         val player = game.players.filter(_.userID.equals(userID)).head
         duringGameViewActor ! DuringGameViewMessages.StartGame(game, probeAsGameCoordinator.ref)
@@ -90,7 +91,7 @@ class DuringGameViewActorSpec extends ScalaTestWithActorTestKit
     }
     "notify end view card phase" when {
       "quantity of cards visible has been seen" in {
-        val duringGameViewActor = testKit.spawn(view.gamephase.DuringGameViewActor(userID, probeAsClient.ref, probeAsMainMenu.ref))
+        val duringGameViewActor = testKit.spawn(gamephase.DuringGameViewActor(userID, probeAsClient.ref, probeAsMainMenu.ref))
         probeAsClient.receiveMessages(1)
         revealingFirstTwoCardsPhase(duringGameViewActor, game)
         duringGameViewActor ! DuringGameViewMessages.WaitAfterRevealingSection()
@@ -99,7 +100,7 @@ class DuringGameViewActorSpec extends ScalaTestWithActorTestKit
     }
     "let the player start his turn" when {
       "receive StartPlayPhase message and then FirstTurn" in {
-        val duringGameViewActor = testKit.spawn(view.gamephase.DuringGameViewActor(userID, probeAsClient.ref, probeAsMainMenu.ref))
+        val duringGameViewActor = testKit.spawn(gamephase.DuringGameViewActor(userID, probeAsClient.ref, probeAsMainMenu.ref))
         probeAsClient.receiveMessages(1)
         revealingFirstTwoCardsPhase(duringGameViewActor, game)
         duringGameViewActor ! DuringGameViewMessages.WaitAfterRevealingSection()
@@ -120,7 +121,7 @@ class DuringGameViewActorSpec extends ScalaTestWithActorTestKit
     }
     "let the player draw a card at turn start" when {
       "choose to draw from deck" in {
-        val duringGameViewActor = testKit.spawn(view.gamephase.DuringGameViewActor(userID, probeAsClient.ref, probeAsMainMenu.ref))
+        val duringGameViewActor = testKit.spawn(gamephase.DuringGameViewActor(userID, probeAsClient.ref, probeAsMainMenu.ref))
         val playerWhoPlayTurnBefore = game.players.filter(_.userID != userID).head
         probeAsClient.receiveMessages(1)
         revealingFirstTwoCardsPhase(duringGameViewActor, game)
@@ -134,7 +135,7 @@ class DuringGameViewActorSpec extends ScalaTestWithActorTestKit
         Thread.sleep(10000)
       }
       "choose to draw from discard stack" in {
-        val duringGameViewActor = testKit.spawn(view.gamephase.DuringGameViewActor(userID, probeAsClient.ref, probeAsMainMenu.ref))
+        val duringGameViewActor = testKit.spawn(gamephase.DuringGameViewActor(userID, probeAsClient.ref, probeAsMainMenu.ref))
         probeAsClient.receiveMessages(1)
         revealingFirstTwoCardsPhase(duringGameViewActor, game)
         duringGameViewActor ! DuringGameViewMessages.WaitAfterRevealingSection()

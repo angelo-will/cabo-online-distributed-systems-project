@@ -4,7 +4,8 @@ import model.Game.GameInProgress
 import model.Hand
 
 import java.awt.Font
-import scala.swing.{BoxPanel, Dialog, Label, Orientation, Swing}
+import scala.swing.*
+import scala.swing.event.WindowClosing
 
 abstract class Ending
 
@@ -14,7 +15,7 @@ case class ByTurns() extends Ending
 
 case class ByEmptyDeck() extends Ending
 
-class DisplayEndingResultsDialog(gameResult: GameInProgress)(ending: Ending) extends Dialog {
+class DisplayEndingResultsDialog(gameResult: GameInProgress)(ending: Ending)(onClose: () => Unit) extends Dialog {
 
   private case class DataDisplay(playerName: String, score: Int, hand: String) {
     override def toString: String = s"$playerName,  $score points - $hand"
@@ -28,12 +29,13 @@ class DisplayEndingResultsDialog(gameResult: GameInProgress)(ending: Ending) ext
     val hand = pl.hand.cards.map(card => s"$card").mkString(", ")
     DataDisplay(pl.name, pl.hand.score, "Hand: " + hand)
   })
+
   contents = new BoxPanel(Orientation.Vertical) {
     border = Swing.EmptyBorder(20, 20, 20, 20)
     contents += new Label(s"Game Ended!") {
       font = new Font("SansSerif", java.awt.Font.BOLD, 30)
     }
-    
+
     contents += Swing.VStrut(10)
     private val howGameEnd = ending match
       case ByCabo() => s"Cabo called by ${gameResult.caboState.get.whoCalledCabo.name}"
@@ -41,7 +43,7 @@ class DisplayEndingResultsDialog(gameResult: GameInProgress)(ending: Ending) ext
       case ByEmptyDeck() => "Cards in deck are ended"
     contents += new Label(howGameEnd) {
       font = new Font("SansSerif", java.awt.Font.PLAIN, 25)
-    }  
+    }
     contents += Swing.VStrut(10)
     x.zipWithIndex.foreach {
       case (pl, index) =>
@@ -55,4 +57,11 @@ class DisplayEndingResultsDialog(gameResult: GameInProgress)(ending: Ending) ext
   }
   pack()
   centerOnScreen()
+
+  listenTo(this)
+  reactions += {
+    case WindowClosing(_) =>
+      onClose()
+      this.dispose()
+  }
 }

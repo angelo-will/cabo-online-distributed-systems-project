@@ -21,8 +21,8 @@ object DuringGameViewMessages {
    * Send when i have to play first turn of the game.
    */
   case class FirstTurn() extends DuringGameViewCommand
-  
-//  case class PlayerIsPlaying(playerPlaying: PlayerPlaying) extends DuringGameViewCommand
+
+  //  case class PlayerIsPlaying(playerPlaying: PlayerPlaying) extends DuringGameViewCommand
 
   case class LastTurnPlayed(turnLog: TurnLog, game: GameInProgress, isMyTurn: Boolean) extends DuringGameViewCommand
 
@@ -53,7 +53,7 @@ object DuringGameViewMessages {
   case class CardSeen(card: Card) extends DuringGameViewCommand
 
   case class PlayThisTurn(viewRef: ActorRef[ViewCommand]) extends DuringGameViewCommand
-  
+
   case class GameEndedByCabo(game: GameInProgress) extends DuringGameViewCommand
 
   case class GameEndedByTurnsLimit(game: GameInProgress) extends DuringGameViewCommand
@@ -81,4 +81,6 @@ object DuringGameViewMessages {
   case class EndTurn() extends DuringGameUserInterfaceCommand
 
   case class ExitSelected() extends DuringGameUserInterfaceCommand
+
+  case class ConsultingResultsEnded() extends DuringGameUserInterfaceCommand
 }

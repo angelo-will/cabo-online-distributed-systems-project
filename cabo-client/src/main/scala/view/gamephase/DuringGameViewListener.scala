@@ -2,7 +2,7 @@ package view.gamephase
 
 import akka.actor.typed.ActorRef
 import utils.GameCoordinatorMessage.*
-import utils.{Message, DuringGameViewMessages}
+import utils.{DuringGameViewMessages, Message}
 import view.lobbyphase.ViewListener.IDuringGameViewListener
 
 case class DuringGameViewListener(whoToResponse: ActorRef[Message]) extends IDuringGameViewListener:
@@ -39,4 +39,10 @@ case class DuringGameViewListener(whoToResponse: ActorRef[Message]) extends IDur
     whoToResponse ! DuringGameViewMessages.EndTurn()
 
   override def callCabo(): Unit =
-    whoToResponse ! DuringGameViewMessages.CallCaboSelected ()
+    whoToResponse ! DuringGameViewMessages.CallCaboSelected()
+
+  override def exit(): Unit =
+    whoToResponse ! DuringGameViewMessages.ExitSelected()
+
+  override def consultingResultsEnded(): Unit =
+    whoToResponse ! DuringGameViewMessages.ConsultingResultsEnded()

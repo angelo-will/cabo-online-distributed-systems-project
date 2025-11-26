@@ -1,10 +1,11 @@
 package view.gamephase
 
-import akka.actor.typed.{ActorRef, Behavior}
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
+import akka.actor.typed.{ActorRef, Behavior}
 import model.{Card, Game, Power, TurnLog}
-import utils.{DuringGameViewMessages, GameCoordinatorMessage as GCMsg, InitialViewMessages, Message}
 import utils.DuringGameViewMessages.*
+import utils.{DuringGameViewMessages, InitialViewMessages, Message, GameCoordinatorMessage as GCMsg}
+import view.gamephase.{DuringGameMainFrame, IDuringGameInterface}
 
 object DuringGameViewActor {
   def apply(
@@ -25,10 +26,6 @@ private class DuringGameViewActor private(
                                            val clientRef: ActorRef[Message],
                                            val mainMenuRef: ActorRef[InitialViewMessages.ViewCommand]
                                          ) {
-
-  private case class PropertiesBeforeInitialization(
-                                                     frame: DuringGameMainFrame
-                                                   )
 
   private case class GameContext(
                                   coordinator: ActorRef[GCMsg.GameCoordinatorMessage],
@@ -63,18 +60,14 @@ private class DuringGameViewActor private(
 
     clientRef ! utils.ClientMessages.DuringGameViewReady(ctx.self)
 
-    waitingGameCreated(PropertiesBeforeInitialization(frame))
-  }
-
-  private def waitingGameCreated(properties: PropertiesBeforeInitialization): Behavior[Message] = {
     Behaviors.receivePartial {
       case (ctx, StartGame(game, gameCoordinatorRef)) =>
         ctx.log.info(s"DuringGameViewActor of player ${userID}, my ref is ${ctx.self}")
         ctx.log.info(s"DuringGameViewActor of player $userID handling game started with message: ${StartGame(game, gameCoordinatorRef)}")
-        val userInterface = properties.frame.startGame(game, userID)
+        val userInterface = frame.startGame(game, userID)
         userInterface.enterRevealingInitialCardsPhase()
         lastGameUpdate = game
-        watchYourCards(GameContext(gameCoordinatorRef, properties.frame, userInterface))
+        watchYourCards(GameContext(gameCoordinatorRef, frame, userInterface))
       case msg =>
         println(s"DuringGameViewActor of player $userID in waitingGameCreated received message: $msg")
         Behaviors.same
@@ -102,6 +95,7 @@ private class DuringGameViewActor private(
   private def waitFirstTurn(properties: GameContext): Behavior[Message] = {
     Behaviors.receivePartial {
       handleAdversariesRevealingLog(properties)
+        .orElse(handleExitSelected(properties))
         .orElse({
           case (ctx, StartTurnPlayer(playerID)) =>
             ctx.log.info(s"DuringGameViewActor of player $userID handling message: ${StartTurnPlayer(playerID)}")
@@ -120,6 +114,7 @@ private class DuringGameViewActor private(
   private def waitMyTurn(properties: GameContext): Behavior[Message] = {
     Behaviors.receivePartial {
       handleUpdateLastTurnPlayed(properties)
+        .orElse(handleExitSelected(properties))
         .orElse({
           case (ctx, StartTurnPlayer(playerID)) =>
             ctx.log.info(s"DuringGameViewActor of player $userID handling StartTurnPlayer with message: ${StartTurnPlayer(playerID)}")
@@ -128,15 +123,15 @@ private class DuringGameViewActor private(
           case (ctx, GameEndedByCabo(game)) =>
             ctx.log.info(s"DuringGameViewActor of player $userID handling GameEnded with message: ${GameEndedByCabo(game)}")
             properties.ui.gameEndedByCabo(game)
-            waitingCloseGameFrame()
+            waitingCloseGameFrame(properties)
           case (ctx, GameEndedByTurnsLimit(game)) =>
             ctx.log.info(s"DuringGameViewActor of player $userID handling GameEnded with message: ${GameEndedByTurnsLimit(game)}")
             properties.ui.gameEndedByTurns(game)
-            waitingCloseGameFrame()
+            waitingCloseGameFrame(properties)
           case (ctx, GameEndedByEmptyDeck(game)) =>
             ctx.log.info(s"DuringGameViewActor of player $userID handling GameEnded with message: ${GameEndedByEmptyDeck(game)}")
             properties.ui.gameEndedByEmptyDeck(game)
-            waitingCloseGameFrame()
+            waitingCloseGameFrame(properties)
           case msg =>
             println(s"DuringGameViewActor of player $userID in waitMyTurn received message: $msg")
             Behaviors.same
@@ -144,7 +139,16 @@ private class DuringGameViewActor private(
     }
   }
 
-  private def waitingCloseGameFrame(): Behavior[Message] = Behaviors.same
+  private def waitingCloseGameFrame(gameContext: GameContext): Behavior[Message] = Behaviors.receivePartial {
+    handleConsultingResultsEnded(gameContext)
+      .orElse(handleExitSelected(gameContext))
+      .orElse {
+        case (ctx, msg) =>
+          println(s"DuringGameViewActor of player $userID in waitingCloseGameFrame received message: $msg")
+          Behaviors.same
+      }
+
+  }
 
   private def myTurnBeforeDraw(properties: GameContext): Behavior[Message] = {
     properties.ui.startTurn()
@@ -170,6 +174,7 @@ private class DuringGameViewActor private(
   private def myTurnWaitDrawnCard(properties: GameContext): Behavior[Message] = {
     Behaviors.receivePartial {
       handleNewTopDiscardCard(properties)
+        .orElse(handleExitSelected(properties))
         .orElse(handleEndTurn(properties))
         .orElse({
           case (ctx, CardDrawn(card)) =>
@@ -196,6 +201,7 @@ private class DuringGameViewActor private(
     properties.ui.afterDrawPhase(hasDrawnFromDeck)
     Behaviors.receivePartial {
       handleNewTopDiscardCard(properties)
+        .orElse(handleExitSelected(properties))
         .orElse(handleEndTurn(properties))
         .orElse({
           case (ctx, DiscardCardDrawn()) if hasDrawnFromDeck =>
@@ -217,6 +223,7 @@ private class DuringGameViewActor private(
     properties.ui.usePowerToSeeOwnCard()
     Behaviors.receivePartial {
       handleShowCard(properties, myTurnAfterDraw)
+        .orElse(handleExitSelected(properties))
         .orElse(handleEndTurn(properties))
     }
   }
@@ -225,6 +232,7 @@ private class DuringGameViewActor private(
     properties.ui.usePowerToSeeAdversaryCard()
     Behaviors.receivePartial {
       handleEndTurn(properties)
+        .orElse(handleExitSelected(properties))
         .orElse({
           case (ctx, AdversaryCardSelected(adversaryID, index)) =>
             println(s"DuringGameViewActor of player $userID in myTurnPowerSeeOpponentCard received AdversaryCardSelected with index: $index")
@@ -262,6 +270,7 @@ private class DuringGameViewActor private(
   private def myTurnWaitPowerChangeAck(properties: GameContext): Behavior[Message] = {
     Behaviors.receivePartial {
       handleEndTurn(properties)
+        .orElse(handleExitSelected(properties))
         .orElse({
           case (ctx, DuringGameViewMessages.ChangeCardWithAdversaryAck()) =>
             println(s"DuringGameViewActor of player $userID in myTurnWaitPowerChangeAck received ChangeCardWithAdversaryAck")
@@ -278,6 +287,7 @@ private class DuringGameViewActor private(
     Behaviors.receivePartial {
       handleAdversariesRevealingLog(properties)
         .orElse(handleEndTurn(properties))
+        .orElse(handleExitSelected(properties))
         .orElse({
           case (ctx, CardSeen(card)) =>
             println(s"DuringGameViewActor of player $userID in waitCardSelected received Card seen with card: $card")
@@ -293,6 +303,7 @@ private class DuringGameViewActor private(
   private def waitAdversaryCardSelected(properties: GameContext): Behavior[Message] = {
     Behaviors.receivePartial {
       handleEndTurn(properties)
+        .orElse(handleExitSelected(properties))
         .orElse({
           case (ctx, CardSeen(card)) =>
             println(s"DuringGameViewActor of player $userID in waitAdversaryCardSelected received: ${CardSeen(card)}")
@@ -306,6 +317,7 @@ private class DuringGameViewActor private(
     hasDrawnFromDeck = false
     Behaviors.receivePartial {
       handleNewTopDiscardCard(properties)
+        .orElse(handleExitSelected(properties))
         .orElse(handleEndTurn(properties))
         .orElse({
           case (ctx, CallCaboSelected()) =>
@@ -361,9 +373,21 @@ private class DuringGameViewActor private(
   PartialFunction[(ActorContext[Message], Message), Behavior[Message]] = {
     case (ctx, ExitSelected()) =>
       println(s"DuringGameViewActor of player $userID handling ExitSelected() with message: ${ExitSelected()}")
+      properties.frame.dispose()
+      clientRef ! utils.ClientMessages.LeaveTheGame()
       // TODO: add exit to game coordinator x
       //        properties.gameCoordinatorRef ! GCMsg.Exit()
-      Behaviors.same
+      Behaviors.stopped
+  }
+
+  private def handleConsultingResultsEnded(properties: GameContext):
+  PartialFunction[(ActorContext[Message], Message), Behavior[Message]] = {
+    case (ctx, ConsultingResultsEnded()) =>
+      println(s"DuringGameViewActor of player $userID handling ConsultingResultsEnded() with message: ${ConsultingResultsEnded()}")
+      properties.frame.dispose()
+      //      mainMenuRef ! InitialViewMessages.ReturnToMainMenuFromGame(userID)
+      clientRef ! utils.ClientMessages.GameEnded()
+      Behaviors.stopped
   }
 
   private def handleAdversariesRevealingLog(properties: GameContext):

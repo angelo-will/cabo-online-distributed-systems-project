@@ -6,9 +6,9 @@ import model.PlayerInLobby
 object ViewListener:
 
   trait IInitialViewListener:
-    
+
     def changeName(newName: String): Unit
-    
+
     def createGame(isPublic: Boolean, maxTimeRound: Int, maxNumRound: Int, maxPlayers: Int): Unit
 
     def requestGames(): Unit
@@ -18,15 +18,15 @@ object ViewListener:
     def joinWithAddress(address: String): Unit
 
     def startGame(): Unit
-    
+
     def exitFromTheGame(): Unit
 
   trait IDuringGameViewListener:
-    
+
     def ownCardSelected(cardIndex: Int): Unit
-    
+
     def adversaryCardSelected(adversaryID: String, cardIndex: Int): Unit
-    
+
     def showCardNth(cardIndex: Int): Unit
 
     def drawFromDeck(): Unit
@@ -42,5 +42,9 @@ object ViewListener:
     def swapCardWithAdversaryNthCard(ownCardIndex: Int, adversaryID: String, adversaryCardIndex: Int): Unit
 
     def endTurn(): Unit
-    
+
     def callCabo(): Unit
+
+    def exit(): Unit
+
+    def consultingResultsEnded(): Unit
