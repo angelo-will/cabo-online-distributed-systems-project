@@ -1,4 +1,4 @@
-package view.gamephase
+package view.gamephase.components
 
 import java.awt.event.{ActionEvent, ActionListener}
 import javax.swing.Timer
@@ -15,7 +15,6 @@ class TimerPanel(time: Int, endTimerBehavior: () => Unit) extends BoxPanel(Orien
     }
     else {
       timer.stop()
-      // Here you can add any action to be performed when the timer ends
       timerValueLabel.text = "Time's up!"
       endTimerBehavior()
     }

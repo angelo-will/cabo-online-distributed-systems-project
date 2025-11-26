@@ -10,7 +10,7 @@ import utils.ClientMessages.*
 import utils.GameCoordinatorMessage.{GameCoordinatorMessage, NewTurn}
 import utils.ServerMessages.{AbortGame, ServerKey}
 import utils.{DuringGameViewMessages, GameCoordinatorMessage, InitialViewMessages, Message, ServerMessages}
-import view.gamephase.DuringGameViewActor
+import view.gamephase.actors.DuringGameViewActor
 import view.lobbyphase.actors.InitialPhaseViewActor
 
 import java.util.UUID

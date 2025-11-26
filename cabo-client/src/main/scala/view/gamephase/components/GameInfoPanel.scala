@@ -1,10 +1,10 @@
-package view.gamephase
+package view.gamephase.components
 
 import model.Game.GameInProgress
 
 import java.awt.{Color, Font as AwtFont}
 import javax.swing.BorderFactory
-import scala.swing.{Alignment, BoxPanel, Label, Orientation, Swing}
+import scala.swing.*
 
 class GameInfoPanel(game: GameInProgress) extends BoxPanel(Orientation.Vertical) {
   peer.setBorder(BorderFactory.createLineBorder(Color.RED, 3))

@@ -1,4 +1,4 @@
-package view.gamephase
+package view.gamephase.actors
 
 import akka.actor.typed.ActorRef
 import utils.GameCoordinatorMessage.*

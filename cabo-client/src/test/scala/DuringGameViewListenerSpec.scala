@@ -6,7 +6,7 @@ import org.scalatest.wordspec.AnyWordSpecLike
 import utils.Message
 import view.lobbyphase.ViewListener.IDuringGameViewListener
 import utils.GameCoordinatorMessage
-import view.gamephase.DuringGameViewListener
+import view.gamephase.actors.DuringGameViewListener
 
 import scala.concurrent.duration.{FiniteDuration, SECONDS}
 

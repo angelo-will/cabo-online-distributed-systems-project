@@ -1,12 +1,12 @@
-package view.gamephase
+package view.gamephase.components
+
+import model.{TurnEvent, TurnLog}
 
 import java.awt.{Color, Font as AwtFont}
 import javax.swing.BorderFactory
 import scala.swing.{ScrollPane, TextArea}
-import model.TurnLog
-import model.TurnEvent
 
-private class LogPanel() extends ScrollPane {
+class LogPanel extends ScrollPane {
   private val logTextArea = new TextArea {
     editable = false
     lineWrap = true

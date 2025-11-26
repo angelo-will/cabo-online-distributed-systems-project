@@ -1,4 +1,4 @@
-package view.gamephase
+package view.gamephase.actors
 
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}

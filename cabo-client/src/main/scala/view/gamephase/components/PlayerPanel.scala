@@ -1,11 +1,11 @@
-package view.gamephase
+package view.gamephase.components
 
 import java.awt.{Color, Font as AwtFont}
 import javax.swing.BorderFactory
-import scala.swing.{Alignment, BoxPanel, Button, Label, Orientation, Swing}
 import scala.swing.event.ButtonClicked
+import scala.swing.*
 
-private class PlayerPanel(playerName: String, f: (index: Int) => Unit) extends BoxPanel(Orientation.Vertical) {
+class PlayerPanel(val playerName: String,val f: (index: Int) => Unit) extends BoxPanel(Orientation.Vertical) {
   //  border = Swing.EmptyBorder(10, 10, 10, 10)
   private val nameLabel = new Label(playerName) {
     font = new AwtFont("Arial", AwtFont.BOLD, 14)

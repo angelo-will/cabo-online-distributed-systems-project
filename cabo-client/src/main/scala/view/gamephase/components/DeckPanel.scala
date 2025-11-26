@@ -1,10 +1,10 @@
-package view.gamephase
+package view.gamephase.components
 
 import java.awt.Font as AwtFont
-import scala.swing.{Alignment, BoxPanel, Button, Label, Orientation, Swing}
 import scala.swing.event.ButtonClicked
+import scala.swing.*
 
-private class DeckPanel(labelStack: String, stackValue: String, buttonAction: () => Unit) extends BoxPanel(Orientation.Vertical) {
+class DeckPanel(labelStack: String, stackValue: String, buttonAction: () => Unit) extends BoxPanel(Orientation.Vertical) {
   border = Swing.EmptyBorder(10, 10, 10, 10)
   private val discardLabel = new Label(labelStack) {
     font = new AwtFont("Arial", AwtFont.BOLD, 14)

@@ -3,6 +3,8 @@ package view.gamephase
 import model.Game.GameInProgress as GProg
 import model.TurnEvent.CaboCalled
 import model.{Card, PlayerPlaying, Power, TurnLog}
+import view.gamephase.components.*
+import view.gamephase.components.DisplayEndingResultsDialog.*
 import view.lobbyphase.ViewListener.IDuringGameViewListener
 
 import scala.swing.*
@@ -631,7 +633,7 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: GPr
   private def gameEndedWithData(game: GProg)(ending: Ending): Unit = {
     Swing.onEDT {
       println(s"DuringGamePanel - gameEndedWithData: $game")
-      val endingResultsDialog = new DisplayEndingResultsDialog(game)(ending)(onClose = this.viewListener.consultingResultsEnded)
+      val endingResultsDialog = DisplayEndingResultsDialog(game)(ending)(onClose = this.viewListener.consultingResultsEnded)
       endingResultsDialog.open()
     }
   }

@@ -1,21 +1,29 @@
-package view.gamephase
+package view.gamephase.components
 
 import model.Game.GameInProgress
+import DisplayEndingResultsDialog.*
 import model.Hand
 
 import java.awt.Font
 import scala.swing.*
 import scala.swing.event.WindowClosing
 
-abstract class Ending
+object DisplayEndingResultsDialog {
 
-case class ByCabo() extends Ending
+  abstract class Ending
 
-case class ByTurns() extends Ending
+  case class ByCabo() extends Ending
 
-case class ByEmptyDeck() extends Ending
+  case class ByTurns() extends Ending
 
-class DisplayEndingResultsDialog(gameResult: GameInProgress)(ending: Ending)(onClose: () => Unit) extends Dialog {
+  case class ByEmptyDeck() extends Ending
+
+  def apply(gameResult: GameInProgress)(ending: Ending)(onClose: () => Unit): DisplayEndingResultsDialog =
+    new DisplayEndingResultsDialog(gameResult)(ending)(onClose)
+}
+
+private class DisplayEndingResultsDialog(gameResult: GameInProgress)(ending: Ending)(onClose: () => Unit) extends Dialog {
+
 
   private case class DataDisplay(playerName: String, score: Int, hand: String) {
     override def toString: String = s"$playerName,  $score points - $hand"
