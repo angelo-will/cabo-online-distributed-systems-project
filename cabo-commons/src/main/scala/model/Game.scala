@@ -14,8 +14,6 @@ object Game:
 
   val cardsInitialVisible = 2
 
-  case class CaboState(whoCalledCabo: PlayerPlaying)
-  
   case class GameInConstruction(
                                  code: String,
                                  gameParameters: IGameParameters,
@@ -28,12 +26,11 @@ object Game:
   case class GameInProgress(
                              code: String,
                              gameParameters: IGameParameters,
-                             gameStatus: GameStatus,
-                             players: List[PlayerPlaying],
+                             gameStatus: GameStatus, players: List[PlayerPlaying],
                              deckStack: CardStack,
                              discardDeckStack: CardStack,
                              currentRound: Int,
-                             caboState: Option[CaboState] = None,
+                             caboState: Option[PlayerPlaying] = None
                            ):
 
     override def toString: String = "GameInProgress\n" +
@@ -44,7 +41,9 @@ object Game:
       "\tdeckStack=" + deckStack + "\n" +
       "\tdiscardDeckStack=" + discardDeckStack + "\n" +
       "\tcurrentRound=" + currentRound + "\n" +
-      "\tcaboState=" + {if caboState.isEmpty then "Nobody've called cabo" else s"${caboState.get.whoCalledCabo.userID} has called cabo"} + "\n"
+      "\tcaboState=" + {
+      if caboState.isEmpty then "Nobody've called cabo" else s"${caboState.get.userID} has called cabo"
+    } + "\n"
 
     def getPlayerWithID(userID: String): PlayerPlaying = PlayerPlaying.getPlayerWithID(userID, this.players)
 
@@ -57,9 +56,9 @@ object Game:
 
     def replaceNthCardOfPlayerWithID(userID: String, card: Card, index: Int): GameInProgress =
       this.copy(players = PlayerPlaying.replaceNthCardOfPlayerWithID(userID, card, index, this.players))
-      
-    def isCaboCalled: Boolean = 
-      this.caboState.isDefined  
+
+    def isCaboCalled: Boolean =
+      this.caboState.isDefined
 
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")

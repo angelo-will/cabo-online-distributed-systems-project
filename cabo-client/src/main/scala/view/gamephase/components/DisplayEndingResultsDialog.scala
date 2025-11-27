@@ -39,7 +39,7 @@ private class DisplayEndingResultsDialog(gameResult: GameInProgress)(ending: End
 
     contents += Swing.VStrut(10)
     private val howGameEnd = ending match
-      case Cabo => s"Cabo called by ${gameResult.caboState.get.whoCalledCabo.name}"
+      case Cabo => s"Cabo called by ${gameResult.caboState.get.name}"
       case TurnsLimit => "Reached maximum turns number"
       case EmptyDeck => "Cards in deck are ended"
     contents += new Label(howGameEnd) {
