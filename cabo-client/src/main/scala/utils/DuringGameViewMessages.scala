@@ -1,9 +1,9 @@
 package utils
 
 import akka.actor.typed.ActorRef
-import model.{Card, Game, InitialPhaseTurnLog, PlayerPlaying, TurnLog}
+import model.{Card, Game, TurnLog}
 import model.Game.GameInProgress
-import utils.InitialViewMessages.ViewCommand
+
 
 object DuringGameViewMessages {
 
@@ -48,7 +48,7 @@ object DuringGameViewMessages {
    * @param game
    * @param isMyTurn - indicates if now is my turn
    */
-  case class LastTurnPlayed(turnLog: TurnLog, game: GameInProgress, isMyTurn: Boolean) extends DuringGameViewCommand
+  case class LastTurnPlayed(turnLog: TurnLog, game: GameInProgress) extends DuringGameViewCommand
 
   /**
    * Notify to actor which player's turn is started, could be itself or an adversary.

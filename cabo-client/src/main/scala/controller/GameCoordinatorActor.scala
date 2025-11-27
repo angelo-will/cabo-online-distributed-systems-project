@@ -2,7 +2,7 @@ package controller
 
 import akka.actor.typed.Behavior
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
-import model.{Card, DuringGameTurnLog, GameParameters, Hand, InitialPhaseTurnLog, PlayerPlaying, Power, TurnEvent, TurnLog}
+import model.*
 import model.Game.{GameInConstruction, GameInProgress}
 import utils.{AppLogger, ClientMessages as CLMsg, DuringGameViewMessages as DGVMsg, GameCoordinatorMessage as GCMsg}
 import utils.ClientMessages.ClientCommand as CCommand
@@ -231,6 +231,7 @@ object GameCoordinatorActor:
           val newGameData = gameData.copy(temporaryGame = tempGame).syncAllTemporaryDecks
           ctx.log.info(s"myTurnAfterDiscard, player ${gameData.playerOwnUserID} - NEWGAMEDATA = $newGameData")
           gameData.clientReference ! CLMsg.TurnEnded(newGameData.game, gameData.turnLog)
+          ctx.self ! GCMsg.NewTurn(newGameData.game, newGameData.turnLog)
           notMyTurn(newGameData)
       })
   }
@@ -343,21 +344,20 @@ object GameCoordinatorActor:
         game = actualGame,
         temporaryGame = actualGame,
         turnLog = new DuringGameTurnLog(gameData.playerOwnUserID, actualTurn))
+
       val playerIDHaveToPlay = getPlayerIDWhoHasToPlay(actualGame)
-
       val isGameEnded = gameEnded(actualGame, playerIDHaveToPlay)
-
       val isMyTurnNext = playerIDHaveToPlay == gameData.playerOwnUserID
 
-      (isGameEnded, isMyTurnNext) match
-        case (NotEnded(), true) =>
-          newGameData.viewReference ! DGVMsg.LastTurnPlayed(turnLog, actualGame, true)
-          myTurnBeforeDraw(newGameData)
-        case (NotEnded(), _) =>
-          newGameData.viewReference ! DGVMsg.LastTurnPlayed(turnLog, actualGame, false)
+      isGameEnded match
+        case NotEnded() =>
+          newGameData.viewReference ! DGVMsg.LastTurnPlayed(turnLog, actualGame)
           newGameData.viewReference ! DGVMsg.StartTurnPlayer(playerIDHaveToPlay)
-          notMyTurn(newGameData)
-        case (_, _) => transitionToShowingResults(isGameEnded, newGameData, turnLog)
+          if isMyTurnNext then
+            myTurnBeforeDraw(newGameData)
+          else
+            notMyTurn(newGameData)
+        case _ => transitionToShowingResults(isGameEnded, newGameData, turnLog)
 
   // POWERS implementation
 
@@ -426,7 +426,7 @@ object GameCoordinatorActor:
   private def transitionToShowingResults(gameEnd: EndingGame, gameData: GameData, lastTurnLog: TurnLog): Behavior[Message] = {
     log.log(s"transitionToShowingResults called, gameData = $gameData")
     //    val finalGameState = gameData.temporaryGame
-    gameData.viewReference ! DGVMsg.LastTurnPlayed(lastTurnLog, gameData.game, false)
+    gameData.viewReference ! DGVMsg.LastTurnPlayed(lastTurnLog, gameData.game)
     gameEnd match
       case EndedByCabo() => gameData.viewReference ! DGVMsg.GameEndedByCabo(gameData.game)
       case EndedByTurnsLimit() => gameData.viewReference ! DGVMsg.GameEndedByTurnsLimit(gameData.game)

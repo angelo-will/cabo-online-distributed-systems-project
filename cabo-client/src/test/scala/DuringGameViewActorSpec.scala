@@ -1,21 +1,17 @@
-import akka.actor.testkit.typed.scaladsl.{ScalaTestWithActorTestKit, TestDuration, TestProbe}
+import akka.actor.testkit.typed.scaladsl.{ScalaTestWithActorTestKit, TestProbe}
 import akka.actor.typed.ActorRef
 import model.Game.GameInProgress
-import model.{Card, CardStack, DuringGameTurnLog, Game, GameParameters, GameStatus, Hand, IGameParameters, InvalidTurnEventException, PlayerPlaying, Power, TurnEvent, TurnLog, TurnPhase}
+import model.{Card, CardStack, DuringGameTurnLog, Game, GameParameters, GameStatus, Hand, IGameParameters, PlayerPlaying, Power, TurnEvent, TurnLog, TurnPhase}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.BeforeAndAfterEach
-import org.scalatest.matchers.must.Matchers.mustBe
 import utils.{ClientMessages, DuringGameViewMessages, GameCoordinatorMessage, Message}
 import view.gamephase
 import view.gamephase.actors
 import view.gamephase.actors.DuringGameViewActor
-import view.lobbyphase.ViewApplication
-import view.lobbyphase.actors.InitialPhaseViewActor.ViewCreated
-import view.lobbyphase.actors.{InitialPhaseViewActor, ViewActorListener}
+import view.lobbyphase.actors.{InitialPhaseViewActor}
 
-import scala.swing.{BoxPanel, Button, Dimension, Frame, Label, MainFrame, Orientation, SimpleSwingApplication, Swing}
-import scala.swing.MenuBar.NoMenuBar.border
+import scala.swing.*
 import scala.swing.event.ButtonClicked
 
 class DuringGameViewActorSpec extends ScalaTestWithActorTestKit
@@ -116,7 +112,8 @@ class DuringGameViewActorSpec extends ScalaTestWithActorTestKit
         duringGameViewActor ! DuringGameViewMessages.WaitAfterRevealingSection()
         val (newGameState, turn) = generateTurnWithDrawFromDeck(playerWhoPlayTurnBefore.userID, game)
         Thread.sleep(2000)
-        duringGameViewActor ! DuringGameViewMessages.LastTurnPlayed(turn, newGameState, true)
+        duringGameViewActor ! DuringGameViewMessages.LastTurnPlayed(turn, newGameState)
+        duringGameViewActor ! DuringGameViewMessages.StartTurnPlayer(userID)
         Thread.sleep(10000) // wait for the view to update
       }
     }

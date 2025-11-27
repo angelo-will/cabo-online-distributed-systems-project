@@ -2,7 +2,7 @@ package view.gamephase.actors
 
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
-import model.{Card, EndGameReason, Game, Power, TurnLog}
+import model.{EndGameReason, Game, Power}
 import utils.DuringGameViewMessages.*
 import utils.{DuringGameViewMessages, InitialViewMessages, Message, GameCoordinatorMessage as GCMsg}
 import view.gamephase.DuringGameMainFrame
@@ -47,356 +47,361 @@ private class DuringGameViewActor private(
 
   private var hasDrawnFromDeck: Boolean = false
 
-  // MY TURN BEHAVIORS - START
-  // TODO: add the exit from game behavior
-  def start(): Behavior[Message] = Behaviors.setup { ctx =>
-    ctx.log.info("DuringGameViewActor started")
+  // --- INITIALIZATION ---
+
+  def start(): Behavior[Message] = Behaviors.setup { _ =>
+    log("start", "DuringGameViewActor started")
     val frame = new DuringGameMainFrame(DuringGameViewListener(ctx.self))
     frame.open()
     frame.visible = true
 
     clientRef ! utils.ClientMessages.DuringGameViewReady(ctx.self)
 
-    Behaviors.receivePartial {
-      case (ctx, StartGame(game, gameCoordinatorRef)) =>
-        ctx.log.info(s"DuringGameViewActor of player ${userID}, my ref is ${ctx.self}")
-        ctx.log.info(s"DuringGameViewActor of player $userID handling game started with message: ${StartGame(game, gameCoordinatorRef)}")
+    Behaviors.receiveMessagePartial {
+      case StartGame(game, gameCoordinatorRef) =>
+        log("", s"Handling game started with message: ${StartGame(game, gameCoordinatorRef)}")
         val userInterface = frame.startGame(game, userID)
         userInterface.enterRevealingInitialCardsPhase()
         watchYourCards(GameContext(gameCoordinatorRef, frame, userInterface))
       case msg =>
-        println(s"DuringGameViewActor of player $userID in waitingGameCreated received message: $msg")
+        ctx.log.warn(s"DuringGameViewActor of player $userID in state start received unexpected message: $msg")
         Behaviors.same
-
     }
   }
 
-  private def watchYourCards(properties: GameContext): Behavior[Message] = {
-    Behaviors.receivePartial {
-      handleShowCard(properties, watchYourCards)
-        .orElse(handleAdversariesRevealingLog(properties))
+  // --- WAITING STATES ---
+
+  private def watchYourCards(context: GameContext): Behavior[Message] = {
+    Behaviors.receiveMessagePartial {
+      handleShowCard(context, watchYourCards)
+        .orElse(handleAdversariesRevealingLog(context))
         .orElse({
-          case (ctx, WaitAfterRevealingSection()) => {
-            ctx.log.info(s"DuringGameViewActor of player $userID handling message: ${WaitAfterRevealingSection()}")
-            properties.ui.enterWaitingPhase()
-            waitFirstTurn(properties)
-          }
-          case msg =>
-            println(s"DuringGameViewActor of player $userID in watchYourCards received message: $msg")
-            Behaviors.same
+          case WaitAfterRevealingSection() =>
+            log("", s"Handling message: ${WaitAfterRevealingSection()}")
+            context.ui.enterWaitingPhase()
+            waitFirstTurn(context)
         })
+        .orElse(handleUnexpectedMessage("watchYourCards"))
     }
   }
 
-  private def waitFirstTurn(properties: GameContext): Behavior[Message] = {
-    Behaviors.receivePartial {
-      handleAdversariesRevealingLog(properties)
-        .orElse(handleExitSelected(properties))
+  private def waitFirstTurn(context: GameContext): Behavior[Message] = {
+    Behaviors.receiveMessagePartial {
+      handleAdversariesRevealingLog(context)
+        .orElse(handleExitSelected(context))
+        .orElse(handleStartTurnPlayer(context))
+        .orElse(handleUnexpectedMessage("waitFirstTurn"))
+    }
+  }
+
+  private def waitMyTurn(context: GameContext): Behavior[Message] = {
+    Behaviors.receiveMessagePartial {
+      handleUpdateLastTurnPlayed(context)
+        .orElse(handleExitSelected(context))
+        .orElse(handleStartTurnPlayer(context))
+        .orElse(handleGameEnding(context))
+        .orElse(handleUnexpectedMessage("waitMyTurn"))
+    }
+  }
+
+  private def waitingCloseGameFrame(context: GameContext): Behavior[Message] = {
+    Behaviors.receiveMessagePartial {
+      handleConsultingResultsEnded(context)
+        .orElse(handleExitSelected(context))
+        .orElse(handleUnexpectedMessage("waitingCloseGameFrame"))
+    }
+  }
+
+  // --- MY TURN BEHAVIORS ---
+
+  private def myTurnBeforeDraw(context: GameContext): Behavior[Message] = {
+    context.ui.startTurn()
+    context.ui.updatePlayerWhoIsPlaying(userID)
+    Behaviors.receiveMessagePartial {
+      handleExitSelected(context)
+        .orElse(handleWhichDeckSelectedForDrawing(context))
+        .orElse(handleUnexpectedMessage("myTurnBeforeDraw"))
+    }
+  }
+
+  private def myTurnWaitDrawnCard(context: GameContext): Behavior[Message] = {
+    Behaviors.receiveMessagePartial {
+      handleCardDrawn(context)
+        .orElse(handleNewTopDiscardCard(context))
+        .orElse(handleUnexpectedMessage("myTurnWaitDrawnCard"))
+        .orElse(handleExitSelected(context))
+    }
+  }
+
+  private def myTurnAfterDraw(context: GameContext): Behavior[Message] = {
+    context.ui.afterDrawPhase(hasDrawnFromDeck)
+    Behaviors.receiveMessagePartial {
+      handleNewTopDiscardCard(context)
+        .orElse(handleExitSelected(context))
+        .orElse(handleWhichCardKeep(context))
+        .orElse(handleUnexpectedMessage("myTurnAfterDraw"))
+    }
+  }
+
+  private def myTurnPowerSeeMyCard(context: GameContext): Behavior[Message] = {
+    context.ui.usePowerToSeeOwnCard()
+    Behaviors.receiveMessagePartial {
+      handleShowCard(context, myTurnAfterDraw)
+        .orElse(handleExitSelected(context))
+        .orElse(handleUnexpectedMessage("myTurnPowerSeeMyCard"))
+    }
+  }
+
+  private def myTurnPowerSeeOpponentCard(context: GameContext): Behavior[Message] = {
+    context.ui.usePowerToSeeAdversaryCard()
+    Behaviors.receiveMessagePartial {
+      handleExitSelected(context)
         .orElse({
-          case (ctx, StartTurnPlayer(playerID)) =>
-            ctx.log.info(s"DuringGameViewActor of player $userID handling message: ${StartTurnPlayer(playerID)}")
-            properties.ui.updatePlayerWhoIsPlaying(playerID)
-            if playerID == this.userID then
-              myTurnBeforeDraw(properties)
-            else
-              waitMyTurn(properties)
-          case (ctx, msg) =>
-            ctx.log.info(s"DuringGameViewActor of player $userID in waitFirstTurn received unexpected message: $msg")
-            Behaviors.same
+          case AdversaryCardSelected(adversaryID, index) =>
+            log("myTurnPowerSeeOpponentCard", s"Received AdversaryCardSelected with index: $index")
+            context.coordinator ! GCMsg.ShowAdversaryNthCard(adversaryID, index)
+            waitAdversaryCardSelected(context, AdversaryCardRequested(adversaryID, index))
         })
+        .orElse(handleUnexpectedMessage("myTurnPowerSeeOpponentCard"))
     }
   }
 
-  private def waitMyTurn(properties: GameContext): Behavior[Message] = {
-    Behaviors.receivePartial {
-      handleUpdateLastTurnPlayed(properties)
-        .orElse(handleExitSelected(properties))
-        .orElse({
-          case (ctx, StartTurnPlayer(playerID)) =>
-            ctx.log.info(s"DuringGameViewActor of player $userID handling StartTurnPlayer with message: ${StartTurnPlayer(playerID)}")
-            properties.ui.updatePlayerWhoIsPlaying(playerID)
-            Behaviors.same
-          case (ctx, GameEndedByCabo(game)) =>
-            ctx.log.info(s"DuringGameViewActor of player $userID handling GameEnded with message: ${GameEndedByCabo(game)}")
-            properties.ui.gameEndedWithData(game)(EndGameReason.Cabo)
-            waitingCloseGameFrame(properties)
-          case (ctx, GameEndedByTurnsLimit(game)) =>
-            ctx.log.info(s"DuringGameViewActor of player $userID handling GameEnded with message: ${GameEndedByTurnsLimit(game)}")
-            properties.ui.gameEndedWithData(game)(EndGameReason.TurnsLimit)
-            waitingCloseGameFrame(properties)
-          case (ctx, GameEndedByEmptyDeck(game)) =>
-            ctx.log.info(s"DuringGameViewActor of player $userID handling GameEnded with message: ${GameEndedByEmptyDeck(game)}")
-            properties.ui.gameEndedWithData(game)(EndGameReason.EmptyDeck)
-            waitingCloseGameFrame(properties)
-          case msg =>
-            println(s"DuringGameViewActor of player $userID in waitMyTurn received message: $msg")
-            Behaviors.same
-        })
-    }
-  }
-
-  private def waitingCloseGameFrame(gameContext: GameContext): Behavior[Message] = Behaviors.receivePartial {
-    handleConsultingResultsEnded(gameContext)
-      .orElse(handleExitSelected(gameContext))
-      .orElse {
-        case (ctx, msg) =>
-          println(s"DuringGameViewActor of player $userID in waitingCloseGameFrame received message: $msg")
-          Behaviors.same
-      }
-
-  }
-
-  private def myTurnBeforeDraw(properties: GameContext): Behavior[Message] = {
-    properties.ui.startTurn()
-    properties.ui.updatePlayerWhoIsPlaying(userID)
-    Behaviors.receivePartial {
-      handleExitSelected(properties)
-        .orElse(handleEndTurn(properties))
-        .orElse({
-          case (ctx, DeckSelected()) =>
-            println(s"DuringGameViewActor of player $userID handling DeckSelected with message: ${DeckSelected()}")
-            properties.coordinator ! GCMsg.DrawCardFromDeck()
-            hasDrawnFromDeck = true
-            myTurnWaitDrawnCard(properties)
-          case (ctx, DiscardStackSelected()) =>
-            println(s"DuringGameViewActor of player $userID handling DiscardStackSelected with message: ${DiscardStackSelected()}")
-            properties.coordinator ! GCMsg.DrawCardFromDiscardStack()
-            hasDrawnFromDeck = false
-            myTurnWaitDrawnCard(properties)
-        })
-    }
-  }
-
-  private def myTurnWaitDrawnCard(properties: GameContext): Behavior[Message] = {
-    Behaviors.receivePartial {
-      handleNewTopDiscardCard(properties)
-        .orElse(handleExitSelected(properties))
-        .orElse(handleEndTurn(properties))
-        .orElse({
-          case (ctx, CardDrawn(card)) =>
-            ctx.log.info(s"DuringGameViewActor of player $userID handling CardDrawn with message: ${CardDrawn(card)}")
-            if hasDrawnFromDeck then
-              properties.ui.showCardDrawnFromDeck(card)
-              card.power match
-                case Power.SeeYourCard() => myTurnPowerSeeMyCard(properties)
-                case Power.SeeYourOpponentCard() => myTurnPowerSeeOpponentCard(properties)
-                case Power.ChangeOneOfYourCardWithOpponent() =>
-                  properties.ui.usePowerToExchangeCardWithAdversary()
-                  myTurnPowerExchange(properties, ExchangeState())
-                case _ => myTurnAfterDraw(properties)
-            else
-              properties.ui.showCardDrawnFromDiscards(card)
-              myTurnAfterDraw(properties)
-        })
-    }
-  }
-
-  private def myTurnAfterDraw(
-                               properties: GameContext
-                             ): Behavior[Message] = {
-    properties.ui.afterDrawPhase(hasDrawnFromDeck)
-    Behaviors.receivePartial {
-      handleNewTopDiscardCard(properties)
-        .orElse(handleExitSelected(properties))
-        .orElse(handleEndTurn(properties))
-        .orElse({
-          case (ctx, DiscardCardDrawnSelected()) if hasDrawnFromDeck =>
-            println(s"DuringGameViewActor of player $userID in myTurnAfterDraw received DiscardCardDrawn")
-            properties.coordinator ! GCMsg.DiscardCardDrawn()
-            properties.ui.afterDiscarded()
-            myTurnAfterDiscard(properties)
-          case (ctx, OwnCardSelected(index)) =>
-            println(s"DuringGameViewActor of player $userID in myTurnAfterDraw received OwnCardSelected with index: $index")
-            properties.coordinator ! GCMsg.DiscardYourNthCard(index)
-            properties.ui.afterDiscarded()
-            myTurnAfterDiscard(properties)
-        })
-    }
-  }
-
-
-  private def myTurnPowerSeeMyCard(properties: GameContext): Behavior[Message] = {
-    properties.ui.usePowerToSeeOwnCard()
-    Behaviors.receivePartial {
-      handleShowCard(properties, myTurnAfterDraw)
-        .orElse(handleExitSelected(properties))
-        .orElse(handleEndTurn(properties))
-    }
-  }
-
-  private def myTurnPowerSeeOpponentCard(properties: GameContext): Behavior[Message] = {
-    properties.ui.usePowerToSeeAdversaryCard()
-    Behaviors.receivePartial {
-      handleEndTurn(properties)
-        .orElse(handleExitSelected(properties))
-        .orElse({
-          case (ctx, AdversaryCardSelected(adversaryID, index)) =>
-            println(s"DuringGameViewActor of player $userID in myTurnPowerSeeOpponentCard received AdversaryCardSelected with index: $index")
-            properties.coordinator ! GCMsg.ShowAdversaryNthCard(adversaryID, index)
-            waitAdversaryCardSelected(properties, AdversaryCardRequested(adversaryID, index))
-        })
-    }
-  }
-
-  private def myTurnPowerExchange(data: GameContext, state: ExchangeState): Behavior[Message] = {
+  private def myTurnPowerExchange(context: GameContext, state: ExchangeState): Behavior[Message] = {
     if (state.isComplete) {
       val adv = state.adversarySelection.get
-      data.coordinator ! GCMsg.ReplaceOwnNthCardWithAdversaryNthOne(state.ownCardIndex.get, adv.adversaryID, adv.adversaryCardIndex)
-      return myTurnWaitPowerChangeAck(data)
-    }
-    Behaviors.receivePartial {
-      handleExitSelected(data)
-        .orElse({
-          case (ctx, AdversaryCardSelected(adversaryID, index)) if state.adversarySelection.isEmpty =>
-            data.ui.activateAdversariesCards(false)
-            data.ui.notifyYourAdversaryCardSelection(adversaryID, index)
-            myTurnPowerExchange(data, state.copy(adversarySelection = Some(AdversaryCardRequested(adversaryID, index))))
+      context.coordinator ! GCMsg.ReplaceOwnNthCardWithAdversaryNthOne(state.ownCardIndex.get, adv.adversaryID, adv.adversaryCardIndex)
+      Behaviors.receiveMessagePartial {
+        handleExitSelected(context)
+          .orElse({
+            case ChangeCardWithAdversaryAck() =>
+              log("myTurnWaitPowerChangeAck", "Received ChangeCardWithAdversaryAck")
+              context.ui.changeCardWithAdversaryIsDone()
+              myTurnAfterDraw(context)
+          })
+          .orElse(handleUnexpectedMessage("myTurnWaitPowerChangeAck"))
+      }
+    } else {
+      Behaviors.receiveMessagePartial {
+        handleExitSelected(context)
+          .orElse({
+            case AdversaryCardSelected(adversaryID, index) if state.adversarySelection.isEmpty =>
+              context.ui.activateAdversariesCards(false)
+              context.ui.notifyYourAdversaryCardSelection(adversaryID, index)
+              myTurnPowerExchange(context, state.copy(adversarySelection = Some(AdversaryCardRequested(adversaryID, index))))
 
-          case (ctx, OwnCardSelected(ownIndex)) if state.ownCardIndex.isEmpty =>
-            data.ui.activateOwnCards(false)
-            data.ui.notifyYourOwnCardSelection(ownIndex)
-            myTurnPowerExchange(data, state.copy(ownCardIndex = Some(ownIndex)))
-        }
-        )
-    }
-  }
-
-  private def myTurnWaitPowerChangeAck(properties: GameContext): Behavior[Message] = {
-    Behaviors.receivePartial {
-      handleEndTurn(properties)
-        .orElse(handleExitSelected(properties))
-        .orElse({
-          case (ctx, DuringGameViewMessages.ChangeCardWithAdversaryAck()) =>
-            println(s"DuringGameViewActor of player $userID in myTurnWaitPowerChangeAck received ChangeCardWithAdversaryAck")
-            properties.ui.changeCardWithAdversaryIsDone()
-            myTurnAfterDraw(properties)
-        })
+            case OwnCardSelected(ownIndex) if state.ownCardIndex.isEmpty =>
+              context.ui.activateOwnCards(false)
+              context.ui.notifyYourOwnCardSelection(ownIndex)
+              myTurnPowerExchange(context, state.copy(ownCardIndex = Some(ownIndex)))
+          })
+          .orElse(handleUnexpectedMessage("myTurnPowerExchange"))
+      }
     }
   }
 
   private def waitCardSelected(
-                                properties: GameContext,
+                                context: GameContext,
                                 behaviorAfterCardReceived: GameContext => Behavior[Message]
                               ): Behavior[Message] = {
-    Behaviors.receivePartial {
-      handleAdversariesRevealingLog(properties)
-        .orElse(handleEndTurn(properties))
-        .orElse(handleExitSelected(properties))
+    Behaviors.receiveMessagePartial {
+      handleAdversariesRevealingLog(context)
+        .orElse(handleExitSelected(context))
         .orElse({
-          case (ctx, CardSeen(card)) =>
-            println(s"DuringGameViewActor of player $userID in waitCardSelected received Card seen with card: $card")
-            properties.ui.showYourNthCard(card)
-            behaviorAfterCardReceived(properties)
-          case (ctx, msg) =>
-            ctx.log.info(s"DuringGameViewActor ID $userID in waitCardSelected received unexpected message: $msg")
-            Behaviors.same
+          case CardSeen(card) =>
+            log("waitCardSelected", s"Received Card seen with card: $card")
+            context.ui.showYourNthCard(card)
+            behaviorAfterCardReceived(context)
         })
+        .orElse(handleUnexpectedMessage("waitCardSelected"))
     }
   }
 
-  private def waitAdversaryCardSelected(properties: GameContext, advCRequested: AdversaryCardRequested): Behavior[Message] = {
-    Behaviors.receivePartial {
-      handleEndTurn(properties)
-        .orElse(handleExitSelected(properties))
+  private def waitAdversaryCardSelected(context: GameContext, advCRequested: AdversaryCardRequested): Behavior[Message] = {
+    Behaviors.receiveMessagePartial {
+      handleExitSelected(context)
         .orElse({
-          case (ctx, CardSeen(card)) =>
-            println(s"DuringGameViewActor of player $userID in waitAdversaryCardSelected received: ${CardSeen(card)}")
-            properties.ui.showAdversaryNthCard(advCRequested.adversaryID, advCRequested.adversaryCardIndex, card)
-            myTurnAfterDraw(properties)
+          case CardSeen(card) =>
+            log("waitAdversaryCardSelected", s"Received: ${CardSeen(card)}")
+            context.ui.showAdversaryNthCard(advCRequested.adversaryID, advCRequested.adversaryCardIndex, card)
+            myTurnAfterDraw(context)
         })
+        .orElse(handleUnexpectedMessage("waitAdversaryCardSelected"))
     }
   }
 
-  private def myTurnAfterDiscard(properties: GameContext): Behavior[Message] = {
+  private def myTurnAfterDiscard(context: GameContext): Behavior[Message] = {
     hasDrawnFromDeck = false
-    Behaviors.receivePartial {
-      handleNewTopDiscardCard(properties)
-        .orElse(handleExitSelected(properties))
-        .orElse(handleEndTurn(properties))
-        .orElse({
-          case (ctx, CallCaboSelected()) =>
-            ctx.log.info(s"DuringGameViewActor of player $userID in myTurnAfterDiscard received CallCaboSelected")
-            properties.ui.enterWaitingPhase()
-            properties.coordinator ! GCMsg.CallCabo()
-            waitMyTurn(properties)
-        })
+    Behaviors.receiveMessagePartial {
+      handleNewTopDiscardCard(context)
+        .orElse(handleEndTurn(context))
+        .orElse(handleExitSelected(context))
+        .orElse(handleCaboSelected(context))
+        .orElse(handleUnexpectedMessage("myTurnAfterDiscard"))
     }
   }
-  // MY TURN BEHAVIORS - END
 
-  // HANDLERS
+  // --- HANDLERS ---
 
+  // HANDLERS revealing section - START ---
   private def handleShowCard(
-                              properties: GameContext,
+                              context: GameContext,
                               behaviorAfterWatched: GameContext => Behavior[Message]):
-  PartialFunction[(ActorContext[Message], Message), Behavior[Message]] = {
-    case (ctx, OwnCardSelected(index)) =>
+  PartialFunction[Message, Behavior[Message]] = {
+    case OwnCardSelected(index) =>
       ctx.log.info(s"DuringGameViewActor of player ${userID}, my ref is ${ctx.self}")
-      println(s"DuringGameViewActor HANDLER handleWatchYourCards received OwnCardSelected with index: $index")
-      properties.coordinator ! GCMsg.ShowYourNthCard(index)
-      waitCardSelected(properties, behaviorAfterWatched)
+      ctx.log.info(s"DuringGameViewActor HANDLER handleWatchYourCards received OwnCardSelected with index: $index")
+      context.coordinator ! GCMsg.ShowYourNthCard(index)
+      waitCardSelected(context, behaviorAfterWatched)
   }
 
-  private def handleUpdateLastTurnPlayed(properties: GameContext):
-  PartialFunction[(ActorContext[Message], Message), Behavior[Message]] = {
-    case (ctx, LastTurnPlayed(turnLog, game, isMyTurn)) =>
-      ctx.log.info(s"DuringGameViewActor of player $userID handling LastTurnPlayed with isMyTurn = $isMyTurn}")
-      ctx.log.info(s"DuringGameViewActor of player $userID handling LastTurnPlayed with turnLog =\n$turnLog")
-      ctx.log.info(s"DuringGameViewActor of player $userID handling LastTurnPlayed with game =\n$game")
-      properties.ui.updateLastTurnLog(turnLog)
-      properties.ui.updateGameInfo(game)
-      properties.ui.updateDiscardsTopCard(game.discardDeckStack.cards.head)
-      if isMyTurn then myTurnBeforeDraw(properties) else waitMyTurn(properties)
-  }
-
-  private def handleNewTopDiscardCard(properties: GameContext):
-  PartialFunction[(ActorContext[Message], Message), Behavior[Message]] = {
-    case (ctx, NewTopCardDiscardStack(card)) =>
-      ctx.log.info(s"DuringGameViewActor of player $userID handling NewTopDiscardCard with message: ${NewTopCardDiscardStack(card)}")
-      properties.ui.updateDiscardsTopCard(card)
-      Behaviors.same
-    case (ctx, EmptyDiscardStack()) =>
-      ctx.log.info(s"DuringGameViewActor of player $userID handling EmptyDiscardStack with message: ${EmptyDiscardStack()}")
-      properties.ui.emptyDiscardStack()
+  private def handleAdversariesRevealingLog(context: GameContext): PartialFunction[Message, Behavior[Message]] = {
+    case RevealingCardsPhaseAdversaryLog(revealingLog) =>
+      log("", s"Handling RevealingCardsPhaseAdversaryLog with message: ${RevealingCardsPhaseAdversaryLog(revealingLog)}")
+      context.ui.updateRevealingLog(revealingLog)
       Behaviors.same
   }
+  // HANDLERS revealing section - END ---
 
-  private def handleExitSelected(properties: GameContext):
-  PartialFunction[(ActorContext[Message], Message), Behavior[Message]] = {
-    case (ctx, ExitSelected()) =>
-      println(s"DuringGameViewActor of player $userID handling ExitSelected() with message: ${ExitSelected()}")
-      properties.frame.dispose()
+  private def handleUpdateLastTurnPlayed(context: GameContext): PartialFunction[Message, Behavior[Message]] = {
+    case LastTurnPlayed(turnLog, game) =>
+      log("", s"Handling LastTurnPlayed")
+      context.ui.updateLastTurnLog(turnLog)
+      context.ui.updateGameInfo(game)
+      context.ui.updateDiscardsTopCard(game.discardDeckStack.cards.head)
+      waitMyTurn(context)
+  }
+
+  private def handleStartTurnPlayer(context: GameContext): PartialFunction[Message, Behavior[Message]] = {
+    case StartTurnPlayer(playerID) =>
+      log("", s"Handling StartTurnPlayer with message: ${StartTurnPlayer(playerID)}")
+      context.ui.updatePlayerWhoIsPlaying(playerID)
+      if (playerID == this.userID)
+        myTurnBeforeDraw(context)
+      else
+        waitMyTurn(context)
+  }
+
+  // --- HANDLERS my turn - START ---
+  private def handleWhichDeckSelectedForDrawing(context: GameContext): PartialFunction[Message, Behavior[Message]] = {
+    case DeckSelected() =>
+      log("myTurnBeforeDraw", s"Handling DeckSelected with message: ${DeckSelected()}")
+      context.coordinator ! GCMsg.DrawCardFromDeck()
+      hasDrawnFromDeck = true
+      myTurnWaitDrawnCard(context)
+    case DiscardStackSelected() =>
+      log("myTurnBeforeDraw", s"Handling DiscardStackSelected with message: ${DiscardStackSelected()}")
+      context.coordinator ! GCMsg.DrawCardFromDiscardStack()
+      hasDrawnFromDeck = false
+      myTurnWaitDrawnCard(context)
+  }
+
+  private def handleCardDrawn(context: GameContext): PartialFunction[Message, Behavior[Message]] = {
+    case CardDrawn(card) =>
+      log("myTurnWaitDrawnCard", s"Handling CardDrawn with message: ${CardDrawn(card)}")
+      if (hasDrawnFromDeck) {
+        context.ui.showCardDrawnFromDeck(card)
+        card.power match
+          case Power.SeeYourCard() => myTurnPowerSeeMyCard(context)
+          case Power.SeeYourOpponentCard() => myTurnPowerSeeOpponentCard(context)
+          case Power.ChangeOneOfYourCardWithOpponent() =>
+            context.ui.usePowerToExchangeCardWithAdversary()
+            myTurnPowerExchange(context, ExchangeState())
+          case _ => myTurnAfterDraw(context)
+      } else {
+        context.ui.showCardDrawnFromDiscards(card)
+        myTurnAfterDraw(context)
+      }
+  }
+
+  private def handleWhichCardKeep(context: GameContext): PartialFunction[Message, Behavior[Message]] = {
+    case DiscardCardDrawnSelected() if hasDrawnFromDeck =>
+      log(" myTurnAfterDraw", s"Received DiscardCardDrawn")
+      context.coordinator ! GCMsg.DiscardCardDrawn()
+      context.ui.afterDiscarded()
+      myTurnAfterDiscard(context)
+
+    case OwnCardSelected(index) =>
+      log("myTurnAfterDraw", s"Received OwnCardSelected with index: $index")
+      context.coordinator ! GCMsg.DiscardYourNthCard(index)
+      context.ui.afterDiscarded()
+      myTurnAfterDiscard(context)
+  }
+
+  private def handleNewTopDiscardCard(context: GameContext): PartialFunction[Message, Behavior[Message]] = {
+    case NewTopCardDiscardStack(card) =>
+      log("", s"Handling NewTopDiscardCard with message: ${NewTopCardDiscardStack(card)}")
+      context.ui.updateDiscardsTopCard(card)
+      Behaviors.same
+    case EmptyDiscardStack() =>
+      log("", s"Handling EmptyDiscardStack with message: ${EmptyDiscardStack()}")
+      context.ui.emptyDiscardStack()
+      Behaviors.same
+  }
+
+  private def handleExitSelected(context: GameContext): PartialFunction[Message, Behavior[Message]] = {
+    case ExitSelected() =>
+      log("", s"Handling ExitSelected() with message: ${ExitSelected()}")
+      context.frame.dispose()
       clientRef ! utils.ClientMessages.LeaveTheGame()
-      // TODO: add exit to game coordinator x
-      //        properties.gameCoordinatorRef ! GCMsg.Exit()
       Behaviors.stopped
   }
 
-  private def handleConsultingResultsEnded(properties: GameContext):
-  PartialFunction[(ActorContext[Message], Message), Behavior[Message]] = {
-    case (ctx, ConsultingResultsEnded()) =>
-      println(s"DuringGameViewActor of player $userID handling ConsultingResultsEnded() with message: ${ConsultingResultsEnded()}")
-      properties.frame.dispose()
-      //      mainMenuRef ! InitialViewMessages.ReturnToMainMenuFromGame(userID)
+  private def handleCaboSelected(context: GameContext): PartialFunction[Message, Behavior[Message]] = {
+    case CallCaboSelected() =>
+      log("myTurnAfterDiscard", "Received CallCaboSelected")
+      context.ui.enterWaitingPhase()
+      context.coordinator ! GCMsg.CallCabo()
+      waitMyTurn(context)
+  }
+
+  private def handleEndTurn(context: GameContext): PartialFunction[Message, Behavior[Message]] = {
+    case EndTurnSelected() =>
+      log("myTurn", "Received EndTurn")
+      context.ui.enterWaitingPhase()
+      context.coordinator ! GCMsg.EndTurn()
+      waitMyTurn(context)
+  }
+  // --- HANDLERS my turn - END ---
+
+  // --- HANDLERS game ending - START ---
+  private def handleGameEnding(context: GameContext): PartialFunction[Message, Behavior[Message]] = {
+    case GameEndedByCabo(game) => {
+      log("waitMyTurn", s"Handling GameEnded with message: ${GameEndedByCabo(game)}")
+      context.ui.gameEndedWithData(game)(EndGameReason.Cabo)
+      waitingCloseGameFrame(context)
+    }
+    case GameEndedByTurnsLimit(game) => {
+      log("waitMyTurn", s"Handling GameEnded with message: ${GameEndedByTurnsLimit(game)}")
+      context.ui.gameEndedWithData(game)(EndGameReason.TurnsLimit)
+      waitingCloseGameFrame(context)
+    }
+    case GameEndedByEmptyDeck(game) => {
+      log("waitMyTurn", s"Handling GameEnded with message: ${GameEndedByEmptyDeck(game)}")
+      context.ui.gameEndedWithData(game)(EndGameReason.EmptyDeck)
+      waitingCloseGameFrame(context)
+    }
+  }
+
+  private def handleConsultingResultsEnded(context: GameContext): PartialFunction[Message, Behavior[Message]] = {
+    case ConsultingResultsEnded() =>
+      log("", s"Handling ConsultingResultsEnded() with message: ${ConsultingResultsEnded()}")
+      context.frame.dispose()
       clientRef ! utils.ClientMessages.GameEnded()
       Behaviors.stopped
   }
+  // --- HANDLERS game ending - END ---
 
-  private def handleAdversariesRevealingLog(properties: GameContext):
-  PartialFunction[(ActorContext[Message], Message), Behavior[Message]] = {
-    case (ctx, RevealingCardsPhaseAdversaryLog(revealingLog)) =>
-      ctx.log.info(s"DuringGameViewActor of player $userID handling RevealingCardsPhaseAdversaryLog with message: ${RevealingCardsPhaseAdversaryLog(revealingLog)}")
-      properties.ui.updateRevealingLog(revealingLog)
+  private def handleUnexpectedMessage(actualState: String): PartialFunction[Message, Behavior[Message]] = {
+    case msg =>
+      // Uso WARN per i messaggi inaspettati per distinguerli meglio nei log
+      ctx.log.warn(s"DuringGameViewActor of player $userID in state $actualState received unexpected message: $msg")
       Behaviors.same
   }
 
-  private def handleEndTurn(properties: GameContext):
-  PartialFunction[(ActorContext[Message], Message), Behavior[Message]] = {
-    case (ctx, EndTurnSelected()) =>
-      ctx.log.info(s"DuringGameViewActor of player $userID in myTurn received EndTurn")
-      properties.ui.enterWaitingPhase()
-      properties.coordinator ! GCMsg.EndTurn()
-      waitMyTurn(properties)
+  // Helper functions
+
+  private def log(state: String, msg: String): Unit = {
+    ctx.log.info(s"[DuringGameViewActor]-[Player: $userID]-[STATE:$state]- $msg")
   }
 
 }
