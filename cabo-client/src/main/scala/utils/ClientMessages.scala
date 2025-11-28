@@ -45,6 +45,11 @@ object ClientMessages {
   case class JoinAddress(address: String) extends ClientCommand
 
   /**
+   * Message sent by the view to the client to return to the start configuration
+   */
+  case class ReturnToStart() extends ClientCommand
+
+  /**
    * Message sent by the view to the client to start the game
    *
    * @param game
@@ -84,7 +89,7 @@ object ClientMessages {
   case class DuringGameViewReady(viewRef: ActorRef[Message]) extends ClientCommand
 
   case class RevealingCardsPhaseLog(turnLog: TurnLog) extends ClientCommand
-  
+
   case class GameEnded() extends ClientCommand
 
 }

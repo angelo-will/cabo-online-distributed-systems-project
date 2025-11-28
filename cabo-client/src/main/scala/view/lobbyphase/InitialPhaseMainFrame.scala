@@ -72,16 +72,24 @@ class InitialPhaseMainFrame(val viewListener: IInitialViewListener, val playerNa
       override def updateGamesList(): Unit = {
         viewListener.requestGames()
       }
+
+      override def returnToStart(): Unit = viewListener.returnToStart()
     })
 
-  private val joinGameWithLinkPanel: JoinGameWithLinkPanel = new JoinGameWithLinkPanel(() => setPanel(welcomePanel),
-    (address: String) => {
-      SwingUtilities.invokeLater(() => {
-        viewListener.joinWithAddress(address)
-        dialogsMap(DialogType.WaitingAccessToGameFromServer) = new WaitingAccessToGameDialog()
-        dialogsMap(DialogType.WaitingAccessToGameFromServer).open()
-      })
+  private val joinGameWithLinkPanel: JoinGameWithLinkPanel = new JoinGameWithLinkPanel(
+    navigator = () => setPanel(welcomePanel),
+    viewListener = new IJoinGameWithLinkListener {
+      override def joinWithAddress(address: String): Unit = {
+        SwingUtilities.invokeLater(() => {
+          viewListener.joinWithAddress(address)
+          dialogsMap(DialogType.WaitingAccessToGameFromServer) = new WaitingAccessToGameDialog()
+          dialogsMap(DialogType.WaitingAccessToGameFromServer).open()
+        })
+      }
+
+      override def returnToStart(): Unit = viewListener.returnToStart()
     })
+
 
   def setPanel(panel: Component): Unit =
     containerPanel.contents.clear()
@@ -164,13 +172,13 @@ class InitialPhaseMainFrame(val viewListener: IInitialViewListener, val playerNa
       throw new NotImplementedError("Game started functionality not implemented yet.")
     })
 
-object ViewApplication:
+object ViewApplication {
   def startView(
                  viewListener: IInitialViewListener,
                  playerName: String,
                  afterCreation: (frame: InitialPhaseMainFrame) => Unit
                ): Unit =
-//    var mainFrame: InitialPhaseMainFrame = null
+    //    var mainFrame: InitialPhaseMainFrame = null
     SwingUtilities.invokeLater(() =>
       println("InitialPhaseMainFrame - ViewApplication.startView - Creating main frame")
       var mainFrame = new InitialPhaseMainFrame(viewListener, playerName)
@@ -178,31 +186,4 @@ object ViewApplication:
       mainFrame.visible = true
       afterCreation(mainFrame)
     )
-
-
-object AppMultiplePanel extends SimpleSwingApplication:
-  val playerName = "playerName"
-
-  def top: MainFrame = new InitialPhaseMainFrame(new IInitialViewListener {
-    override def changeName(newName: String): Unit =
-      println(s"Listener finto: Change name to $newName")
-
-    override def createGame(isPubblic: Boolean, maxTimeRound: Int, maxNumRound: Int, maxPlayers: Int): Unit =
-      println(s"Listener finto: Create game with these parameters: makePublic: $isPubblic, maxTimeRound: $maxTimeRound, maxNumRound: $maxNumRound, maxPlayers: $maxPlayers")
-
-    override def requestGames(): Unit =
-      println("Listener finto: Requesting games from server...")
-
-    override def joinGame(game: Game.GameInConstruction): Unit =
-      println(s"Listener finto: Joining game with code: ${game.code}")
-
-    override def joinWithAddress(address: String): Unit =
-      println(s"Listener finto: JoinButton pressed to request to join game with address: $address")
-
-    override def startGame(): Unit =
-      println("Listener finto: Start game button pressed, but no action defined in this test.")
-
-    override def exitFromTheGame(): Unit =
-      println("Listener finto: Exit from the game button pressed, but no action defined in this test.")
-  },
-    playerName)
+}

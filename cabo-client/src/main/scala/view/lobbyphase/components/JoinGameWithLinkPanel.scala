@@ -10,6 +10,8 @@ import scala.swing.event.ButtonClicked
 trait IJoinGameWithLinkListener:
   def joinWithAddress(address: String): Unit
 
+  def returnToStart(): Unit
+
 class JoinGameWithLinkPanel(navigator: ScreenNavigator, viewListener: IJoinGameWithLinkListener) extends BoxPanel(Orientation.Vertical):
   border = Swing.EmptyBorder(30, 30, 30, 30) // Margine interno
 
@@ -49,6 +51,7 @@ class JoinGameWithLinkPanel(navigator: ScreenNavigator, viewListener: IJoinGameW
         viewListener.joinWithAddress(gameCodeField.text)
       else if b == backButton then
         println("JoinGamePanel: Cliccato 'Indietro'. Chiedo al navigatore di mostrare 'welcomeScreen'.")
+        viewListener.returnToStart()
         navigator.goToPreviousPanel()
       else if b == pasteLinkButton then
         val clipboard = java.awt.Toolkit.getDefaultToolkit.getSystemClipboard

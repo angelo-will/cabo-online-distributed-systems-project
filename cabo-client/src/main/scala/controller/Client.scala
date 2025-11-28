@@ -164,20 +164,26 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
 
   private def withShared(
                           specific: PartialFunction[(ActorContext[Message], Message), Behavior[Message]]
-                        ): Behavior[Message] =
-    Behaviors.receivePartial(sharedHandler.orElse(specific))
+                        ): Behavior[Message] = {
+    Behaviors.receivePartial(sharedHandler
+      .orElse(specific)
+      .orElse({
+        case (ctx, msg) =>
+          ctx.log.warn(s"Unhandled message in Client actor: $msg")
+          Behaviors.same
+      }))
+  }
 
   private def initialize(initialViewRef: ActorRef[Message]): Behavior[Message] = {
     Behaviors.setup { ctx =>
       val viewActorRef = if initialViewRef != null then initialViewRef else ctx.spawn(InitialPhaseViewActor(ctx.self, name), "actor-initialphaseview")
+      viewActorRef ! InitialViewMessages.WhoToSendResponse(ctx.self)
       this.copy(viewActorRef = viewActorRef).start
     }
   }
 
 
   private def start: Behavior[Message] = Behaviors.setup { ctx =>
-
-    viewActorRef ! InitialViewMessages.WhoToSendResponse(ctx.self)
 
     withShared({
       case (ctx, CreateNewGame(makePublic, maxTimeRound, maxNumRound, maxPlayers, gameCode)) =>
@@ -442,6 +448,10 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
         ctx.log.info(s"Trying to join game: ${game.code}")
         game.players.head.address ! IWantToPlay(PlayerInLobby(userId, name, ctx.self), ctx.self)
         responseForJoining()
+
+      case (ctx, ReturnToStart()) =>
+        logInfo(ctx, "[joiningAGame] - Returning to start")
+        start
     })
   }
 

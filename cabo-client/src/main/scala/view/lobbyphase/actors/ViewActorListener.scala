@@ -7,8 +7,6 @@ import view.lobbyphase.ViewListener.IInitialViewListener
 
 case class ViewActorListener(ref: ActorRef[Message]) extends IInitialViewListener:
   override def changeName(newName: String): Unit =
-    // TODO: in questo caso il ref dentro il messaggio dovrebbe essere quello di chi invia,
-    //       mentre ora invia lo stesso indirizzo del destinatario del messaggio.
     ref ! ClientMessages.ChangePlayerName(newName, ref)
 
   override def createGame(isPublic: Boolean, maxTimeRound: Int, maxNumRound: Int, maxPlayers: Int): Unit =
@@ -23,6 +21,9 @@ case class ViewActorListener(ref: ActorRef[Message]) extends IInitialViewListene
   override def joinWithAddress(address: String): Unit =
     ref ! ClientMessages.JoinAGame()
     ref ! ClientMessages.JoinAddress(address)
+
+  override def returnToStart(): Unit =
+    ref ! ClientMessages.ReturnToStart()
 
   override def startGame(): Unit =
     ref ! ClientMessages.StartTheGame()

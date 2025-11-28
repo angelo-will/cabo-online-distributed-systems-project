@@ -10,7 +10,10 @@ import scala.swing.event.ButtonClicked
 
 trait IListGamesListener:
   def joinGame(game: GameInConstruction): Unit
+
   def updateGamesList(): Unit
+
+  def returnToStart(): Unit
 
 class GameListPanel(navigator: ScreenNavigator, listener: IListGamesListener) extends BoxPanel(Orientation.Vertical) {
 
@@ -44,6 +47,7 @@ class GameListPanel(navigator: ScreenNavigator, listener: IListGamesListener) ex
     case ButtonClicked(b) =>
       if b == backButton then
         println("GameListPanel: Cliccato 'Indietro'.")
+        listener.returnToStart()
         navigator.goToPreviousPanel()
       else if b == refreshGamesButton then
         println("GameListPanel: Cliccato 'Aggiorna'.")
