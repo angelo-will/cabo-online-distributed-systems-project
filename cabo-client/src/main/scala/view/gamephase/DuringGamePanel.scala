@@ -104,7 +104,7 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: GPr
   // Logs e Timer
   private val logPanel = new LogPanel()
 
-  private val myTurnActionsLog = new TextArea {
+  private val myActionsTArea = new TextArea {
     editable = false
     lineWrap = true
     wordWrap = true
@@ -112,7 +112,7 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: GPr
     text = "AZIONI COMPIUTE NEL TURNO:"
   }
 
-  private val myTurnScrollPane = new ScrollPane(myTurnActionsLog) {
+  private val myTurnActionsPanel = new ScrollPane(myActionsTArea) {
     preferredSize = new Dimension(this.preferredSize.width, 100)
     verticalScrollBarPolicy = ScrollPane.BarPolicy.Always
     horizontalScrollBarPolicy = ScrollPane.BarPolicy.Never
@@ -228,12 +228,12 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: GPr
   // ICardActionView Implementation
   override def showCardDrawnFromDeck(cardDrawn: Card): Unit = Swing.onEDT {
     drawnCardButton.text = cardDrawn.toString
-    myTurnActionsLog.text = textInfoCardDrawnFromDeck(cardDrawn)
+    this.myActionsTArea.text = textInfoCardDrawnFromDeck(cardDrawn)
   }
 
   override def showCardDrawnFromDiscards(cardDrawn: Card): Unit = Swing.onEDT {
     drawnCardButton.text = cardDrawn.toString
-    myTurnActionsLog.text = textInfoCardDrawnFromDiscards(cardDrawn)
+    this.myActionsTArea.text = textInfoCardDrawnFromDiscards(cardDrawn)
   }
 
   override def emptyDrawnCardArea(): Unit = Swing.onEDT {
@@ -241,11 +241,11 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: GPr
   }
 
   override def showYourNthCard(card: Card): Unit = Swing.onEDT {
-    this.myTurnActionsLog.text = s"YOUR CARD SELECTED HAS VALUE $card"
+    this.myActionsTArea.text = s"YOUR CARD SELECTED HAS VALUE $card"
   }
 
   override def showAdversaryNthCard(adversaryName: String, n: Int, card: Card): Unit = Swing.onEDT {
-    this.myTurnActionsLog.text = s"$adversaryName's CARD $n SELECTED HAS VALUE $card"
+    this.myActionsTArea.text = s"$adversaryName's CARD $n SELECTED HAS VALUE $card"
   }
 
   // IPowerInteractionView Implementation
@@ -278,15 +278,15 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: GPr
   }
 
   override def notifyYourAdversaryCardSelection(adversaryID: String, index: Int): Unit = Swing.onEDT {
-    myTurnActionsLog.text += s"\nYou selected card $index of adversary with ID $adversaryID"
+    this.myActionsTArea.text += s"\nYou selected card $index of adversary with ID $adversaryID"
   }
 
   override def notifyYourOwnCardSelection(index: Int): Unit = Swing.onEDT {
-    myTurnActionsLog.text += s"\nYou selected your card $index"
+    this.myActionsTArea.text += s"\nYou selected your card $index"
   }
 
   override def changeCardWithAdversaryIsDone(): Unit = Swing.onEDT {
-    myTurnActionsLog.text = s"\nCard exchange with adversary completed!"
+    this.myActionsTArea.text = s"\nCard exchange with adversary completed!"
     disableAll()
     exitButton.enabled = true
     endTurnButton.enabled = true
@@ -342,9 +342,9 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: GPr
     // My Turn Log
     c.gridwidth = MY_TURN_LOG_WIDTH
     c.gridheight = MY_TURN_LOG_HEIGHT
-    
     c.fill = Fill.Both
     val myTurnLogRow = if currentRow <= MY_TURN_LOG_ROW then MY_TURN_LOG_ROW else currentRow
+    addToLayout(myTurnActionsPanel, MY_TURN_LOG_COL, myTurnLogRow)
     println(s"currentRow: $currentRow, MY_TURN_LOG_ROW: $MY_TURN_LOG_ROW, myTurnLogRow: $myTurnLogRow")
     resetConstraintsValues()
 
