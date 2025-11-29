@@ -1,3 +1,3 @@
 package utils
 
-trait Message
+trait Message extends CborSerializable

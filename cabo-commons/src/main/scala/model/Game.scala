@@ -18,7 +18,7 @@ object Game:
                                  code: String,
                                  gameParameters: IGameParameters,
                                  players: List[PlayerInLobby],
-                               ):
+                               ) extends CborSerializable:
     def gameStatus: GameStatus = GameStatus.WaitingForPlayers()
 
     def playersAddress: List[String] = players.map(_.address.path.toString)
@@ -31,7 +31,7 @@ object Game:
                              discardDeckStack: CardStack,
                              currentRound: Int,
                              caboState: Option[PlayerPlaying] = None
-                           ):
+                           ) extends CborSerializable:
 
     override def toString: String = "GameInProgress\n" +
       "\tcode=" + code + "\n" +
