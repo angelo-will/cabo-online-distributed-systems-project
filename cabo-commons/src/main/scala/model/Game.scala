@@ -1,9 +1,7 @@
 package model
-
-import model.Suit.Spades
-import akka.serialization.jackson.CborSerializable
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
-import model.GameStatus.{InProgress, WaitingForPlayers, Finished}
+import model.GameStatus.{Finished, InProgress, WaitingForPlayers}
+import utils.CborSerializable
 
 object Game:
   // 0-index
