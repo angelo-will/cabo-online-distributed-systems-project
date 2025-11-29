@@ -286,7 +286,9 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
             //Update the game on the server
             ctx.spawnAnonymous(contactInReceptionistAndAsk
               (ServerKey)
-              (_ ! ServerMessages.UpdateGame(game, ctx.self))
+//              (_ ! ServerMessages.UpdateGame(game, ctx.self))
+              // todo: modificato da Angelo in vedi sotto
+              (_ ! ServerMessages.UpdateGame(gameUpdated, ctx.self))
               (() => viewActorRef ! InitialViewMessages.FailedToPublishToServer()))
 
           replyTo ! YouJoinedTheGame(gameUpdated)
