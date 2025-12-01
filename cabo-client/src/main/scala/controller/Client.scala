@@ -10,7 +10,7 @@ import utils.ClientMessages.*
 import utils.GameCoordinatorMessage.{GameCoordinatorMessage, NewTurn}
 import utils.ServerMessages.{AbortGame, ServerKey}
 import utils.{DuringGameViewMessages, GameCoordinatorMessage, InitialViewMessages, Message, ServerMessages}
-import view.actors.ViewCoordinatorActor
+import view.actors.ViewsProxyActor
 import view.gamephase.actors.DuringGameViewActor
 import view.lobbyphase.actors.InitialPhaseViewActor
 
@@ -69,25 +69,15 @@ object Client:
 
   case class PlayerStatus(playerID: String, address: ActorRef[ClientInternalCommand], rank: Int, isOnline: Boolean)
 
-  //  private def viewDefaultBehavior: Behavior[Message] = Behaviors.setup { ctx =>
-  //    Behaviors.receiveMessagePartial {
-  //      case _ =>
-  //        ctx.log.info("View actor received a message, but it is not implemented yet.")
-  //        Behaviors.same
-  //    }
-  //  }
-
   def apply(userId: String = "Player", name: String = "defaultCoolName", optionalViewActor: ActorRef[Message] = null): Behavior[Message] = Behaviors.setup { ctx =>
     //    val clientID = userId+ctx.self.path.address.hashCode()
     val clientID = userId + UUID.randomUUID().hashCode()
     val viewActorRef = optionalViewActor match {
-      //      case null => ctx.spawn(viewDefaultBehavior,"views-manager")
-      case null => ctx.spawn(ViewCoordinatorActor(clientID, name, ctx.self), "views-manager")
+      case null => ctx.spawn(ViewsProxyActor(clientID, name, ctx.self), "views-manager")
       case ref => ref
     }
     val connectionHandler = ctx.spawn(ConnectionHandler[MemberExited](ctx.self), "ConnectionHandler")
 
-    //    new Client(clientID, name, viewActorRef, connectionHandler).initialize(optionalViewActor)
     new Client(clientID, name, viewActorRef, connectionHandler).start
   }
 
@@ -355,7 +345,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
 
 //        ctx.stop(viewActorRef)
         //        val duringGameViewActor = ctx.spawn(DuringGameViewActor(userId, ctx.self, null), s"duringGameView-$userId")
-        viewActorRef ! ViewCoordinatorActor.SwitchToGameView()
+        viewActorRef ! ViewsProxyActor.SwitchToGameView()
         //todo - fix this, you can't call the method directly
         ctx.self ! StartGameBehavior(() => GameCoordinatorActor(ctx.self, viewActorRef, userId, game), ctx.self)
 
@@ -383,7 +373,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
         awaitSynchronization(ctx, game.players.filter(!_.address.equals(ctx.self)).map(_.userID), () => {
           //              ctx.log.info(s"All players synchronized, starting the game: ${gameInProgress.code}")
           logInfo(ctx, s"All players synchronized, starting the game: ${gameInProgress.code}")
-          viewActorRef ! DuringGameViewMessages.StartGame(gameInProgress, gameCoordinator)
+//          viewActorRef ! DuringGameViewMessages.StartGame(gameInProgress, gameCoordinator)
           gameCoordinator ! GameCoordinatorMessage.StartGame()
           //          viewActorRef ! InitialViewMessages.ReadyToPlay(gameCoordinator)
           inGameBehavior(gameCoordinator, createPlayersStatus(game.players, gameInProgress.players), hostRef)
@@ -494,32 +484,18 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
         start
       case (ctx, GameHasStarted(hostRef, gameInProgress)) =>
         ctx.log.info(s"Game has started: ${game.code}")
-        //          val index = gameInProgress.players.indexWhere(p => p.userID == userId && p.name == name)
         hostRef ! SynchronizationAck(userId)
-
-
-        //        val duringGameViewActor = ctx.spawn(DuringGameViewActor(userId, ctx.self, null), s"duringGameView-$userId")
+        
         viewActorRef ! InitialViewMessages.GameStarted()
-        viewActorRef ! ViewCoordinatorActor.SwitchToGameView()
-
-        //        viewActorRef ! InitialViewMessages.ReadyToPlay(gameCoordinator)
-
-        //        val gameCoordinator = ctx.spawn(GameCoordinatorActor(ctx.self, duringGameViewActor, userId, gameInProgress), "GameCoordinatorActor")
+        viewActorRef ! ViewsProxyActor.SwitchToGameView()
         val gameCoordinator = ctx.spawn(GameCoordinatorActor(ctx.self, viewActorRef, userId, gameInProgress), "GameCoordinatorActor")
-
         gameCoordinator ! GameCoordinatorMessage.StartGame()
-        viewActorRef ! DuringGameViewMessages.StartGame(gameInProgress, gameCoordinator)
+//        viewActorRef ! DuringGameViewMessages.StartGame(gameInProgress, gameCoordinator)
 
         //todo - a joiner initially check connection only with the host, in the game he should check also with other players?
 
         connectionHandler ! ConnectionHandler.UpdateList(game.players)
-        //      
-        //        viewActorRef ! InitialViewMessages.GameStarted()
-
-        //        this.copy(viewActorRef = duringGameViewActor).inGameBehavior(gameCoordinator, createPlayersStatus(game.players, gameInProgress.players), hostRef)
         inGameBehavior(gameCoordinator, createPlayersStatus(game.players, gameInProgress.players), hostRef)
-      //          ctx.self ! StartGameBehavior(GameCoordinatorActor(ctx.self, viewActorRef, userId, gameInProgress), hostRef)
-      //          Behaviors.same
 
       // may be useful to have a different starter as for the host?
       //        case (ctx, StartGameBehavior(behavior, hostRef)) =>
@@ -681,14 +657,14 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
         otherPlayers.filter(_.isOnline).foreach(_.address ! PlayerUnreachable(PlayerInLobby(userId, name, ctx.self)))
         ctx.stop(gameCoordinator)
         connectionHandler ! ConnectionHandler.UpdateList(List())
-        //        initialize(null)
+        viewActorRef ! ViewsProxyActor.SwitchToInitialView()
         start
 
       case (ctx, GameEnded()) =>
         ctx.log.info(s"Game has ended, returning to initial phase")
         connectionHandler ! ConnectionHandler.UpdateList(List())
         ctx.stop(gameCoordinator)
-        //        initialize(null)
+        viewActorRef ! ViewsProxyActor.SwitchToInitialView()
         start
 
       // GAME LOGIC LEVEL MESSAGES - END
