@@ -10,7 +10,7 @@ import utils.ClientMessages.*
 import utils.GameCoordinatorMessage.{GameCoordinatorMessage, NewTurn}
 import utils.ServerMessages.{AbortGame, ServerKey}
 import utils.{DuringGameViewMessages, GameCoordinatorMessage, InitialViewMessages, Message, ServerMessages}
-import view.actors.ViewsProxyActor
+import controller.ViewsProxyActor
 import view.gamephase.actors.DuringGameViewActor
 import view.lobbyphase.actors.InitialPhaseViewActor
 
@@ -343,7 +343,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
         //        //todo - check if we need to keep it for re-entering the game
         //        ctx.system.receptionist ! Receptionist.deregister(akka.actor.typed.receptionist.ServiceKey[Message](game.code), ctx.self)
 
-//        ctx.stop(viewActorRef)
+        //        ctx.stop(viewActorRef)
         //        val duringGameViewActor = ctx.spawn(DuringGameViewActor(userId, ctx.self, null), s"duringGameView-$userId")
         viewActorRef ! ViewsProxyActor.SwitchToGameView()
         //todo - fix this, you can't call the method directly
@@ -373,7 +373,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
         awaitSynchronization(ctx, game.players.filter(!_.address.equals(ctx.self)).map(_.userID), () => {
           //              ctx.log.info(s"All players synchronized, starting the game: ${gameInProgress.code}")
           logInfo(ctx, s"All players synchronized, starting the game: ${gameInProgress.code}")
-//          viewActorRef ! DuringGameViewMessages.StartGame(gameInProgress, gameCoordinator)
+          //          viewActorRef ! DuringGameViewMessages.StartGame(gameInProgress, gameCoordinator)
           gameCoordinator ! GameCoordinatorMessage.StartGame()
           //          viewActorRef ! InitialViewMessages.ReadyToPlay(gameCoordinator)
           inGameBehavior(gameCoordinator, createPlayersStatus(game.players, gameInProgress.players), hostRef)
@@ -485,12 +485,12 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
       case (ctx, GameHasStarted(hostRef, gameInProgress)) =>
         ctx.log.info(s"Game has started: ${game.code}")
         hostRef ! SynchronizationAck(userId)
-        
+
         viewActorRef ! InitialViewMessages.GameStarted()
         viewActorRef ! ViewsProxyActor.SwitchToGameView()
         val gameCoordinator = ctx.spawn(GameCoordinatorActor(ctx.self, viewActorRef, userId, gameInProgress), "GameCoordinatorActor")
         gameCoordinator ! GameCoordinatorMessage.StartGame()
-//        viewActorRef ! DuringGameViewMessages.StartGame(gameInProgress, gameCoordinator)
+        //        viewActorRef ! DuringGameViewMessages.StartGame(gameInProgress, gameCoordinator)
 
         //todo - a joiner initially check connection only with the host, in the game he should check also with other players?
 
