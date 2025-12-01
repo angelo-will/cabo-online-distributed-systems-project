@@ -7,7 +7,7 @@ import model.Game.GameInProgress
 
 object DuringGameViewMessages {
 
-  trait DuringGameViewMessage extends Message
+  trait DuringGameViewMessage extends ViewMessages
 
   /**
    * Model messages to actor view to notify game state changes (from game logic or below).

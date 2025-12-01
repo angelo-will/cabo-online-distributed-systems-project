@@ -7,7 +7,7 @@ import utils.GameCoordinatorMessage.GameCoordinatorMessage
 
 object InitialViewMessages {
 
-  trait ViewCommand extends Message
+  trait ViewCommand extends ViewMessages
 
   case class WhoToSendResponse(ref: ActorRef[Message]) extends ViewCommand
   /**
