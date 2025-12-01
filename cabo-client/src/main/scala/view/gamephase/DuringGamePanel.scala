@@ -4,7 +4,8 @@ import model.Game.GameInProgress as GProg
 import model.TurnEvent.CaboCalled
 import model.{Card, EndGameReason, PlayerPlaying, Power, TurnLog}
 import view.gamephase.components.*
-import view.gamephase.components.DisplayEndingResultsDialog.*
+import view.gamephase.dialogs.DisplayEndingResultsDialog
+import view.gamephase.dialogs.DisplayEndingResultsDialog.*
 import view.gamephase.traits.IDuringGameInterface
 import view.lobbyphase.ViewListener.IDuringGameViewListener
 

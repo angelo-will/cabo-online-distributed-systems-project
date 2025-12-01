@@ -1,9 +1,9 @@
-package view.gamephase.components
+package view.gamephase.dialogs
 
-import model.Game.GameInProgress
-import DisplayEndingResultsDialog.*
-import model.{EndGameReason, Hand}
 import model.EndGameReason.*
+import model.Game.GameInProgress
+import model.{EndGameReason, Hand}
+import view.gamephase.dialogs.DisplayEndingResultsDialog.*
 
 import java.awt.Font
 import scala.swing.*
