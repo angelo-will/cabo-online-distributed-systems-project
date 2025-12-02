@@ -580,6 +580,12 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
       }
     }
 
+    def returnToStart(ctx: ActorContext[Message]) = {
+      ctx.stop(gameCoordinator)
+      connectionHandler ! ConnectionHandler.UpdateList(List())
+      viewActorRef ! ViewsProxyActor.SwitchToInitialView()
+      start
+    }
 
     //todo - receive GameCancelled if the host failed to synchronize with the other players
     //todo - initial phase when exchanging log about cards viewed
@@ -647,17 +653,11 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
         //        ctx.log.info(s"Leaving game, informing other players like I am unreachable")
         logInfo(ctx, s"Leaving game, informing other players like I am unreachable")
         otherPlayers.filter(_.isOnline).foreach(_.address ! PlayerUnreachable(PlayerInLobby(userId, name, ctx.self)))
-        ctx.stop(gameCoordinator)
-        connectionHandler ! ConnectionHandler.UpdateList(List())
-        viewActorRef ! ViewsProxyActor.SwitchToInitialView()
-        start
+        returnToStart(ctx)
 
       case (ctx, GameEnded()) =>
         ctx.log.info(s"Game has ended, returning to initial phase")
-        connectionHandler ! ConnectionHandler.UpdateList(List())
-        ctx.stop(gameCoordinator)
-        viewActorRef ! ViewsProxyActor.SwitchToInitialView()
-        start
+        returnToStart(ctx)
 
       // GAME LOGIC LEVEL MESSAGES - END
 
