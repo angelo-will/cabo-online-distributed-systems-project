@@ -1,6 +1,6 @@
 import akka.actor.testkit.typed.scaladsl.{ScalaTestWithActorTestKit, TestProbe}
 import akka.actor.typed.ActorRef
-import messages.{ClientMessages, GameCoordinatorMessage, GameViewMessages}
+import messages.{ClientMessages, GameCoordinatorMessage, GameViewMessages, IGameViewMessage}
 import model.Game.GameInProgress
 import model.{Card, CardStack, DuringGameTurnLog, Game, GameParameters, GameStatus, Hand, IGameParameters, PlayerPlaying, Power, TurnEvent, TurnLog, TurnPhase}
 import org.scalatest.matchers.should.Matchers
@@ -263,14 +263,14 @@ class DuringGameViewActorSpec extends ScalaTestWithActorTestKit
     }
   }
 
-  private def startApp(): ActorRef[Message] = {
+  private def startApp(): ActorRef[IGameViewMessage] = {
     val ref = testKit.spawn(DuringGameViewActor(userID, probeAsClient.ref, probeAsMainMenu.ref))
     probeAsClient.receiveMessages(1)
     ref ! GameViewMessages.StartGame(game, probeAsGameCoordinator.ref)
     ref
   }
 
-  private def revealingFirstTwoCardsPhase(duringGameViewActor: ActorRef[Message], game: GameInProgress): Unit = {
+  private def revealingFirstTwoCardsPhase(duringGameViewActor: ActorRef[IGameViewMessage], game: GameInProgress): Unit = {
     val player = game.players.filter(_.userID.equals(userID)).head
     //    duringGameViewActor ! DuringGameViewMessages.StartGame(game, probeAsGameCoordinator.ref)
     val showYourFirstNthCard = probeAsGameCoordinator.expectMessageType[GameCoordinatorMessage.ShowYourNthCard](FiniteDuration(5, SECONDS))
@@ -281,7 +281,7 @@ class DuringGameViewActorSpec extends ScalaTestWithActorTestKit
     duringGameViewActor ! GameViewMessages.CardSeen(secondCardRequested)
   }
 
-  private def drawFromDeckExpectation(viewActor: ActorRef[Message]): (Card, CardStack) = {
+  private def drawFromDeckExpectation(viewActor: ActorRef[IGameViewMessage]): (Card, CardStack) = {
     val msg = probeAsGameCoordinator.expectMessageType[GameCoordinatorMessage.DrawCardFromDeck](FiniteDuration(5, SECONDS))
     println(s"DuringGameViewActorSpec: received message $msg TO GameCoordinator")
     val (cardDrawn, newDeck) = game.deckStack.drawFirstCard
