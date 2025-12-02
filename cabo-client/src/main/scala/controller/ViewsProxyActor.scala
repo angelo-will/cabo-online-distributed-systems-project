@@ -2,62 +2,62 @@ package controller
 
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
+import messages.ClientMessages.ClientCommand
+import messages.{GameViewMessages, IGameViewMessage, IPreGameViewMessage, IViewMessage, PreGameViewMessages}
 import utils.Message
-import utils.InitialViewMessages
-import utils.DuringGameViewMessages
 import view.lobbyphase.actors.InitialPhaseViewActor
 import view.gamephase.actors.DuringGameViewActor
 
 object ViewsProxyActor {
 
-  sealed trait Command extends Message
+  case class SwitchToInitialView() extends IViewMessage
 
-  case class SwitchToInitialView() extends Command
+  case class SwitchToGameView() extends IViewMessage
 
-  case class SwitchToGameView() extends Command
-
-  def apply(userId: String, userName: String, clientRef: ActorRef[Message]): Behavior[Message] =
+  def apply(userId: String, userName: String, clientRef: ActorRef[ClientCommand]): Behavior[IViewMessage] =
     Behaviors.setup { ctx =>
       ctx.log.info(s"ViewCoordinator started for user $userId")
-
-      val initialView = ctx.spawn(InitialPhaseViewActor(clientRef, userName), "InitialView")
-
-      initialView ! InitialViewMessages.WhoToSendResponse(clientRef)
-
-      new ViewsProxyActor(ctx, userId, userName, clientRef).active(initialView, isGamePhase = false)
+      val initialView: ActorRef[IViewMessage] = ctx.spawn(InitialPhaseViewActor(clientRef, userName), "InitialView").unsafeUpcast[IViewMessage]
+      initialView ! PreGameViewMessages.WhoToSendResponse(clientRef)
+      new ViewsProxyActor(ctx, userId, userName, clientRef).preGame(initialView)
     }
 }
 
-private class ViewsProxyActor(ctx: ActorContext[Message], userId: String, userName: String, clientRef: ActorRef[Message]) {
+private class ViewsProxyActor(ctx: ActorContext[IViewMessage], userId: String, userName: String, clientRef: ActorRef[ClientCommand]) {
 
   import ViewsProxyActor.*
 
-  def active(currentView: ActorRef[Message], isGamePhase: Boolean): Behavior[Message] = {
+  private def preGame(currentView: ActorRef[IViewMessage]): Behavior[IViewMessage] = {
     Behaviors.receiveMessage {
+
       case SwitchToGameView() =>
         ctx.log.info("Switching to GAME View")
         val actorName = s"DuringGameView-$userId-${System.currentTimeMillis()}"
-        val gameView = ctx.spawn(DuringGameViewActor(userId, clientRef, null), actorName)
-        active(gameView, isGamePhase = true)
+        val gameView: ActorRef[IViewMessage] = ctx.spawn(DuringGameViewActor(userId, clientRef, null), actorName).unsafeUpcast[IViewMessage]
+        game(gameView)
+      case msg: IPreGameViewMessage =>
+        currentView ! msg
+        Behaviors.same
+      case msg: IGameViewMessage =>
+        ctx.log.warn(s"Dropped Game message in PreGame phase: $msg")
+        Behaviors.same
+    }
+  }
 
+  private def game(currentView: ActorRef[IViewMessage]): Behavior[IViewMessage] = {
+    Behaviors.receiveMessage {
       case SwitchToInitialView() =>
         ctx.log.info("Switching to INITIAL View")
         ctx.stop(currentView)
         val actorName = s"InitialView-$userId-${System.currentTimeMillis()}"
-        val initialView = ctx.spawn(InitialPhaseViewActor(clientRef, userName), actorName)
-        initialView ! InitialViewMessages.WhoToSendResponse(clientRef)
-        active(initialView, isGamePhase = false)
-
-      case msg: InitialViewMessages.ViewCommand if !isGamePhase =>
+        val initialView: ActorRef[IViewMessage] = ctx.spawn(InitialPhaseViewActor(clientRef, userName), actorName).unsafeUpcast[IViewMessage]
+        initialView ! PreGameViewMessages.WhoToSendResponse(clientRef)
+        preGame(initialView)
+      case msg: IGameViewMessage =>
         currentView ! msg
         Behaviors.same
-
-      case msg: DuringGameViewMessages.DuringGameViewMessage if isGamePhase =>
-        currentView ! msg
-        Behaviors.same
-
-      case other =>
-        ctx.log.debug(s"Received unknown message to view: $other")
+      case msg: IPreGameViewMessage =>
+        ctx.log.warn(s"Dropped PreGame message in Game phase: $msg")
         Behaviors.same
     }
   }

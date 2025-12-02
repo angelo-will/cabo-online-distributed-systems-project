@@ -13,9 +13,9 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
-import utils.ClientMessages.*
+import messages.ClientMessages.*
 import utils.Message
-import utils.InitialViewMessages.*
+import messages.PreGameViewMessages.*
 
 class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(
   """

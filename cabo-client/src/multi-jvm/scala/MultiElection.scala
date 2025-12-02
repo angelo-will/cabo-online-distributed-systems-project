@@ -9,10 +9,11 @@ import akka.remote.testkit.MultiNodeSpec
 import akka.testkit.ImplicitSender
 import controller.Client
 import controller.Client.*
+import messages.ClientMessages
 import org.scalatest.concurrent.Eventually.eventually
 import org.scalatest.concurrent.Futures.{interval, timeout}
-import utils.ClientMessages.{JoinAddress, StartTheGame, TakeGetInProgressGame}
-import utils.{ClientMessages, Message}
+import messages.ClientMessages.{JoinAddress, StartTheGame, TakeGetInProgressGame}
+import utils.Message
 
 import scala.concurrent.Await
 import scala.concurrent.duration.DurationInt

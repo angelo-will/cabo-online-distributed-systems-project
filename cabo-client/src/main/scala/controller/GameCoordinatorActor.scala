@@ -2,10 +2,11 @@ package controller
 
 import akka.actor.typed.Behavior
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
+import messages.{IGameViewMessage, ClientMessages as CLMsg, GameCoordinatorMessage as GCMsg, GameViewMessages as DGVMsg}
 import model.*
 import model.Game.{GameInConstruction, GameInProgress}
-import utils.{AppLogger, ClientMessages as CLMsg, DuringGameViewMessages as DGVMsg, GameCoordinatorMessage as GCMsg}
-import utils.ClientMessages.ClientCommand as CCommand
+import utils.AppLogger
+import messages.ClientMessages.ClientCommand as CCommand
 
 import scala.concurrent.duration.*
 
@@ -20,7 +21,7 @@ object GameCoordinatorActor:
 
   abstract class EndingGame
 
-  def gameEnded(game: GameInProgress, nextWhoPlayID: String): EndingGame = {
+  private def gameEnded(game: GameInProgress, nextWhoPlayID: String): EndingGame = {
     if game.caboState.isDefined && nextWhoPlayID == game.caboState.get.userID then
       EndedByCabo()
     else if game.gameParameters.roundLimitation.isRoundsEnded(game.currentRound) then
@@ -41,7 +42,7 @@ object GameCoordinatorActor:
   private case class GameData(
                                clientReference: ActorRef[CCommand],
                                // todo: change type in ViewCommand moving the messages of GameCoordinatorMessage in ViewMessages?
-                               viewReference: ActorRef[Message],
+                               viewReference: ActorRef[IGameViewMessage],
                                playerOwnRank: Int,
                                playerOwnUserID: String,
                                game: GameInProgress,
@@ -69,7 +70,7 @@ object GameCoordinatorActor:
 
   private val log = AppLogger.Log(true)
 
-  def apply(client: ActorRef[CCommand], viewToContact: ActorRef[Message], userId: String, gameToStart: GameInConstruction): Behavior[Message] = {
+  def apply(client: ActorRef[CCommand], viewToContact: ActorRef[IGameViewMessage], userId: String, gameToStart: GameInConstruction): Behavior[Message] = {
 
     val game = generateGameInProgressFromInConstruction(gameToStart)
     // todo: this one is used to test rounds limit
@@ -81,7 +82,7 @@ object GameCoordinatorActor:
     apply(client, viewToContact, userId, game)
   }
 
-  def apply(client: ActorRef[CCommand], viewToContact: ActorRef[Message], userId: String, gameInProgress: GameInProgress): Behavior[Message] = {
+  def apply(client: ActorRef[CCommand], viewToContact: ActorRef[IGameViewMessage], userId: String, gameInProgress: GameInProgress): Behavior[Message] = {
 
     val playerRank = gameInProgress.players.find(_.userID == userId) match {
       case Some(player) => player.rank
@@ -419,7 +420,7 @@ object GameCoordinatorActor:
       val newTurnLogJumping = DuringGameTurnLog(gameData.turnLog.playerName, gameData.turnLog.round)
       newTurnLogJumping.addEvent(TurnEvent.JumpTurnForTimerEnded())
       val newGameData = gameData.copy(temporaryGame = gameData.game, turnLog = newTurnLogJumping)
-      gameData.viewReference ! DGVMsg.EndTurnSelected()
+      gameData.viewReference ! DGVMsg.EndTurnByTimeEnded()
       gameData.clientReference ! CLMsg.TurnEnded(newGameData.game, newGameData.turnLog)
       notMyTurn(newGameData)
 

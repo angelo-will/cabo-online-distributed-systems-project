@@ -1,48 +1,48 @@
 package view.gamephase.actors
 
 import akka.actor.typed.ActorRef
-import utils.GameCoordinatorMessage.*
-import utils.{DuringGameViewMessages, Message}
+import messages.{IViewUserCommand, ViewUserCommandMessages as VUCMessages}
 import view.lobbyphase.ViewListener.IDuringGameViewListener
 
-case class DuringGameViewListener(whoToResponse: ActorRef[Message]) extends IDuringGameViewListener:
+case class DuringGameViewListener(whoToResponse: ActorRef[IViewUserCommand]) extends IDuringGameViewListener:
   override def ownCardSelected(cardIndex: Int): Unit =
-    whoToResponse ! utils.DuringGameViewMessages.OwnCardSelected(cardIndex)
+    whoToResponse ! VUCMessages.OwnCardSelected(cardIndex)
 
   override def adversaryCardSelected(adversaryID: String, cardIndex: Int): Unit =
-    whoToResponse ! DuringGameViewMessages.AdversaryCardSelected(adversaryID, cardIndex)
+    whoToResponse ! VUCMessages.AdversaryCardSelected(adversaryID, cardIndex)
 
-  override def showCardNth(cardIndex: Int): Unit =
-    whoToResponse ! ShowYourNthCard(cardIndex)
+  override def showCardNth(cardIndex: Int): Unit = {}
+  //    whoToResponse ! VUCMessages.ShowYourNthCard(cardIndex)
 
   override def drawFromDeck(): Unit =
-    whoToResponse ! DuringGameViewMessages.DeckSelected()
+    whoToResponse ! VUCMessages.DeckSelected()
   //    whoToResponse ! DrawCardFromDeck()
 
   override def drawFromDiscard(): Unit =
-    whoToResponse ! DuringGameViewMessages.DiscardStackSelected()
+    whoToResponse ! VUCMessages.DiscardStackSelected()
   //    whoToResponse ! DrawCardFromDiscardStack()
 
-  override def discardCardNth(carIndex: Int): Unit =
-    whoToResponse ! DiscardYourNthCard(carIndex)
+  override def discardCardNth(carIndex: Int): Unit = {}
+  //    whoToResponse ! VUCMessages.DiscardYourNthCard(carIndex)
 
   override def discardCardDrawn(): Unit =
-    whoToResponse ! DuringGameViewMessages.DiscardCardDrawnSelected()
+    whoToResponse ! VUCMessages.DiscardCardDrawnSelected()
 
-  override def showAdversaryNthCard(adversaryID: String, cardIndex: Int): Unit =
-    whoToResponse ! ShowAdversaryNthCard(adversaryID, cardIndex)
+  override def showAdversaryNthCard(adversaryID: String, cardIndex: Int): Unit = {}
+  //    whoToResponse ! VUCMessages.ShowAdversaryNthCard(adversaryID, cardIndex)
 
-  override def swapCardWithAdversaryNthCard(ownCardIndex: Int, adversaryID: String, adversaryCardIndex: Int): Unit =
-    whoToResponse ! ReplaceOwnNthCardWithAdversaryNthOne(ownCardIndex, adversaryID, adversaryCardIndex)
+
+  override def swapCardWithAdversaryNthCard(ownCardIndex: Int, adversaryID: String, adversaryCardIndex: Int): Unit = {}
+  //    whoToResponse ! VUCMessages.ReplaceOwnNthCardWithAdversaryNthOne(ownCardIndex, adversaryID, adversaryCardIndex)
 
   override def endTurn(): Unit =
-    whoToResponse ! DuringGameViewMessages.EndTurnSelected()
+    whoToResponse ! VUCMessages.EndTurnSelected()
 
   override def callCabo(): Unit =
-    whoToResponse ! DuringGameViewMessages.CallCaboSelected()
+    whoToResponse ! VUCMessages.CallCaboSelected()
 
   override def exit(): Unit =
-    whoToResponse ! DuringGameViewMessages.ExitSelected()
+    whoToResponse ! VUCMessages.ExitSelected()
 
   override def consultingResultsEnded(): Unit =
-    whoToResponse ! DuringGameViewMessages.ConsultingResultsEnded()
+    whoToResponse ! VUCMessages.ConsultingResultsEnded()
