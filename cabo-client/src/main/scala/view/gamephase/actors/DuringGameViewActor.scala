@@ -243,7 +243,7 @@ private class DuringGameViewActor private(
 
   // --- HANDLERS ---
 
-  private def sharedHandlers(context: GameContext)(actualState: String): PartialFunction[Message, Behavior[IGameViewMessage]] = {
+  private def sharedHandlers(context: GameContext)(actualState: String): PartialFunction[IGameViewMessage, Behavior[IGameViewMessage]] = {
     handleExitSelected(context)(actualState)
       .orElse(handleOpponentDisconnected(context)(actualState))
       .orElse(handleOpponentImpossibleToReach(context)(actualState))
@@ -254,7 +254,7 @@ private class DuringGameViewActor private(
   private def handleShowCard(
                               context: GameContext,
                               behaviorAfterWatched: GameContext => Behavior[IGameViewMessage]
-                            )(actualState: String): PartialFunction[Message, Behavior[IGameViewMessage]] = {
+                            )(actualState: String): PartialFunction[IGameViewMessage, Behavior[IGameViewMessage]] = {
     case OwnCardSelected(index) =>
       log(actualState, s"DuringGameViewActor of player ${userID}, my ref is ${ctx.self}")
       log(actualState, s"DuringGameViewActor HANDLER handleWatchYourCards received OwnCardSelected with index: $index")
@@ -262,7 +262,7 @@ private class DuringGameViewActor private(
       waitCardSelected(context, behaviorAfterWatched)
   }
 
-  private def handleAdversariesRevealingLog(context: GameContext)(actualState: String): PartialFunction[Message, Behavior[IGameViewMessage]] = {
+  private def handleAdversariesRevealingLog(context: GameContext)(actualState: String): PartialFunction[IGameViewMessage, Behavior[IGameViewMessage]] = {
     case RevealingCardsPhaseAdversaryLog(revealingLog) =>
       log(actualState, s"Handling RevealingCardsPhaseAdversaryLog with message: ${RevealingCardsPhaseAdversaryLog(revealingLog)}")
       context.ui.updateRevealingLog(revealingLog)
@@ -270,7 +270,7 @@ private class DuringGameViewActor private(
   }
   // HANDLERS revealing section - END ---
 
-  private def handleUpdateLastTurnPlayed(context: GameContext)(actualState: String): PartialFunction[Message, Behavior[IGameViewMessage]] = {
+  private def handleUpdateLastTurnPlayed(context: GameContext)(actualState: String): PartialFunction[IGameViewMessage, Behavior[IGameViewMessage]] = {
     case LastTurnPlayed(turnLog, game) =>
       log(actualState, s"Handling LastTurnPlayed")
       context.ui.updateLastTurnLog(turnLog)
@@ -279,7 +279,7 @@ private class DuringGameViewActor private(
       waitMyTurn(context)
   }
 
-  private def handleStartTurnPlayer(context: GameContext)(actualState: String): PartialFunction[Message, Behavior[IGameViewMessage]] = {
+  private def handleStartTurnPlayer(context: GameContext)(actualState: String): PartialFunction[IGameViewMessage, Behavior[IGameViewMessage]] = {
     case StartTurnPlayer(playerID) =>
       log(actualState, s"Handling StartTurnPlayer with message: ${StartTurnPlayer(playerID)}")
       context.ui.updatePlayerWhoIsPlaying(playerID)
@@ -290,7 +290,7 @@ private class DuringGameViewActor private(
   }
 
   // --- HANDLERS my turn - START ---
-  private def handleWhichDeckSelectedForDrawing(context: GameContext)(actualState: String): PartialFunction[Message, Behavior[IGameViewMessage]] = {
+  private def handleWhichDeckSelectedForDrawing(context: GameContext)(actualState: String): PartialFunction[IGameViewMessage, Behavior[IGameViewMessage]] = {
     case DeckSelected() =>
       log(actualState, s"Handling DeckSelected with message: ${DeckSelected()}")
       context.coordinator ! GCMsg.DrawCardFromDeck()
@@ -303,7 +303,7 @@ private class DuringGameViewActor private(
       myTurnWaitDrawnCard(context)
   }
 
-  private def handleCardDrawn(context: GameContext)(actualState: String): PartialFunction[Message, Behavior[IGameViewMessage]] = {
+  private def handleCardDrawn(context: GameContext)(actualState: String): PartialFunction[IGameViewMessage, Behavior[IGameViewMessage]] = {
     case CardDrawn(card) =>
       log(actualState, s"Handling CardDrawn with message: ${CardDrawn(card)}")
       if (hasDrawnFromDeck) {
@@ -321,7 +321,7 @@ private class DuringGameViewActor private(
       }
   }
 
-  private def handleWhichCardKeep(context: GameContext)(actualState: String): PartialFunction[Message, Behavior[IGameViewMessage]] = {
+  private def handleWhichCardKeep(context: GameContext)(actualState: String): PartialFunction[IGameViewMessage, Behavior[IGameViewMessage]] = {
     case DiscardCardDrawnSelected() if hasDrawnFromDeck =>
       log(actualState, s"Received DiscardCardDrawn")
       context.coordinator ! GCMsg.DiscardCardDrawn()
@@ -335,7 +335,7 @@ private class DuringGameViewActor private(
       myTurnAfterDiscard(context)
   }
 
-  private def handleNewTopDiscardCard(context: GameContext)(actualState: String): PartialFunction[Message, Behavior[IGameViewMessage]] = {
+  private def handleNewTopDiscardCard(context: GameContext)(actualState: String): PartialFunction[IGameViewMessage, Behavior[IGameViewMessage]] = {
     case NewTopCardDiscardStack(card) =>
       log(actualState, s"Handling NewTopDiscardCard with message: ${NewTopCardDiscardStack(card)}")
       context.ui.updateDiscardsTopCard(card)
@@ -346,7 +346,7 @@ private class DuringGameViewActor private(
       Behaviors.same
   }
 
-  private def handleExitSelected(context: GameContext)(actualState: String): PartialFunction[Message, Behavior[IGameViewMessage]] = {
+  private def handleExitSelected(context: GameContext)(actualState: String): PartialFunction[IGameViewMessage, Behavior[IGameViewMessage]] = {
     case ExitSelected() =>
       log(actualState, s"Handling ExitSelected() with message: ${ExitSelected()}")
       context.frame.dispose()
@@ -354,7 +354,7 @@ private class DuringGameViewActor private(
       Behaviors.stopped
   }
 
-  private def handleCaboSelected(context: GameContext)(actualState: String): PartialFunction[Message, Behavior[IGameViewMessage]] = {
+  private def handleCaboSelected(context: GameContext)(actualState: String): PartialFunction[IGameViewMessage, Behavior[IGameViewMessage]] = {
     case CallCaboSelected() =>
       log(actualState, "Received CallCaboSelected")
       context.ui.enterWaitingPhase()
@@ -362,7 +362,7 @@ private class DuringGameViewActor private(
       waitMyTurn(context)
   }
 
-  private def handleEndTurn(context: GameContext)(actualState: String): PartialFunction[Message, Behavior[IGameViewMessage]] = {
+  private def handleEndTurn(context: GameContext)(actualState: String): PartialFunction[IGameViewMessage, Behavior[IGameViewMessage]] = {
     case EndTurnSelected() =>
       log(actualState, "Received EndTurn")
       context.ui.enterWaitingPhase()
@@ -372,7 +372,7 @@ private class DuringGameViewActor private(
   // --- HANDLERS my turn - END ---
 
   // --- HANDLERS game ending - START ---
-  private def handleGameEnding(context: GameContext)(actualState: String): PartialFunction[Message, Behavior[IGameViewMessage]] = {
+  private def handleGameEnding(context: GameContext)(actualState: String): PartialFunction[IGameViewMessage, Behavior[IGameViewMessage]] = {
     case GameEndedByCabo(game) => {
       log(actualState, s"Handling GameEnded with message: ${GameEndedByCabo(game)}")
       context.ui.gameEndedWithData(game)(EndGameReason.Cabo)
@@ -390,7 +390,7 @@ private class DuringGameViewActor private(
     }
   }
 
-  private def handleConsultingResultsEnded(context: GameContext)(actualState: String): PartialFunction[Message, Behavior[IGameViewMessage]] = {
+  private def handleConsultingResultsEnded(context: GameContext)(actualState: String): PartialFunction[IGameViewMessage, Behavior[IGameViewMessage]] = {
     case ConsultingResultsEnded() =>
       log(actualState, s"Handling ConsultingResultsEnded() with message: ${ConsultingResultsEnded()}")
       context.frame.dispose()
@@ -401,14 +401,14 @@ private class DuringGameViewActor private(
 
   // HANDLERS connections problem - START
 
-  private def handleOpponentDisconnected(context: GameContext)(actualState: String): PartialFunction[Message, Behavior[IGameViewMessage]] = {
+  private def handleOpponentDisconnected(context: GameContext)(actualState: String): PartialFunction[IGameViewMessage, Behavior[IGameViewMessage]] = {
     case OpponentDisconnected(player) =>
       log(actualState, s"Handling OpponentDisconnected with message: ${OpponentDisconnected(player)}")
       context.ui.opponentsDisconnected(player)
       Behaviors.same
   }
 
-  private def handleOpponentImpossibleToReach(context: GameContext)(actualState: String): PartialFunction[Message, Behavior[IGameViewMessage]] = {
+  private def handleOpponentImpossibleToReach(context: GameContext)(actualState: String): PartialFunction[IGameViewMessage, Behavior[IGameViewMessage]] = {
     case OpponentImpossibleToReach(player) =>
       log(actualState, s"Handling OpponentImpossibleToReach with message: ${OpponentImpossibleToReach(player)}")
       context.ui.opponentImpossibleToReach(player)
@@ -418,7 +418,7 @@ private class DuringGameViewActor private(
   // HANDLERS connections problem - END
 
 
-  private def handleUnexpectedMessage(actualState: String): PartialFunction[Message, Behavior[IGameViewMessage]] = {
+  private def handleUnexpectedMessage(actualState: String): PartialFunction[IGameViewMessage, Behavior[IGameViewMessage]] = {
     case msg =>
       // Uso WARN per i messaggi inaspettati per distinguerli meglio nei log
       ctx.log.warn(s"DuringGameViewActor of player $userID in state $actualState received unexpected message: $msg")
