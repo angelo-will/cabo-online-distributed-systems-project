@@ -1,7 +1,7 @@
 package messages
 
 import akka.actor.typed.ActorRef
-import model.{Card, Game, TurnLog}
+import model.{Card, Game, PlayerPlaying, TurnLog}
 import model.Game.GameInProgress
 
 object GameViewMessages {
@@ -26,13 +26,6 @@ object GameViewMessages {
    */
   case class WaitAfterRevealingSection() extends IGameViewMessage
 
-  //  /**
-  //   * Send when i have to play first turn of the game.
-  //   */
-  //  case class FirstTurn() extends IGameViewMessage
-
-  //  case class PlayerIsPlaying(playerPlaying: PlayerPlaying) extends IGameViewMessage
-
   /**
    * Notify to actor the last turn played, could be itself or an adversary.
    *
@@ -48,17 +41,6 @@ object GameViewMessages {
    * @param playerID
    */
   case class StartTurnPlayer(playerID: String) extends IGameViewMessage
-
-  //  case class MyTurn(lastTurnPlayed: LastTurnPlayed) extends IGameViewMessage
-
-  //  // To use when an adversary is unreachable, POSSIAMO USARLO O MENO 
-  //  case class AdversaryIsDisconnected(playerPlaying: PlayerPlaying) extends IGameViewMessage
-
-  //  // To use when i can't communicate with others
-  //  case class LostMyConnection() extends IGameViewMessage
-
-  //  // Da usare quando si esce dalla partita volontariamente o meno
-  //  case class ExitFromTheGame() extends IGameViewMessage
 
   /**
    * Notify to actor that the change card with adversary action is done.
@@ -113,7 +95,11 @@ object GameViewMessages {
    * @param game
    */
   case class GameEndedByEmptyDeck(game: GameInProgress) extends IGameViewMessage
-  
+
   case class EndTurnByTimeEnded() extends IGameViewMessage
-  
+
+  case class OpponentImpossibleToReach(player: PlayerPlaying) extends IGameViewMessage
+
+  case class OpponentDisconnected(player: PlayerPlaying) extends IGameViewMessage
+
 }

@@ -4,7 +4,8 @@ import model.Game.GameInProgress as GProg
 import model.TurnEvent.CaboCalled
 import model.{Card, EndGameReason, PlayerPlaying, Power, TurnLog}
 import view.gamephase.components.*
-import view.gamephase.components.DisplayEndingResultsDialog.*
+import view.gamephase.dialogs.DisplayEndingResultsDialog
+import view.gamephase.dialogs.DisplayEndingResultsDialog.*
 import view.gamephase.traits.IDuringGameInterface
 import view.lobbyphase.ViewListener.IDuringGameViewListener
 
@@ -294,13 +295,29 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: GPr
   }
 
   // IConnectionsInfo Implementation
-  override def playerIsDisconnected(player: PlayerPlaying): Unit = Swing.onEDT {
-    // TODO: Implement UI feedback for disconnected player
+  override def opponentsDisconnected(player: PlayerPlaying): Unit = Swing.onEDT {
+    val title = "Player Disconnected"
+    val message = s"The player **${player.name}** has disconnected from the game."
+
+    Dialog.showMessage(
+      null,
+      message,
+      title,
+      Dialog.Message.Warning
+    )
     println(s"Player disconnected: ${player.name}")
   }
 
-  override def lostYourConnection(): Unit = Swing.onEDT {
-    // TODO: Implement UI feedback for lost connection
+  override def opponentImpossibleToReach(player: PlayerPlaying): Unit = Swing.onEDT {
+    val title = "Connection Lost"
+    val message = s"The player **${player.name}** is currently unreachable or the connection was lost. Please check your network status."
+
+    Dialog.showMessage(
+      null,
+      message,
+      title,
+      Dialog.Message.Warning
+    )
     println("Lost connection!")
   }
 
