@@ -1,12 +1,13 @@
 import akka.actor.testkit.typed.scaladsl.{ScalaTestWithActorTestKit, TestProbe}
 import akka.actor.typed.ActorRef
 import controller.GameCoordinatorActor
+import messages.{ClientMessages, GameCoordinatorMessage, GameViewMessages}
 import model.Suit.*
 import model.{Card, DuringGameTurnLog, Game, Power}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
-import utils.{ClientMessages, DuringGameViewMessages, GameCoordinatorMessage, Message}
+import utils.Message
 
 class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
   with AnyWordSpecLike
@@ -39,7 +40,7 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
     "send status of the game" when {
       "receive the command send status" in {
         sendGameInformation()
-        gameCoordinatorProbe.expectMessageType[DuringGameViewMessages.GameInformation]
+        gameCoordinatorProbe.expectMessageType[GameViewMessages.GameInformation]
       }
       "receive the command to end turn" in {
         skipFirstShowPhase()
@@ -61,13 +62,13 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
         val indexOfPlayer = 0
         val indexOfFirstCardSelected = 0
         val indexOfSecondCardSelected = 2
-        val hand = gameCoordinatorProbe.expectMessageType[DuringGameViewMessages.GameInformation].game.players(indexOfPlayer).hand
+        val hand = gameCoordinatorProbe.expectMessageType[GameViewMessages.GameInformation].game.players(indexOfPlayer).hand
         val firstCardSelected = hand.cards(indexOfFirstCardSelected)
         val secondCardSelected = hand.cards(indexOfSecondCardSelected)
         showYourNthCard(indexOfFirstCardSelected)
-        val firstCardSeen = gameCoordinatorProbe.expectMessageType[DuringGameViewMessages.CardSeen].card
+        val firstCardSeen = gameCoordinatorProbe.expectMessageType[GameViewMessages.CardSeen].card
         showYourNthCard(indexOfSecondCardSelected)
-        val secondCardSeen = gameCoordinatorProbe.expectMessageType[DuringGameViewMessages.CardSeen].card
+        val secondCardSeen = gameCoordinatorProbe.expectMessageType[GameViewMessages.CardSeen].card
         firstCardSeen mustBe firstCardSelected
         secondCardSeen mustBe secondCardSelected
       }
@@ -78,18 +79,18 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
       "receive the command to draw a card from deck" in {
         skipFirstShowPhase()
         sendGameInformation()
-        val message = gameCoordinatorProbe.expectMessageType[DuringGameViewMessages.GameInformation]
+        val message = gameCoordinatorProbe.expectMessageType[GameViewMessages.GameInformation]
         val (firstCardOfDeck, _) = message.game.deckStack.drawFirstCard
         drawCardFromDeck()
-        gameCoordinatorProbe.expectMessage(DuringGameViewMessages.CardDrawn(firstCardOfDeck))
+        gameCoordinatorProbe.expectMessage(GameViewMessages.CardDrawn(firstCardOfDeck))
       }
       "receive the command to draw a card from discard stack" in {
         skipFirstShowPhase()
         sendGameInformation()
-        val message = gameCoordinatorProbe.expectMessageType[DuringGameViewMessages.GameInformation]
+        val message = gameCoordinatorProbe.expectMessageType[GameViewMessages.GameInformation]
         val (firstCardOfDiscardStack, _) = message.game.discardDeckStack.drawFirstCard
         drawCardFromDiscardStack()
-        gameCoordinatorProbe.expectMessage(DuringGameViewMessages.CardDrawn(firstCardOfDiscardStack))
+        gameCoordinatorProbe.expectMessage(GameViewMessages.CardDrawn(firstCardOfDiscardStack))
       }
     }
 
@@ -98,7 +99,7 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
       "receive the command to discard the card drawn without exchange any of own" in {
         skipFirstShowPhase()
         sendGameInformation()
-        val game = gameCoordinatorProbe.expectMessageType[DuringGameViewMessages.GameInformation].game
+        val game = gameCoordinatorProbe.expectMessageType[GameViewMessages.GameInformation].game
         val (cardDrawn, newDeck) = game.deckStack.drawFirstCard
         skipDrawCardFromDeckPhase()
         skipDiscardCardDrawnPhase()
@@ -115,13 +116,13 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
         val indexPlayer = 0
         val indexCardToDiscard = 2
         sendGameInformation()
-        val game = gameCoordinatorProbe.expectMessageType[DuringGameViewMessages.GameInformation].game
+        val game = gameCoordinatorProbe.expectMessageType[GameViewMessages.GameInformation].game
         val (cardDrawn, newDeck) = game.deckStack.drawFirstCard
         skipDrawCardFromDeckPhase()
         val handCards = game.players(indexPlayer).hand.cards
         val cardToDiscard = handCards(indexCardToDiscard)
         discardNthCard(indexCardToDiscard)
-        val cardDiscarded = gameCoordinatorProbe.expectMessageType[DuringGameViewMessages.NewTopCardDiscardStack].card
+        val cardDiscarded = gameCoordinatorProbe.expectMessageType[GameViewMessages.NewTopCardDiscardStack].card
         cardDiscarded mustBe cardToDiscard
       }
     }
@@ -132,11 +133,11 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
       "drawn card with power to show one of own card" in {
         skipFirstShowPhase()
         sendGameInformation()
-        val playerID = gameCoordinatorProbe.expectMessageType[DuringGameViewMessages.GameInformation].game.players.head.userID
+        val playerID = gameCoordinatorProbe.expectMessageType[GameViewMessages.GameInformation].game.players.head.userID
         val (cardDrawn, game) = skipRoundsUntilDrawThisPower(Power.SeeYourCard(), playerID)
         val cardToSee = game.players(0).hand.cards(0)
         showYourNthCard(0)
-        val cardSeen = gameCoordinatorProbe.expectMessageType[DuringGameViewMessages.CardSeen].card
+        val cardSeen = gameCoordinatorProbe.expectMessageType[GameViewMessages.CardSeen].card
         cardSeen mustBe cardToSee
       }
     }
@@ -145,12 +146,12 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
       "drawn card with power to see one of adversary card" in {
         skipFirstShowPhase()
         sendGameInformation()
-        val playerID = gameCoordinatorProbe.expectMessageType[DuringGameViewMessages.GameInformation].game.players.head.userID
+        val playerID = gameCoordinatorProbe.expectMessageType[GameViewMessages.GameInformation].game.players.head.userID
         val (cardDrawn, game) = skipRoundsUntilDrawThisPower(Power.SeeYourOpponentCard(), playerID)
         val cardToSeeIndex = 0
         val cardToSee = game.getPlayerWithID(playerID).hand.cards(cardToSeeIndex)
         showAdversaryNthCard(playerID, cardToSeeIndex)
-        val cardSeen = gameCoordinatorProbe.expectMessageType[DuringGameViewMessages.CardSeen].card
+        val cardSeen = gameCoordinatorProbe.expectMessageType[GameViewMessages.CardSeen].card
         cardSeen mustBe cardToSee
       }
     }
@@ -158,7 +159,7 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
       "drawn card with power to change one of own card" in {
         skipFirstShowPhase()
         sendGameInformation()
-        val players = gameCoordinatorProbe.expectMessageType[DuringGameViewMessages.GameInformation].game.players
+        val players = gameCoordinatorProbe.expectMessageType[GameViewMessages.GameInformation].game.players
         val playerID = players.head.userID
         val adversaryID = players.last.userID
         val (cardDrawn, game) = skipRoundsUntilDrawThisPower(Power.ChangeOneOfYourCardWithOpponent(), playerID)
@@ -168,7 +169,7 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
         val newAdversaryCardAfterReplace = game.getPlayerWithID(playerID).hand.cards(ownCardToChangeIndex)
         replaceOwnNthCardWithAdversaryNthOne(ownCardToChangeIndex, adversaryID, adversaryCardToChangeIndex)
         sendGameInformation()
-        val gameInformation = gameCoordinatorProbe.expectMessageType[DuringGameViewMessages.GameInformation].game
+        val gameInformation = gameCoordinatorProbe.expectMessageType[GameViewMessages.GameInformation].game
         gameInformation.getPlayerWithID(playerID).hand.cards(ownCardToChangeIndex) mustBe newOwnCardAfterReplace
         gameInformation.getPlayerWithID(adversaryID).hand.cards(adversaryCardToChangeIndex) mustBe newAdversaryCardAfterReplace
       }
@@ -203,7 +204,7 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
 
   private def skipARound(stringToUseToSkipPower: String): Unit =
     drawCardFromDeck()
-    val power = gameCoordinatorProbe.expectMessageType[DuringGameViewMessages.CardDrawn].card.power
+    val power = gameCoordinatorProbe.expectMessageType[GameViewMessages.CardDrawn].card.power
     if power != Power.NoPower() then skipPower(power, stringToUseToSkipPower)
     discardCardDrawn()
     discardMessage()
@@ -213,13 +214,13 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
 
   private def skipRoundsUntilDrawThisPower(power: Power, stringToUseToSkipPower: String): (Card, Game.GameInProgress) =
     sendGameInformation()
-    var game = gameCoordinatorProbe.expectMessageType[DuringGameViewMessages.GameInformation].game
+    var game = gameCoordinatorProbe.expectMessageType[GameViewMessages.GameInformation].game
     while game.deckStack.drawFirstCard._1.power != power do
       skipARound(stringToUseToSkipPower)
       sendGameInformation()
-      game = gameCoordinatorProbe.expectMessageType[DuringGameViewMessages.GameInformation].game
+      game = gameCoordinatorProbe.expectMessageType[GameViewMessages.GameInformation].game
     drawCardFromDeck()
-    val cardDrawn = gameCoordinatorProbe.expectMessageType[DuringGameViewMessages.CardDrawn].card
+    val cardDrawn = gameCoordinatorProbe.expectMessageType[GameViewMessages.CardDrawn].card
     (cardDrawn, game)
 
   private def sendGameInformation(): Unit = gameCoordinatorActor ! GameCoordinatorMessage.SendGameStatus(gameCoordinatorProbe.ref)

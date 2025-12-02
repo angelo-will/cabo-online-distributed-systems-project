@@ -54,7 +54,7 @@ class DuringGameMainFrame(val viewListener: IDuringGameViewListener) extends Mai
     containerPanel.repaint()
 
   def startGame(game: GameInProgress, userID: String): IDuringGameInterface = {
-    println("Starting game...")
+    println(s"DuringGameMainFrame > startGame: Starting game... $userID")
     duringGamePanel = Some(new DuringGamePanel(viewListener, game, userID))
     //    duringGamePanel.get.peer.putClientProperty("JComponent.outline", "true")
     setPanel(duringGamePanel.get)

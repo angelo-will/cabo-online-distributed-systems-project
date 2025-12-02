@@ -3,18 +3,20 @@ package view.lobbyphase.actors
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
 import model.Game
-import utils.{InitialViewMessages, Message}
-import utils.InitialViewMessages.WhoToSendResponse
+import messages.ClientMessages.ClientCommand
+import messages.IPreGameViewMessage
+import messages.PreGameViewMessages.*
+
 import view.lobbyphase.components.{IWaitingToStartListener, WaitingFrame}
 import view.lobbyphase.{InitialPhaseMainFrame, ViewApplication}
 
 object InitialPhaseViewActor {
 
-  case class ViewCreated() extends Message
+  case class ViewCreated() extends ClientCommand
 
-  case class RestartView() extends Message
+  private case class RestartView() extends IPreGameViewMessage
 
-  def apply(ref: ActorRef[Message], playerName: String): Behavior[Message] = {
+  def apply(ref: ActorRef[ClientCommand], playerName: String): Behavior[IPreGameViewMessage] = {
     Behaviors.setup { ctx => {
       ctx.log.info(s"InitialPhaseViewActor started for player: $playerName")
       Behaviors.receiveMessage {
@@ -32,16 +34,16 @@ object InitialPhaseViewActor {
   }
 
   private class InitialPhaseViewLogic(
-                                       ctx: ActorContext[Message],
-                                       clientRef: ActorRef[Message],
+                                       ctx: ActorContext[IPreGameViewMessage],
+                                       clientRef: ActorRef[ClientCommand],
                                        playerName: String
                                      ) {
 
     import InitialPhaseViewActor.*
 
-    private case class ViewEndCreation(mainFrame: InitialPhaseMainFrame) extends Message
+    private case class ViewEndCreation(mainFrame: InitialPhaseMainFrame) extends IPreGameViewMessage
 
-    def startViewCreation(): Behavior[Message] = {
+    def startViewCreation(): Behavior[IPreGameViewMessage] = {
       ViewApplication.startView(
         ViewActorListener(clientRef),
         playerName,
@@ -63,15 +65,15 @@ object InitialPhaseViewActor {
       }
     }
 
-    private def idle(frame: InitialPhaseMainFrame): Behavior[Message] = {
+    private def idle(frame: InitialPhaseMainFrame): Behavior[IPreGameViewMessage] = {
       Behaviors.receiveMessage {
 
-        case InitialViewMessages.GameList(games) => {
+        case GameList(games) => {
           ctx.log.info(s"Received game list: ${games.size} games")
           frame.updateGameList(games)
           Behaviors.same
         }
-        case InitialViewMessages.GameCreated(game) => {
+        case GameCreated(game) => {
           ctx.log.info(s"Game created: ${game.code}. Switching to Waiting Room (Host).")
           frame.dispose()
           val waitingFrame = createWaitingFrame(game, isHost = true,
@@ -87,7 +89,7 @@ object InitialPhaseViewActor {
           waiting(waitingFrame)
         }
 
-        case InitialViewMessages.GameJoined(game) => {
+        case GameJoined(game) => {
           ctx.log.info(s"Joined game: ${game.code}. Switching to Waiting Room (Guest).")
           frame.dispose()
           val waitingFrame = createWaitingFrame(game, isHost = false,
@@ -113,20 +115,20 @@ object InitialPhaseViewActor {
       }
     }
 
-    private def waiting(frame: WaitingFrame): Behavior[Message] = {
+    private def waiting(frame: WaitingFrame): Behavior[IPreGameViewMessage] = {
       Behaviors.receiveMessage {
 
-        case InitialViewMessages.GameInfoUpdate(game) =>
+        case GameInfoUpdate(game) =>
           ctx.log.info(s"Update received for game ${game.code}. Updating player list.")
           frame.updatePlayersList(game.players)
           Behaviors.same
 
-        case InitialViewMessages.FailedToPublishToServer() =>
+        case FailedToPublishToServer() =>
           ctx.log.error("Failed to publish game to server.")
           frame.openErrorPubOnServerDialog()
           Behaviors.same
 
-        case InitialViewMessages.GameAborted() =>
+        case GameAborted() =>
           ctx.log.info("Game aborted. returning to Main Menu.")
           //        frame.dispose()
           frame.hostCancelledTheGame(() => ctx.self ! RestartView())
@@ -134,7 +136,7 @@ object InitialPhaseViewActor {
 
           Behaviors.same
 
-        case InitialViewMessages.GameStarted() =>
+        case GameStarted() =>
           ctx.log.info("Game started. Closing Waiting Room.")
           frame.dispose()
           Behaviors.stopped
