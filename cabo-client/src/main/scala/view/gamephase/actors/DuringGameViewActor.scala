@@ -246,6 +246,11 @@ private class DuringGameViewActor private(
 
   // --- HANDLERS ---
 
+  private def sharedHandlers(context: GameContext): PartialFunction[Message, Behavior[IGameViewMessage]] = {
+    handleExitSelected(context)
+      .orElse(handleOpponentDisconnected(context))
+  }
+
   // HANDLERS revealing section - START ---
   private def handleShowCard(
                               context: GameContext,
@@ -394,6 +399,25 @@ private class DuringGameViewActor private(
       Behaviors.stopped
   }
   // --- HANDLERS game ending - END ---
+
+  // HANDLERS connections problem - START
+
+  private def handleOpponentDisconnected(context: GameContext): PartialFunction[Message, Behavior[IGameViewMessage]] = {
+    case OpponentDisconnected(player) =>
+      log("", s"Handling OpponentDisconnected with message: ${OpponentDisconnected(player)}")
+      context.ui.opponentsDisconnected(player)
+      Behaviors.same
+  }
+
+  private def handleOpponentImpossibleToReach(context: GameContext): PartialFunction[Message, Behavior[IGameViewMessage]] = {
+    case OpponentImpossibleToReach(player) =>
+      log("", s"Handling OpponentImpossibleToReach with message: ${OpponentImpossibleToReach(player)}")
+      context.ui.opponentImpossibleToReach(player)
+      Behaviors.same
+  }
+
+  // HANDLERS connections problem - END
+
 
   private def handleUnexpectedMessage(actualState: String): PartialFunction[Message, Behavior[IGameViewMessage]] = {
     case msg =>
