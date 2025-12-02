@@ -532,7 +532,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
   private def inGameBehavior(gameCoordinator: ActorRef[GameCoordinatorMessage], playersStatus: List[PlayerStatus], hostRef: ActorRef[ClientInternalCommand]): Behavior[Message] = {
 
     //    lazy val otherPlayers = playersStatus.filterNot(_.playerID.equals(this.userId))
-    val otherPlayers = playersStatus.filterNot(_.playerInfo.userID.equals(this.userId))
+    def otherPlayersOnline = playersStatus.filterNot(p => !p.isOnline || p.playerInfo.userID.equals(this.userId))
 
     //    case class ElectionStarted(candidateRank: Int, replyTo: ActorRef[ClientInternalCommand]) extends ClientInternalCommand
     //    case class NoYouCanNot() extends ClientInternalCommand
@@ -589,7 +589,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
 
             case (ctx, ElectionWon()) =>
               logInfo(ctx, s"I won the election, becoming the new host")
-              otherPlayers.filter(p => p.isOnline).foreach(_.playerInfo.address ! NewHostElected(ctx.self))
+              otherPlayersOnline.foreach(_.playerInfo.address ! NewHostElected(ctx.self))
               buffer.unstashAll(inGameBehavior(gameCoordinator, playersStatus, ctx.self))
 
             case (ctx, NewHostElected(replyTo)) =>
@@ -617,7 +617,8 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
       case (ctx, RevealingCardsPhaseLog(log)) =>
         logInfo(ctx, s"Received ${RevealingCardsPhaseLog(log)}")
         howManyHaveWatchedCards += 1
-        playersStatus.filter(l => !l.playerInfo.userID.equals(this.userId) && l.isOnline).map(_.playerInfo.address).foreach(_ ! RevealingCardsPhaseForOtherClients(log))
+//        playersStatus.filter(l => !l.playerInfo.userID.equals(this.userId) && l.isOnline).map(_.playerInfo.address).foreach(_ ! RevealingCardsPhaseForOtherClients(log))
+        otherPlayersOnline.map(_.playerInfo.address).foreach(_ ! RevealingCardsPhaseForOtherClients(log))
         ctx.log.info(s"Number of players that have watched the cards: $howManyHaveWatchedCards")
         if howManyHaveWatchedCards == playersStatus.size then {
           ctx.log.info(s"All players have watched the cards, resetting counter and informing GameCoordinator to proceed")
@@ -644,7 +645,8 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
 
       case (ctx, TurnEnded(game, log)) =>
         ctx.log.info(s"My turn ended: ${this.userId}")
-        playersStatus.filter(l => !l.playerInfo.userID.equals(this.userId) && l.isOnline).map(_.playerInfo.address).foreach(_ ! GameInProgressUpdate(ctx.self, game, log))
+//        playersStatus.filter(l => !l.playerInfo.userID.equals(this.userId) && l.isOnline).map(_.playerInfo.address).foreach(_ ! GameInProgressUpdate(ctx.self, game, log))
+        otherPlayersOnline.map(_.playerInfo.address).foreach(_ ! GameInProgressUpdate(ctx.self, game, log))
         //todo - sync to all the players
         awaitSynchronization(ctx, playersStatus.filterNot(_.playerInfo.userID.equals(this.userId)).map(_.playerInfo.userID), () => {
           ctx.log.info(s"All players synchronized after my turn, ${this.userId}, waiting for my turn again: ${game.code}")
@@ -673,7 +675,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
         //todo
         //        ctx.log.info(s"Leaving game, informing other players like I am unreachable")
         logInfo(ctx, s"Leaving game, informing other players like I am unreachable")
-        otherPlayers.filter(_.isOnline).foreach(_.playerInfo.address ! PlayerUnreachable(PlayerInLobby(userId, name, ctx.self)))
+        otherPlayersOnline.foreach(_.playerInfo.address ! PlayerUnreachable(PlayerInLobby(userId, name, ctx.self)))
         ctx.stop(gameCoordinator)
         connectionHandler ! ConnectionHandler.UpdateList(List())
         initialize(null)
@@ -752,7 +754,8 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
           logInfo(ctx, s"My rank ($myRank) is lower than sender rank ($candidateRank), refusing election")
           replyTo ! NoYouCanNot()
           // i start my own election
-          otherPlayers.filter(p => p.isOnline && p.rank < myRank).foreach(_.playerInfo.address ! ElectionStarted(myRank, ctx.self))
+//          otherPlayersOnline.filter(p => p.isOnline && p.rank < myRank).foreach(_.playerInfo.address ! ElectionStarted(myRank, ctx.self))
+          otherPlayersOnline.filter(_.rank < myRank).foreach(_.playerInfo.address ! ElectionStarted(myRank, ctx.self))
           inElectionBehavior(myRank)
           //          Behaviors.withTimers(timer => {
           //            timer.startSingleTimer(ElectionWon(), 5.seconds)
