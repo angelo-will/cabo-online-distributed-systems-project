@@ -86,7 +86,7 @@ private class DuringGameViewActor private(
             context.ui.enterWaitingPhase()
             waitFirstTurn(context)
         })
-        .orElse(sharedHandlers(context)(stateName))
+      //        .orElse(sharedHandlers(context)(stateName))
     }
   }
 

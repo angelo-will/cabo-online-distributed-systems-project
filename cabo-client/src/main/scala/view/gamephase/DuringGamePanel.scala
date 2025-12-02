@@ -189,8 +189,8 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: GPr
   // IGamePhaseStatesView Implementation
   override def enterRevealingInitialCardsPhase(): Unit = Swing.onEDT {
     disableAll()
-    exitButton.enabled = true
     playerPanel.enableCardsButton(true)
+    this.myActionsTArea.text = "Starting revealing section. Select two cards to see their values, try to remember its!"
   }
 
   override def enterWaitingPhase(): Unit = Swing.onEDT {
@@ -242,7 +242,7 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: GPr
   }
 
   override def showYourNthCard(card: Card): Unit = Swing.onEDT {
-    this.myActionsTArea.text = s"YOUR CARD SELECTED HAS VALUE $card"
+    this.myActionsTArea.text += s"\nYOUR CARD SELECTED HAS VALUE $card"
   }
 
   override def showAdversaryNthCard(adversaryName: String, n: Int, card: Card): Unit = Swing.onEDT {
