@@ -51,7 +51,7 @@ object Client:
 
   case class GameInProgressUpdate(replyTo: ActorRef[ClientInternalCommand], game: GameInProgress, turnLog: TurnLog) extends ClientInternalCommand
 
-  case class StartGameBehavior(thisBehavior: () => Behavior[Message], hostRef: ActorRef[ClientInternalCommand]) extends ClientInternalCommand
+  case class StartGameBehavior(thisBehavior: () => Behavior[GameCoordinatorMessage], hostRef: ActorRef[ClientInternalCommand]) extends ClientInternalCommand
 
   case class RemoveCheckPlayerStatus() extends ClientInternalCommand
 
@@ -357,7 +357,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
     })
   }
 
-  private def hostWaitGameFromCoordinator(hostRef: ActorRef[ClientInternalCommand], game: GameInConstruction, gameCoordinator: ActorRef[Message]): Behavior[Message] = {
+  private def hostWaitGameFromCoordinator(hostRef: ActorRef[ClientInternalCommand], game: GameInConstruction, gameCoordinator: ActorRef[GameCoordinatorMessage]): Behavior[Message] = {
     Behaviors.receivePartial {
       case (ctx, TakeGetInProgressGame(gameInProgress)) =>
         //            logInfo(ctx,s"Game in progress received: ${gameInProgress.code}")
