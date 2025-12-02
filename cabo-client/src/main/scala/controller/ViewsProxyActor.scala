@@ -17,7 +17,7 @@ object ViewsProxyActor {
   def apply(userId: String, userName: String, clientRef: ActorRef[ClientCommand]): Behavior[IViewMessage] =
     Behaviors.setup { ctx =>
       ctx.log.info(s"ViewCoordinator started for user $userId")
-      val initialView: ActorRef[IViewMessage] = ctx.spawn(InitialPhaseViewActor(clientRef, userName), "InitialView").unsafeUpcast[IViewMessage]
+      val initialView = ctx.spawn(InitialPhaseViewActor(clientRef, userName), "InitialView")
       initialView ! PreGameViewMessages.WhoToSendResponse(clientRef)
       new ViewsProxyActor(ctx, userId, userName, clientRef).preGame(initialView)
     }
@@ -27,13 +27,13 @@ private class ViewsProxyActor(ctx: ActorContext[IViewMessage], userId: String, u
 
   import ViewsProxyActor.*
 
-  private def preGame(currentView: ActorRef[IViewMessage]): Behavior[IViewMessage] = {
+  private def preGame(currentView: ActorRef[IPreGameViewMessage]): Behavior[IViewMessage] = {
     Behaviors.receiveMessage {
 
       case SwitchToGameView() =>
         ctx.log.info("Switching to GAME View")
         val actorName = s"DuringGameView-$userId-${System.currentTimeMillis()}"
-        val gameView: ActorRef[IViewMessage] = ctx.spawn(DuringGameViewActor(userId, clientRef, null), actorName).unsafeUpcast[IViewMessage]
+        val gameView= ctx.spawn(DuringGameViewActor(userId, clientRef, null), actorName)
         game(gameView)
       case msg: IPreGameViewMessage =>
         currentView ! msg
@@ -44,13 +44,13 @@ private class ViewsProxyActor(ctx: ActorContext[IViewMessage], userId: String, u
     }
   }
 
-  private def game(currentView: ActorRef[IViewMessage]): Behavior[IViewMessage] = {
+  private def game(currentView: ActorRef[IGameViewMessage]): Behavior[IViewMessage] = {
     Behaviors.receiveMessage {
       case SwitchToInitialView() =>
         ctx.log.info("Switching to INITIAL View")
         ctx.stop(currentView)
         val actorName = s"InitialView-$userId-${System.currentTimeMillis()}"
-        val initialView: ActorRef[IViewMessage] = ctx.spawn(InitialPhaseViewActor(clientRef, userName), actorName).unsafeUpcast[IViewMessage]
+        val initialView = ctx.spawn(InitialPhaseViewActor(clientRef, userName), actorName)
         initialView ! PreGameViewMessages.WhoToSendResponse(clientRef)
         preGame(initialView)
       case msg: IGameViewMessage =>
