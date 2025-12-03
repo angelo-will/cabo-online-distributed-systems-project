@@ -642,8 +642,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
         logInfo(ctx,s"My turn ended: ${this.userId}")
 //        playersStatus.filter(l => !l.playerInfo.userID.equals(this.userId) && l.isOnline).map(_.playerInfo.address).foreach(_ ! GameInProgressUpdate(ctx.self, game, log))
         otherPlayersOnline.map(_.playerInfo.address).foreach(_ ! GameInProgressUpdate(ctx.self, game, log))
-        //todo - sync to all the players _ CHECK
-        awaitSynchronization(ctx, playersStatus.filterNot(_.playerInfo.userID.equals(this.userId)).map(_.playerInfo.userID), () => {
+        awaitSynchronization(ctx, otherPlayersOnline.map(_.playerInfo.userID), () => {
           logInfo(ctx,s"All players synchronized after my turn, ${this.userId}, waiting for my turn again: ${game.code}")
           if ctx.self equals hostRef then checkNextTurn(gameCoordinator, game, ctx)
           inGameBehavior(gameCoordinator, playersStatus, hostRef)
