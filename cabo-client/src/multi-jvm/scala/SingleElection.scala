@@ -56,7 +56,8 @@ abstract class SingleElection extends MultiNodeSpec(MultiNodeConfig) with STMult
       runOn(node1) {
         // Client code
         val probeClient = TestProbe[Message]()
-        val client = system.spawn(Behaviors.monitor(probeClient.ref, Client("client3-1", "Gino")), "Client3-1")
+        val viewProbe = TestProbe[Message]()
+        val client = system.spawn(Behaviors.monitor(probeClient.ref, Client("client3-1", "Gino", viewProbe.ref)), "Client3-1")
 
         enterBarrier("game-created")
 
@@ -100,7 +101,8 @@ abstract class SingleElection extends MultiNodeSpec(MultiNodeConfig) with STMult
       runOn(node2) {
         // Host code
         val probeHost = TestProbe[Message]()
-        val host = system.spawn(Behaviors.monitor(probeHost.ref, Client("host3", "Gino")), "Host3")
+        val viewProbe = TestProbe[Message]()
+        val host = system.spawn(Behaviors.monitor(probeHost.ref, Client("host3", "Gino", viewProbe.ref)), "Host3")
 
         host ! ClientMessages.CreateNewGame(gameCode = Some("host3game"))
         probeHost.receiveMessages(1)
@@ -142,7 +144,8 @@ abstract class SingleElection extends MultiNodeSpec(MultiNodeConfig) with STMult
       runOn(node3) {
         // Another Client code
         val probeClient = TestProbe[Message]()
-        val client = system.spawn(Behaviors.monitor(probeClient.ref, Client("client3-2", "Gino")), "Client3-2")
+        val viewProbe = TestProbe[Message]()
+        val client = system.spawn(Behaviors.monitor(probeClient.ref, Client("client3-2", "Gino", viewProbe.ref)), "Client3-2")
 
         enterBarrier("game-created")
 

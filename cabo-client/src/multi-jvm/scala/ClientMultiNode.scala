@@ -83,7 +83,8 @@ abstract class ClientMultiNode extends MultiNodeSpec(MultiNodeConfig) with STMul
     "be able to join a game create on another node" in {
       runOn(node1) {
         val probeHost = TestProbe[Message]()
-        val host = system.spawn(Behaviors.monitor(probeHost.ref, Client("host", "Gino")), "Host")
+        val viewProbe = TestProbe[Message]()
+        val host = system.spawn(Behaviors.monitor(probeHost.ref, Client("host", "Gino", viewProbe.ref)), "Host")
 
         host ! ClientMessages.CreateNewGame(gameCode = Some("hostgame"))
         probeHost.receiveMessages(1)
@@ -105,7 +106,8 @@ abstract class ClientMultiNode extends MultiNodeSpec(MultiNodeConfig) with STMul
 
       runOn(node2) {
         val probeClient = TestProbe[Message]()
-        val client = system.spawn(Behaviors.monitor(probeClient.ref, Client("client", "Gino")), "Client")
+        val viewProbe = TestProbe[Message]()
+        val client = system.spawn(Behaviors.monitor(probeClient.ref, Client("client", "Gino", viewProbe.ref)), "Client")
 
         enterBarrier("host-game-created")
 
