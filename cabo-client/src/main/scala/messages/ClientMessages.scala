@@ -1,8 +1,9 @@
-package utils
+package messages
 
 import akka.actor.typed.ActorRef
 import model.Game.{GameInConstruction, GameInProgress}
 import model.{GameParameters, TurnLog}
+import utils.Message
 
 object ClientMessages {
 
@@ -86,7 +87,7 @@ object ClientMessages {
 
   case class TurnUpdated() extends ClientCommand
 
-  case class DuringGameViewReady(viewRef: ActorRef[Message]) extends ClientCommand
+  case class DuringGameViewReady(viewRef: ActorRef[IGameViewMessage]) extends ClientCommand
 
   case class RevealingCardsPhaseLog(turnLog: TurnLog) extends ClientCommand
 

@@ -6,6 +6,7 @@ import akka.cluster.typed.{Cluster, Join}
 import com.typesafe.config.ConfigFactory
 import controller.Client
 import controller.Client.*
+import controller.ViewsProxyActor.SwitchToGameView
 import model.Game.GameInProgress
 import model.GameStatus.InProgress
 import model.{GameParameters, GameStatus, PlayerInLobby, PlayerPlaying}
@@ -13,9 +14,10 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
-import utils.ClientMessages.*
+import messages.ClientMessages.*
+import messages.GameCoordinatorMessage.GameCoordinatorMessage
 import utils.Message
-import utils.InitialViewMessages.*
+import messages.PreGameViewMessages.*
 
 class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(
   """
@@ -170,7 +172,9 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(
                 joiners: List[(ActorRef[Message], TestProbe[Message], TestProbe[Message])],
                 coordinatorProbe: TestProbe[Message], game: GameInProgress): Unit = {
 
-    val coordinatorStub: () => Behavior[Message] = () => Behaviors.receiveMessage {
+    val (hostId, _) = retrieveClientIdAndName(clientHost, probeClientHost)
+
+    val coordinatorStub: () => Behavior[GameCoordinatorMessage] = () => Behaviors.receiveMessage {
       m =>
         coordinatorProbe.ref ! m
         Behaviors.same
@@ -182,19 +186,20 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(
     clientHost ! TakeGetInProgressGame(game)
     probeClientHost.expectMessage(TakeGetInProgressGame(game))
 
+
     joiners.foreach { case (clientJoiner, probeClientJoiner, clientJoinerView) =>
 
       val msg = probeClientJoiner.expectMessageType[GameHasStarted]
       assert(
-        msg.gameInProgress.players.exists(p => p.userID == correctPlayerID(hostId, clientHost)),
+        msg.gameInProgress.players.exists(p => p.userID == hostId),
         s"GameHasStarted does not contains the correct player: $msg"
       )
 
       clientJoinerView match {
         case null => // do nothing
         case vp =>
-
-          val msg = vp.expectMessageType[ReadyToPlay]
+          vp.expectMessageType[GameStarted]
+          vp.expectMessageType[SwitchToGameView]
       }
     }
 
@@ -202,82 +207,18 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(
       case SynchronizationAck(id) => // ok
       case _ => fail("Host probe expected SynchronizationAck message")
     }
-
-    clientHostView match {
-      case null => // do nothing
-      case vp =>
-        vp.receiveMessage() match {
-          case ReadyToPlay(gameCoordinator) => // ok
-          case _ => fail("Host View expected ReadyToPlay message")
-        }
-    }
-
   }
-
-  //  def hostStartGame(clientHost: ActorRef[Message], probeClientHost: TestProbe[Message],
-  //                    clientJoiner: ActorRef[Message], probeClientJoiner: TestProbe[Message],
-  //                    clientHostView: TestProbe[Message] = null, clientJoinerView: TestProbe[Message] = null,
-  //                    coordinatorProbe: TestProbe[Message]): Unit = {
-  //
-  //    val coordinatorStub: Behavior[Message] = Behaviors.receiveMessage {
-  //      m =>
-  //        coordinatorProbe.ref ! m
-  //        Behaviors.same
-  //    }
-  //
-  //    val hostTrueId = correctPlayerID(hostId, clientHost)
-  //    val joinerTrueId = correctPlayerID(joinerId, clientJoiner)
-  //
-  //    val gameInProgress = createStubGameInProgress(round = 0, List(PlayerPlaying(hostTrueId, hostName, 0, null), PlayerPlaying(joinerTrueId, joinerName, 1, null)))
-  //
-  //    clientHost ! StartGameBehavior(coordinatorStub, clientHost)
-  //    probeClientHost.expectMessage(StartGameBehavior(coordinatorStub, clientHost))
-  //
-  //    clientHost ! TakeGetInProgressGame(gameInProgress)
-  //    probeClientHost.expectMessage(TakeGetInProgressGame(gameInProgress))
-  //
-  //    probeClientJoiner.receiveMessage() match {
-  //      case GameHasStarted(host, game) =>
-  //        assert(game.players.exists(p => p.userID == hostTrueId))
-  //        assert(game.players.exists(p => p.userID == joinerTrueId))
-  //      case _ => fail("Expected GameHasStarted message")
-  //    }
-  //
-  //    clientJoinerView match {
-  //      case null => // do nothing
-  //      case vp =>
-  //        vp.receiveMessage() match {
-  //          case ReadyToPlay(gameCoordinator) => // ok
-  //          case _ => fail("Joiner View expected ReadyToPlay message")
-  //        }
-  //    }
-  //
-  //    probeClientHost.receiveMessage() match {
-  //      case SynchronizationAck(id) if id.contains(joinerId) => // ok
-  //      case _ => fail("Host probe expected SynchronizationAck message")
-  //    }
-  //
-  //    clientHostView match {
-  //      case null => // do nothing
-  //      case vp =>
-  //        vp.receiveMessage() match {
-  //          case ReadyToPlay(gameCoordinator) => // ok
-  //          case _ => fail("Host View expected ReadyToPlay message")
-  //        }
-  //    }
-  //
-  //  }
 
   "A client" should {
     "be able to join a game created by another player" in {
 
-      val (clientHost, probeClientHost) = createClientAndProbe(hostId, hostName)
+      val (clientHost, probeClientHost, hostView) = createClientAndProbeWithView(hostId, hostName)
 
-      val (clientJoiner, probeClientJoiner) = createClientAndProbe(joinerId, joinerName)
+      val (clientJoiner, probeClientJoiner, joinerView) = createClientAndProbeWithView(joinerId, joinerName)
 
-      hostCreateGame(clientHost, probeClientHost)
+      hostCreateGame(clientHost, probeClientHost, hostView)
 
-      joinHostGame(clientHost, probeClientHost, clientJoiner, probeClientJoiner)
+      joinHostGame(clientHost, probeClientHost, clientJoiner, probeClientJoiner, hostView, joinerView)
 
       // Remove the game from the receptionist
       clientHost ! LeaveTheGame()
@@ -288,28 +229,30 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(
 
     "not be able to join a game that is already full" in {
 
-      val (clientHost, probeClientHost) = createClientAndProbe(hostId, hostName)
+      val (clientHost, probeClientHost, hostView) = createClientAndProbeWithView(hostId, hostName)
 
-      val (clientJoiner, probeClientJoiner) = createClientAndProbe(joinerId, joinerName)
+      val (clientJoiner, probeClientJoiner, joinerView) = createClientAndProbeWithView(joinerId, joinerName)
 
-      val (clientTooJoiner, probeClientTooJoiner) = createClientAndProbe(joinerTooId, joinerTooName)
+      val (clientTooJoiner, probeClientTooJoiner, joinerTooView) = createClientAndProbeWithView(joinerTooId, joinerTooName)
 
-      hostCreateGame(clientHost, probeClientHost, maxPlayers = 2)
+      hostCreateGame(clientHost, probeClientHost, hostView, maxPlayers = 2)
 
-      joinHostGame(clientHost, probeClientHost, clientJoiner, probeClientJoiner)
+      joinHostGame(clientHost, probeClientHost, clientJoiner, probeClientJoiner, hostView, joinerView)
 
       // Simulate the game being full
       clientTooJoiner ! JoinAGame()
       probeClientTooJoiner.expectMessage(JoinAGame())
 
-      clientTooJoiner ! JoinAddress(correctPlayerID(hostId, clientHost) + "game")
-      probeClientTooJoiner.expectMessage(JoinAddress(correctPlayerID(hostId, clientHost) + "game"))
+      val (hostPlayerID, _) = retrieveClientIdAndName(clientHost, probeClientHost)
+
+      clientTooJoiner ! JoinAddress(hostPlayerID + "game")
+      probeClientTooJoiner.expectMessageType[JoinAddress]
 
       probeClientTooJoiner.receiveMessage() match {
         case YouCanNotJoinTheGame(game) =>
           assert(game.players.size == 2)
-          assert(game.players.exists(p => p.userID == correctPlayerID(hostId, clientHost)))
-          assert(game.players.exists(p => p.userID == correctPlayerID(joinerId, clientJoiner)))
+          assert(game.players.exists(p => p.userID.contains(hostId)))
+          assert(game.players.exists(p => p.userID.contains(joinerId)))
         case _ => fail("Expected YouCanNotJoinTheGame message")
       }
 
@@ -322,24 +265,24 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(
 
     "receive a notification when another player joins the game" in {
 
-      val (clientHost, probeClientHost) = createClientAndProbe(hostId, hostName)
+      val (clientHost, probeClientHost, hostView) = createClientAndProbeWithView(hostId, hostName)
 
-      val (clientJoiner, probeClientJoiner) = createClientAndProbe(joinerId, joinerName)
+      val (clientJoiner, probeClientJoiner, joinerView) = createClientAndProbeWithView(joinerId, joinerName)
 
-      val (clientTooJoiner, probeClientTooJoiner) = createClientAndProbe(joinerTooId, joinerTooName)
+      val (clientTooJoiner, probeClientTooJoiner, joinerTooView) = createClientAndProbeWithView(joinerTooId, joinerTooName)
 
-      hostCreateGame(clientHost, probeClientHost)
+      hostCreateGame(clientHost, probeClientHost, hostView)
 
-      joinHostGame(clientHost, probeClientHost, clientJoiner, probeClientJoiner)
+      joinHostGame(clientHost, probeClientHost, clientJoiner, probeClientJoiner, hostView, joinerView)
 
-      joinHostGame(clientHost, probeClientHost, clientTooJoiner, probeClientTooJoiner)
+      joinHostGame(clientHost, probeClientHost, clientTooJoiner, probeClientTooJoiner, hostView, joinerTooView)
 
       probeClientJoiner.receiveMessage() match {
         case UpdateAboutGame(game) =>
           assert(game.players.size == 3)
-          assert(game.players.exists(p => p.userID == correctPlayerID(hostId, clientHost)))
-          assert(game.players.exists(p => p.userID == correctPlayerID(joinerId, clientJoiner)))
-          assert(game.players.exists(p => p.userID == correctPlayerID(joinerTooId, clientTooJoiner)))
+          assert(game.players.exists(p => p.userID.contains(hostId)))
+          assert(game.players.exists(p => p.userID.contains(joinerId)))
+          assert(game.players.exists(p => p.userID.contains(joinerTooId)))
         case _ => fail("Expected UpdateAboutGame message")
       }
 
@@ -356,22 +299,24 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(
 
     "be able to leave a joined game" in {
 
-      val (clientHost, probeClientHost) = createClientAndProbe(hostId, hostName)
+      val (clientHost, probeClientHost, hostView) = createClientAndProbeWithView(hostId, hostName)
 
-      val (clientJoiner, probeClientJoiner) = createClientAndProbe(joinerId, joinerName)
+      val (clientJoiner, probeClientJoiner, joinerView) = createClientAndProbeWithView(joinerId, joinerName)
 
-      val (clientTooJoiner, probeClientTooJoiner) = createClientAndProbe(joinerTooId, joinerTooName)
+      val (clientTooJoiner, probeClientTooJoiner, joinerTooView) = createClientAndProbeWithView(joinerTooId, joinerTooName)
 
-      hostCreateGame(clientHost, probeClientHost)
+      hostCreateGame(clientHost, probeClientHost, hostView)
 
-      joinHostGame(clientHost, probeClientHost, clientJoiner, probeClientJoiner)
+      joinHostGame(clientHost, probeClientHost, clientJoiner, probeClientJoiner, hostView, joinerView)
 
       // Now the player leaves the game
       clientJoiner ! LeaveTheGame()
       probeClientJoiner.expectMessage(LeaveTheGame())
 
       // The host should receive a notification about the player leaving
-      probeClientHost.expectMessage(IWantToLeaveTheGame(PlayerInLobby(correctPlayerID(joinerId, clientJoiner), joinerName, clientJoiner)))
+      val m = probeClientHost.expectMessageType[IWantToLeaveTheGame]
+
+      assert(m.player.userID.contains(joinerId))
 
       // Remove the game from the receptionist
       clientHost ! LeaveTheGame()
@@ -383,25 +328,25 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(
 
     "be notified if someone leave the game" in {
 
-      val (clientHost, probeClientHost) = createClientAndProbe(hostId, hostName)
+      val (clientHost, probeClientHost, hostView) = createClientAndProbeWithView(hostId, hostName)
 
-      val (clientJoiner, probeClientJoiner) = createClientAndProbe(joinerId, joinerName)
+      val (clientJoiner, probeClientJoiner, joinerView) = createClientAndProbeWithView(joinerId, joinerName)
 
-      val (clientTooJoiner, probeClientTooJoiner) = createClientAndProbe(joinerTooId, joinerTooName)
+      val (clientTooJoiner, probeClientTooJoiner, joinerTooView) = createClientAndProbeWithView(joinerTooId, joinerTooName)
 
-      hostCreateGame(clientHost, probeClientHost)
+      hostCreateGame(clientHost, probeClientHost, hostView)
 
-      joinHostGame(clientHost, probeClientHost, clientJoiner, probeClientJoiner)
+      joinHostGame(clientHost, probeClientHost, clientJoiner, probeClientJoiner, hostView, joinerView)
 
-      joinHostGame(clientHost, probeClientHost, clientTooJoiner, probeClientTooJoiner)
+      joinHostGame(clientHost, probeClientHost, clientTooJoiner, probeClientTooJoiner, hostView, joinerTooView)
 
       // Player02 expects the join message for Player03
       probeClientJoiner.receiveMessage() match {
         case UpdateAboutGame(game) =>
           assert(game.players.size == 3)
-          assert(game.players.exists(p => p.userID == correctPlayerID(hostId, clientHost)))
-          assert(game.players.exists(p => p.userID == correctPlayerID(joinerId, clientJoiner)))
-          assert(game.players.exists(p => p.userID == correctPlayerID(joinerTooId, clientTooJoiner)))
+          assert(game.players.exists(p => p.userID.contains(hostId)))
+          assert(game.players.exists(p => p.userID.contains(joinerId)))
+          assert(game.players.exists(p => p.userID.contains(joinerTooId)))
       }
 
       // Now the player leaves the game
@@ -411,8 +356,8 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(
       probeClientTooJoiner.receiveMessage() match {
         case UpdateAboutGame(game) =>
           assert(game.players.size == 2)
-          assert(game.players.exists(p => p.userID == correctPlayerID(hostId, clientHost)))
-          assert(game.players.exists(p => p.userID == correctPlayerID(joinerTooId, clientTooJoiner)))
+          assert(game.players.exists(p => p.userID.contains(hostId)))
+          assert(game.players.exists(p => p.userID.contains(joinerTooId)))
       }
 
       // Remove the game from the receptionist
@@ -425,15 +370,15 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(
 
     "should receive an abort notification if the host leaves the game" in {
 
-      val (clientHost, probeClientHost) = createClientAndProbe(hostId, hostName)
+      val (clientHost, probeClientHost, hostView) = createClientAndProbeWithView(hostId, hostName)
 
-      val (clientJoiner, probeClientJoiner) = createClientAndProbe(joinerId, joinerName)
+      val (clientJoiner, probeClientJoiner, joinerView) = createClientAndProbeWithView(joinerId, joinerName)
 
-      val (clientTooJoiner, probeClientTooJoiner) = createClientAndProbe(joinerTooId, joinerTooName)
+      val (clientTooJoiner, probeClientTooJoiner, joinerTooView) = createClientAndProbeWithView(joinerTooId, joinerTooName)
 
-      hostCreateGame(clientHost, probeClientHost)
+      hostCreateGame(clientHost, probeClientHost, hostView)
 
-      joinHostGame(clientHost, probeClientHost, clientJoiner, probeClientJoiner)
+      joinHostGame(clientHost, probeClientHost, clientJoiner, probeClientJoiner, hostView, joinerView)
 
       // Now the host leaves the game
       clientHost ! LeaveTheGame()
@@ -442,9 +387,6 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(
       // The joiner should receive an abort notification
       probeClientJoiner.expectMessage(GameCancelled())
 
-      // Remove the game from the receptionist
-      clientHost ! LeaveTheGame()
-
       testKit.stop(clientHost)
       testKit.stop(clientJoiner)
       testKit.stop(clientTooJoiner)
@@ -452,13 +394,13 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(
 
     "should be able to enter a game using an 'address' (code)" in {
 
-      val (clientHost, probeClientHost) = createClientAndProbe(hostId, hostName)
+      val (clientHost, probeClientHost, hostView) = createClientAndProbeWithView(hostId, hostName)
 
-      val (clientJoiner, probeClientJoiner) = createClientAndProbe(joinerId, joinerName)
+      val (clientJoiner, probeClientJoiner, joinerView) = createClientAndProbeWithView(joinerId, joinerName)
 
-      hostCreateGame(clientHost, probeClientHost)
+      hostCreateGame(clientHost, probeClientHost, hostView)
 
-      joinHostGame(clientHost, probeClientHost, clientJoiner, probeClientJoiner)
+      joinHostGame(clientHost, probeClientHost, clientJoiner, probeClientJoiner, hostView, joinerView)
 
       // Remove the game from the receptionist
       clientHost ! LeaveTheGame()
@@ -469,20 +411,24 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(
 
     "should be able to change the name of the player" in {
 
-      val (clientHost, probeClientHost) = createClientAndProbe(hostId, hostName)
+      val (clientHost, probeClientHost, hostView) = createClientAndProbeWithView(hostId, hostName)
 
       val probe = testKit.createTestProbe[Message]()
 
       clientHost ! GetPlayerInfo(probe.ref)
       probeClientHost.expectMessage(GetPlayerInfo(probe.ref))
 
-      probe.expectMessage(PlayerInfo(hostId + clientHost.path.address.hashCode(), hostName))
+      var m = probe.expectMessageType[PlayerInfo]
+
+      assert(m.userID.contains(hostId) && (m.name equals hostName))
 
       val newCoolName = "NewCoolName"
       clientHost ! ChangePlayerName(newCoolName, probe.ref)
       probeClientHost.expectMessage(ChangePlayerName(newCoolName, probe.ref))
 
-      probe.expectMessage(PlayerInfo(hostId + clientHost.path.address.hashCode(), newCoolName))
+      m = probe.expectMessageType[PlayerInfo]
+
+      assert(m.userID.contains(hostId) && (m.name equals newCoolName))
 
       // should be able to retrieve player information after creating a game
       hostCreateGame(clientHost, probeClientHost)
@@ -490,7 +436,9 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(
       clientHost ! GetPlayerInfo(probe.ref)
       probeClientHost.expectMessage(GetPlayerInfo(probe.ref))
 
-      probe.expectMessage(PlayerInfo(hostId + clientHost.path.address.hashCode(), newCoolName))
+      m = probe.expectMessageType[PlayerInfo]
+
+      assert(m.userID.contains(hostId) && (m.name equals newCoolName))
 
       // Remove the game from the receptionist
       clientHost ! LeaveTheGame()
@@ -502,7 +450,9 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(
       clientHost ! GetPlayerInfo(probe.ref)
       probeClientHost.expectMessage(GetPlayerInfo(probe.ref))
 
-      probe.expectMessage(PlayerInfo(hostId + clientHost.path.address.hashCode(), newCoolName))
+      m = probe.expectMessageType[PlayerInfo]
+
+      assert(m.userID.contains(hostId) && (m.name equals newCoolName))
 
       testKit.stop(clientHost)
     }
@@ -517,9 +467,12 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(
 
       joinHostGame(clientHost, probeClientHost, clientJoiner, probeClientJoiner, clientHostView, clientJoinerView)
 
-      var gameInProgress = createStubGameInProgress(round = 0, List(
-        PlayerPlaying(correctPlayerID(hostId, clientHost), hostName, 0, null),
-        PlayerPlaying(correctPlayerID(joinerId, clientJoiner), joinerName, 1, null)
+      val (h_id, _) = retrieveClientIdAndName(clientHost, probeClientHost)
+      val (j_id, _) = retrieveClientIdAndName(clientJoiner, probeClientJoiner)
+
+      val gameInProgress = createStubGameInProgress(round = 0, List(
+        PlayerPlaying(h_id, hostName, 0, null),
+        PlayerPlaying(j_id, joinerName, 1, null)
       ))
 
       val coordinatorProbe = testKit.createTestProbe[Message]()
@@ -562,23 +515,22 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(
 
       joinHostGame(clientHost, probeClientHost, clientJoiner, probeClientJoiner, clientHostView, clientJoinerView)
 
-      //      val coordinatorProbe = testKit.createTestProbe[Message]()
-      //      hostStartGame(clientHost, probeClientHost, clientJoiner, probeClientJoiner, clientHostView, clientJoinerView, coordinatorProbe)
+      val (h_id, _) = retrieveClientIdAndName(clientHost, probeClientHost)
+      val (j_id, _) = retrieveClientIdAndName(clientJoiner, probeClientJoiner)
 
       var gameInProgress = createStubGameInProgress(round = 0, List(
-        PlayerPlaying(correctPlayerID(hostId, clientHost), hostName, 0, null),
-        PlayerPlaying(correctPlayerID(joinerId, clientJoiner), joinerName, 1, null)
+        PlayerPlaying(h_id, hostName, 0, null),
+        PlayerPlaying(j_id, joinerName, 1, null)
       ))
 
       val coordinatorProbe = testKit.createTestProbe[Message]()
 
-      startGame(clientHost, probeClientHost, null, List((clientJoiner, probeClientJoiner, clientJoinerView)), coordinatorProbe, gameInProgress)
+      startGame(clientHost, probeClientHost, clientHostView, List((clientJoiner, probeClientJoiner, clientJoinerView)), coordinatorProbe, gameInProgress)
 
       clientHost ! TurnEnded(gameInProgress, null)
       probeClientHost.expectMessage(TurnEnded(gameInProgress, null))
 
       probeClientJoiner.expectMessageType[GameInProgressUpdate]
-      //      clientJoinerView.expectMessageType[GameInfoUpdate]
 
       // simulate gameCoordinator sending TurnUpdated
       clientJoiner ! TurnUpdated()
@@ -609,52 +561,5 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(
 
       testKit.stop(clientHost)
       testKit.stop(clientJoiner)
-
     }
-
-    //    "should elect a new host if the previous leaves" in {
-    ////      val (host, probeHost, hostView) = createClientAndProbeWithView(hostId, hostName)
-    //      val (host, probeHost) = createClientAndProbe(hostId, hostName)
-    //
-    ////      val (joiner, probeJoiner, joinerView) = createClientAndProbeWithView(joinerId, joinerName)
-    //      val (joiner, probeJoiner) = createClientAndProbe(joinerId, joinerName)
-    //
-    ////      val (joinerToo, probeJoinerToo, joinerTooView) = createClientAndProbeWithView(joinerTooId, joinerTooName)
-    //      val (joinerToo, probeJoinerToo) = createClientAndProbe(joinerTooId, joinerTooName)
-    //
-    ////      hostCreateGame(host, probeHost, clientHostView = hostView)
-    //      hostCreateGame(host, probeHost)
-    //
-    ////      joinHostGame(host, probeHost, joiner, probeJoiner, hostView, joinerView)
-    //      joinHostGame(host, probeHost, joiner, probeJoiner)
-    //
-    //      //      joinHostGame(host, probeHost, joinerToo, probeJoinerToo, hostView, joinerTooView)
-    //      joinHostGame(host, probeHost, joinerToo, probeJoinerToo)
-    //
-    //      // joiner should receive a notification about joinerToo joining
-    //      probeJoiner.expectMessageType[UpdateAboutGame]
-    //
-    //      var game = createStubGameInProgress(round = 0, List(
-    //        PlayerPlaying(correctPlayerID(hostId, host), hostName, 0, null),
-    //        PlayerPlaying(correctPlayerID(joinerId, joiner), joinerName, 1, null),
-    //        PlayerPlaying(correctPlayerID(joinerTooId, joinerToo), joinerTooName, 2, null)
-    //      ))
-    //
-    //      val coordinatorProbe = hostStartGame2(host, probeHost, null, List((joiner, probeJoiner, null), (joinerToo, probeJoinerToo, null)), game)
-    //
-    //      // Now the host leaves the game
-    //      host ! LeaveTheGame()
-    //      probeHost.expectMessage(LeaveTheGame())
-    //
-    //      probeJoiner.expectMessageType[PlayerUnreachable]
-    //      probeJoinerToo.expectMessageType[PlayerUnreachable]
-    //
-    //      // The new host should be joiner
-    //      probeJoinerToo.expectMessageType[ElectionStarted]
-    //
-    //      probeJoiner.expectMessageType[ElectionWon]
-    //
-    //      probeJoinerToo.expectMessageType[NewHostElected]
-    //
-    //    }
   }

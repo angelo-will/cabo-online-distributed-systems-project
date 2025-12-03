@@ -1,13 +1,13 @@
 import akka.actor.testkit.typed.scaladsl.{ScalaTestWithActorTestKit, TestProbe}
 import akka.actor.typed.ActorRef
+import messages.{ClientMessages, PreGameViewMessages}
 import model.{Game, GameParameters, PlayerInLobby}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.matchers.must.Matchers.mustBe
-import utils.{Message, InitialViewMessages}
+import utils.Message
 import view.lobbyphase.ViewApplication
-import utils.ClientMessages
 import view.lobbyphase.actors.InitialPhaseViewActor.ViewCreated
 import view.lobbyphase.actors.{InitialPhaseViewActor, ViewActorListener}
 
@@ -38,7 +38,7 @@ class InitialPhaseViewActorSpec extends ScalaTestWithActorTestKit
     "create view" when {
       "it's spawned" in {
         val actorView = testKit.spawn(InitialPhaseViewActor(probe.ref, "player01"))
-        actorView ! InitialViewMessages.WhoToSendResponse(probe.ref)
+        actorView ! PreGameViewMessages.WhoToSendResponse(probe.ref)
         createCheckFrame("Initial Phase View Actor must create the view when it's spawned.", probe.ref).open()
         probe.expectMessageType[ViewCreated]
         probe.expectMessage(FiniteDuration(20, SECONDS), Passed())
@@ -47,7 +47,7 @@ class InitialPhaseViewActorSpec extends ScalaTestWithActorTestKit
     "close the waiting creation game view" when {
       "receive the message the game is created" in {
         val actorView = testKit.spawn(InitialPhaseViewActor(probe.ref, "player01"))
-        actorView ! InitialViewMessages.WhoToSendResponse(probe.ref)
+        actorView ! PreGameViewMessages.WhoToSendResponse(probe.ref)
         createCheckFrame("<html>" +
           "Initial Phase View Actor<br>" +
           "- must close the waiting creation game view<br>" +
@@ -56,7 +56,7 @@ class InitialPhaseViewActorSpec extends ScalaTestWithActorTestKit
         probe.expectMessageType[ViewCreated]
         val newGame = probe.expectMessageType[ClientMessages.CreateNewGame](FiniteDuration(20, SECONDS))
         Thread.sleep(3000)
-        actorView ! InitialViewMessages.GameCreated(Game.GameInConstruction(
+        actorView ! PreGameViewMessages.GameCreated(Game.GameInConstruction(
           code = "testGame",
           GameParameters(!newGame.makePublic, newGame.maxTimeRound, newGame.maxNumRound, newGame.maxPlayers),
           players = List(PlayerInLobby("user1", "User One", probe.ref))
@@ -67,7 +67,7 @@ class InitialPhaseViewActorSpec extends ScalaTestWithActorTestKit
     "close the waiting join game view" when {
       "receive the message the game is joined" in {
         val actorView = testKit.spawn(InitialPhaseViewActor(probe.ref, "player01"))
-        actorView ! InitialViewMessages.WhoToSendResponse(probe.ref)
+        actorView ! PreGameViewMessages.WhoToSendResponse(probe.ref)
         createCheckFrame("<html>" +
           "Initial Phase View Actor<br>" +
           "- must close the waiting join game view<br>" +
@@ -77,7 +77,7 @@ class InitialPhaseViewActorSpec extends ScalaTestWithActorTestKit
         probe.expectMessageType[ClientMessages.JoinAGame](FiniteDuration(5, SECONDS))
         // Simulate the game list being sent after some delay
         Thread.sleep(3000)
-        actorView ! InitialViewMessages.GameList(List(
+        actorView ! PreGameViewMessages.GameList(List(
           Game.GameInConstruction(
             code = "testGame001",
             GameParameters(maxTimeRound = 60, roundLimitation = 10, maxPlayers = 4),
@@ -97,7 +97,7 @@ class InitialPhaseViewActorSpec extends ScalaTestWithActorTestKit
         val gameToJoin = probe.expectMessageType[ClientMessages.JoinGame](FiniteDuration(20, SECONDS))
         // Simulate the game being joined after some delay
         Thread.sleep(3000)
-        actorView ! InitialViewMessages.GameJoined(gameToJoin.game)
+        actorView ! PreGameViewMessages.GameJoined(gameToJoin.game)
         probe.expectMessage(FiniteDuration(30, SECONDS), Passed())
       }
     }
@@ -140,7 +140,7 @@ class InitialPhaseViewActorSpec extends ScalaTestWithActorTestKit
     "show the waiting lobby view to player who requested to enter" when {
       "the host accepted the player" in {
         val actorViewPlayerJoiner = testKit.spawn(InitialPhaseViewActor(probe.ref, "player01"))
-        actorViewPlayerJoiner ! InitialViewMessages.WhoToSendResponse(probe.ref)
+        actorViewPlayerJoiner ! PreGameViewMessages.WhoToSendResponse(probe.ref)
         val hostRef = probe.ref
         createCheckFrame("<html>" +
           "Initial Phase View Actor<br>" +
@@ -163,17 +163,17 @@ class InitialPhaseViewActorSpec extends ScalaTestWithActorTestKit
           GameParameters(true, 60, 30, 4),
           players = List(playerHost, playerJoiner)
         )
-        actorViewPlayerJoiner ! InitialViewMessages.GameJoined(gameInConstruction)
+        actorViewPlayerJoiner ! PreGameViewMessages.GameJoined(gameInConstruction)
 
         probe.expectMessage(FiniteDuration(40, SECONDS), Passed())
       }
     }
     "allow a normal game simulation" in {
       val actorViewHost = testKit.spawn(InitialPhaseViewActor(probe.ref, "player01"))
-      actorViewHost ! InitialViewMessages.WhoToSendResponse(probe.ref)
+      actorViewHost ! PreGameViewMessages.WhoToSendResponse(probe.ref)
       Thread.sleep(3000)
       val actorViewJoiner = testKit.spawn(InitialPhaseViewActor(probe.ref, "player02"))
-      actorViewJoiner ! InitialViewMessages.WhoToSendResponse(probe.ref)
+      actorViewJoiner ! PreGameViewMessages.WhoToSendResponse(probe.ref)
 
       probe.expectMessageType[ViewCreated]
       probe.expectMessageType[ViewCreated]
@@ -186,12 +186,12 @@ class InitialPhaseViewActorSpec extends ScalaTestWithActorTestKit
         GameParameters(newGame.makePublic, newGame.maxTimeRound, newGame.maxNumRound, newGame.maxPlayers),
         players = List(PlayerInLobby("host", "Host Player", probe.ref))
       )
-      actorViewHost ! InitialViewMessages.GameCreated(gameBuilt)
+      actorViewHost ! PreGameViewMessages.GameCreated(gameBuilt)
 
       // joiner request to join the game
       val _ = probe.expectMessageType[ClientMessages.JoinAGame](FiniteDuration(20,SECONDS))
       Thread.sleep(3000)
-      actorViewJoiner ! InitialViewMessages.GameList(List(gameBuilt))
+      actorViewJoiner ! PreGameViewMessages.GameList(List(gameBuilt))
 
       val gameToJoin = probe.expectMessageType[ClientMessages.JoinGame](FiniteDuration(20, SECONDS))
 
@@ -200,8 +200,8 @@ class InitialPhaseViewActorSpec extends ScalaTestWithActorTestKit
       // the host see changing of the players in list
       val gameAfterJoin = gameBuilt.copy(
         players = gameBuilt.players :+ PlayerInLobby("joiner", "Joiner Player", probe.ref))
-      actorViewHost ! InitialViewMessages.GameInfoUpdate(gameAfterJoin)
-      actorViewJoiner ! InitialViewMessages.GameJoined(gameAfterJoin)
+      actorViewHost ! PreGameViewMessages.GameInfoUpdate(gameAfterJoin)
+      actorViewJoiner ! PreGameViewMessages.GameJoined(gameAfterJoin)
       Thread.sleep(20000)
     }
   }
@@ -209,7 +209,7 @@ class InitialPhaseViewActorSpec extends ScalaTestWithActorTestKit
   "open error to publish on server dialog" when {
     "server send error" in {
       val actorView = testKit.spawn(InitialPhaseViewActor(probe.ref, "player01"))
-      actorView ! InitialViewMessages.WhoToSendResponse(probe.ref)
+      actorView ! PreGameViewMessages.WhoToSendResponse(probe.ref)
       createCheckFrame("<html>" +
         "Initial Phase View Actor<br>" +
         "- must open error to publish on server dialog<br>" +
@@ -219,14 +219,14 @@ class InitialPhaseViewActorSpec extends ScalaTestWithActorTestKit
       val newGame = probe.expectMessageType[ClientMessages.CreateNewGame](FiniteDuration(20, SECONDS))
       // Simulate the game creation
       Thread.sleep(3000)
-      actorView ! InitialViewMessages.GameCreated(Game.GameInConstruction(
+      actorView ! PreGameViewMessages.GameCreated(Game.GameInConstruction(
         code = "testGame",
         GameParameters(newGame.makePublic, newGame.maxTimeRound, newGame.maxNumRound, newGame.maxPlayers),
         players = List(PlayerInLobby("user1", "User One", probe.ref))
       ))
       Thread.sleep(2000)
       // Simulate the error from server
-      actorView ! InitialViewMessages.FailedToPublishToServer()
+      actorView ! PreGameViewMessages.FailedToPublishToServer()
       probe.expectMessage(FiniteDuration(20, SECONDS), Passed())
     }
   }

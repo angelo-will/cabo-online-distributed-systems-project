@@ -3,7 +3,7 @@ package view.gamephase.traits
 import model.PlayerPlaying
 
 trait IConnectionsInfo {
-  def playerIsDisconnected(player: PlayerPlaying): Unit
+  def opponentsDisconnected(player: PlayerPlaying): Unit
 
-  def lostYourConnection(): Unit
+  def opponentImpossibleToReach(player: PlayerPlaying): Unit
 }

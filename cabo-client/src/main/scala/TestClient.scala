@@ -2,7 +2,8 @@ import akka.actor.typed.{ActorRef, ActorSystem}
 import akka.actor.typed.scaladsl.Behaviors
 import com.typesafe.config.ConfigFactory
 import controller.Client
-import utils.{ClientMessages, Message, startup}
+import messages.ClientMessages
+import utils.{Message, startup}
 
 import scala.io.StdIn.readLine
 

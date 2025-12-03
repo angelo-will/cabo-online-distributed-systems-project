@@ -1,9 +1,10 @@
 import akka.actor.testkit.typed.scaladsl.{ScalaTestWithActorTestKit, TestProbe}
 import akka.actor.typed.ActorRef
+import messages.ClientMessages
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.BeforeAndAfterEach
-import utils.{Message, ClientMessages}
+import utils.Message
 import view.lobbyphase.ViewApplication
 import view.lobbyphase.actors.ViewActorListener
 
