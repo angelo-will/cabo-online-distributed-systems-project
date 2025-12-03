@@ -36,14 +36,16 @@ object TurnEvent:
   case class ReplaceOwnCardWithAdversaryCard(ownCardIndex: Int, adversaryID: String, adversaryCardIndex: Int) extends TurnEvent
 
   case class CardDrawnDiscarded(card: Card) extends TurnEvent
-  
+
   case class OwnCardDiscarded(card: Card, index: Int) extends TurnEvent
 
   case class CaboCalled() extends TurnEvent
-  
+
   case class EndTurn() extends TurnEvent
-  
+
   case class JumpTurnForTimerEnded() extends TurnEvent
+
+  case class JumpTurnForDisconnection() extends TurnEvent
 
 object PhaseEvents:
   case class PhaseEvents(phase: TurnPhase, events: List[TurnEvent]) extends Message
@@ -94,7 +96,7 @@ class DuringGameTurnLog(val ofUserID: String, val round: Int) extends TurnLog wi
    * all of which transition to [[AwaitDiscardCard]].
    *
    * - [[AwaitDiscardCard]]: Allows [[CardDrawnDiscarded]] or [[OwnCardDiscarded]] which transitions to [[AwaitEndTurn]].
-   * 
+   *
    * - [[AwaitEndTurn]]: Allows [[CallCabo]] or [[EndTurn]] which transitions to [[EndedTurn]].
    *
    * - [[EndedTurn]]: Does not allow any further events to be added.
@@ -120,11 +122,13 @@ class DuringGameTurnLog(val ofUserID: String, val round: Int) extends TurnLog wi
       this.passToNewPhaseWithEvent(AwaitEndTurn(), event)
     case (AwaitDiscardCard(), OwnCardDiscarded(card, index)) =>
       this.passToNewPhaseWithEvent(AwaitEndTurn(), event)
-    case (AwaitEndTurn(), CaboCalled()) => 
+    case (AwaitEndTurn(), CaboCalled()) =>
       this.passToNewPhaseWithEvent(EndedTurn(), event)
     case (AwaitEndTurn(), EndTurn()) =>
       this.passToNewPhaseWithEvent(EndedTurn(), event)
     case (_, JumpTurnForTimerEnded()) =>
+      this.passToNewPhaseWithEvent(EndedTurn(), event)
+    case (_, JumpTurnForDisconnection()) =>
       this.passToNewPhaseWithEvent(EndedTurn(), event)
     case _ =>
       throw new InvalidTurnEventException(event)

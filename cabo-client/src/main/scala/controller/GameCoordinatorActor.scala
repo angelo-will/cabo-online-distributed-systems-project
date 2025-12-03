@@ -234,7 +234,7 @@ object GameCoordinatorActor:
         case (_, GCMsg.TurnTimeEnded()) => Behaviors.same
         case (_, GCMsg.EndTurn()) => Behaviors.same
       })
-      .orElse(handleNewTurn(gameData))
+      .orElse(handleNewTurnOrEmptyTurn(gameData))
   }
 
   //
@@ -252,7 +252,7 @@ object GameCoordinatorActor:
 
   private def handleDrawCardFromDeck(
                                       gameData: GameData
-                                    ): PartialFunction[(ActorContext[GameCoordinatorMessage], GameCoordinatorMessage), Behavior[GameCoordinatorMessage]] =
+                                    ): PartialFunction[(ActorContext[GameCoordinatorMessage], GameCoordinatorMessage), Behavior[GameCoordinatorMessage]] = {
     case (ctx, GCMsg.DrawCardFromDeck()) =>
       val (topCard, newDeck) = gameData.game.deckStack.drawFirstCard
       ctx.log.info(s"I draw $topCard from deck")
@@ -263,10 +263,11 @@ object GameCoordinatorActor:
         myTurnAfterDrawWithPower(gameData.copy(temporaryGame = newTempGame), cardInHand = topCard)
       else
         myTurnAfterDrawNoPower(gameData.copy(temporaryGame = newTempGame), cardInHand = topCard)
+  }
 
   private def handleDrawCardFromDiscardStack(
                                               gameData: GameData
-                                            ): PartialFunction[(ActorContext[GameCoordinatorMessage], GameCoordinatorMessage), Behavior[GameCoordinatorMessage]] =
+                                            ): PartialFunction[(ActorContext[GameCoordinatorMessage], GameCoordinatorMessage), Behavior[GameCoordinatorMessage]] = {
     case (ctx, GCMsg.DrawCardFromDiscardStack()) =>
       val (topCard, newDiscardStack) = gameData.game.discardDeckStack.drawFirstCard
       ctx.log.info(s"I draw $topCard from discard stack")
@@ -274,11 +275,12 @@ object GameCoordinatorActor:
       gameData.viewReference ! DGVMsg.CardDrawn(topCard)
       val newTempGame = gameData.temporaryGame.copy(discardDeckStack = newDiscardStack)
       myTurnAfterDrawFromDiscard(gameData.copy(temporaryGame = newTempGame), topCard)
+  }
 
   private def handleDiscardCardDrawn(
                                       gameData: GameData,
                                       cardInHand: Card
-                                    ): PartialFunction[(ActorContext[GameCoordinatorMessage], GameCoordinatorMessage), Behavior[GameCoordinatorMessage]] =
+                                    ): PartialFunction[(ActorContext[GameCoordinatorMessage], GameCoordinatorMessage), Behavior[GameCoordinatorMessage]] = {
     case (ctx, GCMsg.DiscardCardDrawn()) =>
       ctx.log.info(s"handleDiscardCardDrawn - I discard the drawn card $cardInHand")
       gameData.turnLog.addEvent(TurnEvent.CardDrawnDiscarded(cardInHand))
@@ -286,11 +288,12 @@ object GameCoordinatorActor:
       val newGameData = gameData.copy(temporaryGame = newTemporaryGame)
       gameData.viewReference ! DGVMsg.NewTopCardDiscardStack(cardInHand)
       myTurnAfterDiscard(newGameData)
+  }
 
   private def handleDiscardOwnNthCard(
                                        gameData: GameData,
                                        cardInHand: Card
-                                     ): PartialFunction[(ActorContext[GameCoordinatorMessage], GameCoordinatorMessage), Behavior[GameCoordinatorMessage]] =
+                                     ): PartialFunction[(ActorContext[GameCoordinatorMessage], GameCoordinatorMessage), Behavior[GameCoordinatorMessage]] = {
     case (ctx, GCMsg.DiscardYourNthCard(index)) =>
       val oldHand = gameData.getOurHand
       ctx.log.info(s"handleDiscardOwnNthCard - I discard the card with index $index")
@@ -302,16 +305,18 @@ object GameCoordinatorActor:
       ctx.log.info(s"My new hand is ${newTempGameState.getPlayerWithID(gameData.playerOwnUserID).hand}")
       gameData.viewReference ! DGVMsg.NewTopCardDiscardStack(oldHand.cards(index))
       myTurnAfterDiscard(gameData.copy(temporaryGame = newTempGameState))
+  }
 
   private def handleSendGameStatus(
                                     gameData: GameData,
                                     nextBehaviors: GameData => Behavior[GameCoordinatorMessage]
-                                  ): PartialFunction[(ActorContext[GameCoordinatorMessage], GameCoordinatorMessage), Behavior[GameCoordinatorMessage]] =
+                                  ): PartialFunction[(ActorContext[GameCoordinatorMessage], GameCoordinatorMessage), Behavior[GameCoordinatorMessage]] = {
     case (ctx, GCMsg.SendGameStatus(ref)) =>
       ref ! DGVMsg.GameInformation(gameData.game)
       nextBehaviors(gameData)
+  }
 
-  private def handleNewTurn(gameData: GameData): PartialFunction[(ActorContext[GameCoordinatorMessage], GameCoordinatorMessage), Behavior[GameCoordinatorMessage]] =
+  private def handleNewTurnOrEmptyTurn(gameData: GameData): PartialFunction[(ActorContext[GameCoordinatorMessage], GameCoordinatorMessage), Behavior[GameCoordinatorMessage]] = {
     // TODO: implementare l'arrivo delle nuove informazioni e la sequenza dei passaggi fatti in un turno.
     //       Se un giocatore per problemi o altro non gioca non fa andare avanti il mazzo, quindi può arrivarmi un messaggio con niente
     case (ctx, GCMsg.NewTurn(game, turnLog)) =>
@@ -338,31 +343,43 @@ object GameCoordinatorActor:
           else
             notMyTurn(newGameData)
         case _ => transitionToShowingResults(isGameEnded, newGameData, turnLog)
+    case (ctx, GCMsg.GetEmptyTurn(userID)) =>
+      ctx.log.info(s"GetEmptyTurn received")
+      val actualTurn = gameData.game.currentRound + 1
+      val gameTurnUpdated = gameData.game.copy(currentRound = actualTurn)
+      val log = new DuringGameTurnLog(userID, actualTurn)
+      log.addEvent(TurnEvent.JumpTurnForDisconnection())
+      gameData.clientReference ! CLMsg.TurnEnded(gameTurnUpdated, log)
+      Behaviors.same
+  }
 
   // POWERS implementation
 
   private def handleShowOwnNthCard(
                                     gameData: GameData,
                                     nextBehaviors: GameData => Behavior[GameCoordinatorMessage]
-                                  ): PartialFunction[(ActorContext[GameCoordinatorMessage], GameCoordinatorMessage), Behavior[GameCoordinatorMessage]] =
+                                  ): PartialFunction[(ActorContext[GameCoordinatorMessage], GameCoordinatorMessage), Behavior[GameCoordinatorMessage]] = {
     case (ctx, GCMsg.ShowYourNthCard(index)) =>
       log.log("GCActor - handleShowOwnNthCard - received ShowYourNthCard")
       ctx.log.info(s"I show the card with index $index")
       gameData.turnLog.addEvent(TurnEvent.SeeSelfCard(index))
       baseShowCard(gameData, gameData.getOurHand.cards(index), () => nextBehaviors(gameData))
+  }
 
   private def handleShowAdversaryNthCard(
                                           gameData: GameData,
                                           nextBehaviors: GameData => Behavior[GameCoordinatorMessage]
-                                        ): PartialFunction[(ActorContext[GameCoordinatorMessage], GameCoordinatorMessage), Behavior[GameCoordinatorMessage]] =
+                                        ): PartialFunction[(ActorContext[GameCoordinatorMessage], GameCoordinatorMessage), Behavior[GameCoordinatorMessage]] = {
     case (ctx, GCMsg.ShowAdversaryNthCard(playerID, cardIndex)) =>
       ctx.log.info(s"I show the card with index $cardIndex of player with index $playerID")
       gameData.turnLog.addEvent(TurnEvent.SeeAdversaryCard(playerID, cardIndex))
       baseShowCard(gameData, gameData.getHandOPlayerWithID(playerID).cards(cardIndex), () => nextBehaviors(gameData))
+  }
 
-  private def baseShowCard(gameData: GameData, card: Card, nextBehavior: () => Behavior[GameCoordinatorMessage]) =
+  private def baseShowCard(gameData: GameData, card: Card, nextBehavior: () => Behavior[GameCoordinatorMessage]) = {
     gameData.viewReference ! DGVMsg.CardSeen(card)
     nextBehavior()
+  }
 
 
   private def handleChangeAdversaryCardWithOwnNthCard(
@@ -393,7 +410,7 @@ object GameCoordinatorActor:
 
   private def handleTurnTimeEnded(
                                    gameData: GameData
-                                 ): PartialFunction[(ActorContext[GameCoordinatorMessage], GameCoordinatorMessage), Behavior[GameCoordinatorMessage]] =
+                                 ): PartialFunction[(ActorContext[GameCoordinatorMessage], GameCoordinatorMessage), Behavior[GameCoordinatorMessage]] = {
     case (ctx, GCMsg.TurnTimeEnded()) =>
       ctx.log.info(s"Turn time ended for player ${gameData.playerOwnUserID}, initializing game at before draw state")
       val newTurnLogJumping = DuringGameTurnLog(gameData.turnLog.playerName, gameData.turnLog.round)
@@ -402,6 +419,7 @@ object GameCoordinatorActor:
       gameData.viewReference ! DGVMsg.EndTurnByTimeEnded()
       gameData.clientReference ! CLMsg.TurnEnded(newGameData.game, newGameData.turnLog)
       notMyTurn(newGameData)
+  }
 
   private def transitionToShowingResults(gameEnd: EndingGame, gameData: GameData, lastTurnLog: TurnLog): Behavior[GameCoordinatorMessage] = {
     log.log(s"transitionToShowingResults called, gameData = $gameData")

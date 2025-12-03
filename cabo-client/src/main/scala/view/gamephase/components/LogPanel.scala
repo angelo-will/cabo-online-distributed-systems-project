@@ -52,6 +52,7 @@ private object TurnLogsWriter:
       case TurnEvent.EndTurn() => "."
       case TurnEvent.CaboCalled() => string += s",\nhas called CABO!"
       case TurnEvent.JumpTurnForTimerEnded() => string += s"has ended its turn for timer ended."
+      case TurnEvent.JumpTurnForDisconnection() => string += s"has jumped its turn for disconnection."
     }
     string
   }
