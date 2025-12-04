@@ -53,7 +53,8 @@ abstract class DisconnectionNotify extends MultiNodeSpec(MultiNodeConfig) with S
     "be notified if a player disconnect" in {
       runOn(node1) {
         val probeHost = TestProbe[Message]()
-        val host = system.spawn(Behaviors.monitor(probeHost.ref, Client("host2", "Gino")), "Host2")
+        val viewProbe = TestProbe[Message]()
+        val host = system.spawn(Behaviors.monitor(probeHost.ref, Client("host2", "Gino", viewProbe.ref)), "Host2")
 
         host ! ClientMessages.CreateNewGame(gameCode = Some("host2game"))
         probeHost.receiveMessages(1)
@@ -82,7 +83,8 @@ abstract class DisconnectionNotify extends MultiNodeSpec(MultiNodeConfig) with S
 
       runOn(node2) {
         val probeClient = TestProbe[Message]()
-        val client = system.spawn(Behaviors.monitor(probeClient.ref, Client("client", "Gino")), "Client2")
+        val viewProbe = TestProbe[Message]()
+        val client = system.spawn(Behaviors.monitor(probeClient.ref, Client("client", "Gino", viewProbe.ref)), "Client2")
 
         enterBarrier("host-game-created")
 
