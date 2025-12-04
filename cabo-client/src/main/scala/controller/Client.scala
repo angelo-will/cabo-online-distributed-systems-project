@@ -4,16 +4,13 @@ import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.cluster.ClusterEvent.MemberExited
-import model.Game.{GameInConstruction, GameInProgress}
-import model.{GameParameters, PlayerInLobby, PlayerPlaying, TurnLog}
 import messages.ClientMessages.*
 import messages.GameCoordinatorMessage.{GameCoordinatorMessage, NewTurn}
+import messages.{GameCoordinatorMessage, GameViewMessages, IViewMessage, PreGameViewMessages}
+import model.Game.{GameInConstruction, GameInProgress}
+import model.{GameParameters, PlayerInLobby, PlayerPlaying, TurnLog}
 import utils.ServerMessages.{AbortGame, ServerKey}
 import utils.{Message, ServerMessages}
-import controller.ViewsProxyActor
-import messages.{GameCoordinatorMessage, GameViewMessages, IViewMessage, PreGameViewMessages}
-import view.gamephase.actors.DuringGameViewActor
-import view.lobbyphase.actors.InitialPhaseViewActor
 
 import java.util.UUID
 import scala.concurrent.duration.DurationInt
@@ -51,6 +48,8 @@ object Client:
 
   case class GameInProgressUpdate(replyTo: ActorRef[ClientInternalCommand], game: GameInProgress, turnLog: TurnLog) extends ClientInternalCommand
 
+  // messages added for test purpose
+  
   case class StartGameBehavior(thisBehavior: () => Behavior[GameCoordinatorMessage], hostRef: ActorRef[ClientInternalCommand]) extends ClientInternalCommand
 
   case class RemoveCheckPlayerStatus() extends ClientInternalCommand
@@ -123,7 +122,6 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
   }
 
   private def awaitSynchronization(ctx: ActorContext[Message], usersToWait: List[String], nextBehavior: () => Behavior[Message], ifFailure: () => Behavior[Message]): Behavior[Message] = {
-    //    val gameInProgress: GameInProgress = ???
     Behaviors.withStash(100) { buffer =>
       Behaviors.withTimers { timers =>
         var checkSync = Map.empty[String, Boolean] ++ usersToWait.map(id => id -> false)
@@ -226,7 +224,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
 //    }
 //  }
 
-  def createPlayersStatus(playersInLobby: List[PlayerInLobby], playersPlaying: List[PlayerPlaying]): List[PlayerStatus] = {
+  private def createPlayersStatus(playersInLobby: List[PlayerInLobby], playersPlaying: List[PlayerPlaying]): List[PlayerStatus] = {
 //    val idAddress = playersInLobby.map(p => (p.userID, p.address))
     val idRank = playersPlaying.map(p => (p.userID, p.rank))
 
@@ -288,9 +286,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
             //Update the game on the server
             ctx.spawnAnonymous(contactInReceptionistAndAsk
               (ServerKey)
-//              (_ ! ServerMessages.UpdateGame(game, ctx.self))
-              // todo: modificato da Angelo in vedi sotto
-                (_ ! ServerMessages.UpdateGame(gameUpdated, ctx.self))
+              (_ ! ServerMessages.UpdateGame(gameUpdated, ctx.self))
               (() => viewActorRef ! PreGameViewMessages.FailedToPublishToServer()))
 
           replyTo ! YouJoinedTheGame(gameUpdated)
@@ -332,7 +328,6 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
         game.players.filter(!_.address.equals(ctx.self)).foreach(_.address ! GameCancelled())
         ctx.system.receptionist ! Receptionist.deregister(akka.actor.typed.receptionist.ServiceKey[Message](game.code), ctx.self)
         viewActorRef ! PreGameViewMessages.GameAborted()
-        //todo - if we use the variable argument this has to be changed
         connectionHandler ! ConnectionHandler.UpdateList(List())
         start
 
@@ -353,7 +348,6 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
         //        ctx.stop(viewActorRef)
         //        val duringGameViewActor = ctx.spawn(DuringGameViewActor(userId, ctx.self, null), s"duringGameView-$userId")
         viewActorRef ! ViewsProxyActor.SwitchToGameView()
-        //todo - fix this, you can't call the method directly
         ctx.self ! StartGameBehavior(() => GameCoordinatorActor(ctx.self, viewActorRef, userId, game), ctx.self)
 
         hostBehavior(game)
@@ -374,26 +368,20 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
   private def hostWaitGameFromCoordinator(hostRef: ActorRef[ClientInternalCommand], game: GameInConstruction, gameCoordinator: ActorRef[GameCoordinatorMessage]): Behavior[Message] = {
     Behaviors.receivePartial {
       case (ctx, TakeGetInProgressGame(gameInProgress)) =>
-        //            ctx.log.info(s"Game in progress received: ${gameInProgress.code}")
         logInfo(ctx, s"Game in progress received: ${gameInProgress.code}")
         game.players.filter(!_.address.equals(ctx.self)).foreach(_.address ! GameHasStarted(hostRef, gameInProgress))
         awaitSynchronization(ctx, game.players.filter(!_.address.equals(ctx.self)).map(_.userID), () => {
-          //              ctx.log.info(s"All players synchronized, starting the game: ${gameInProgress.code}")
           logInfo(ctx, s"All players synchronized, starting the game: ${gameInProgress.code}")
-          //          viewActorRef ! DuringGameViewMessages.StartGame(gameInProgress, gameCoordinator)
           gameCoordinator ! GameCoordinatorMessage.StartGame()
-          //          viewActorRef ! InitialViewMessages.ReadyToPlay(gameCoordinator)
           inGameBehavior(gameCoordinator, createPlayersStatus(game.players, gameInProgress.players), hostRef)
         }, () => {
           //If failed to synchronize
           //Brutal policy, we abort the game
-          //              ctx.log.error(s"Failed to synchronize all players, aborting the game: ${gameInProgress.code}")
           logError(ctx, s"Failed to synchronize all players, aborting the game: ${gameInProgress.code}")
           //todo - check if this is ok
           ctx.stop(gameCoordinator)
           game.players.filter(!_.address.equals(ctx.self)).foreach(_.address ! GameCancelled())
           viewActorRef ! PreGameViewMessages.GameAborted()
-          //todo - if we use the variable argument this has to be changed
           connectionHandler ! ConnectionHandler.UpdateList(List())
           start
         })
@@ -414,7 +402,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
             gameJoined(game)
 
           case (ctx, YouCanNotJoinTheGame(game)) =>
-            ctx.log.warn("Could not join game")
+            logInfo(ctx, "Could not join game")
             viewActorRef ! PreGameViewMessages.GameJoinedFailed(game)
             //Failed to join, waiting for other commands from the user
             joiningAGame
@@ -435,7 +423,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
           logInfo(ctx,s"Games found: $games")
           viewActorRef ! PreGameViewMessages.GameList(games.toList)
         } else {
-          ctx.log.warn("No games found")
+          logInfo(ctx, "No games found")
           viewActorRef ! PreGameViewMessages.GameList(List())
         }
         Behaviors.same
@@ -446,7 +434,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
           (akka.actor.typed.receptionist.ServiceKey[Message](address))
           (_ ! IWantToPlay(PlayerInLobby(userId, name, ctx.self), ctx.self))
           //todo - add a specific message to viewActorRef
-            (() => viewActorRef ! PreGameViewMessages.FailedToPublishToServer()))
+          (() => viewActorRef ! PreGameViewMessages.FailedToPublishToServer()))
 
         responseForJoining()
 
@@ -498,21 +486,8 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
         viewActorRef ! ViewsProxyActor.SwitchToGameView()
         val gameCoordinator = ctx.spawn(GameCoordinatorActor(ctx.self, viewActorRef, userId, gameInProgress), "GameCoordinatorActor")
         gameCoordinator ! GameCoordinatorMessage.StartGame()
-        //        viewActorRef ! DuringGameViewMessages.StartGame(gameInProgress, gameCoordinator)
-
-        //todo - a joiner initially check connection only with the host, in the game he should check also with other players?
-
         connectionHandler ! ConnectionHandler.UpdateList(game.players)
         inGameBehavior(gameCoordinator, createPlayersStatus(game.players, gameInProgress.players), hostRef)
-
-      // may be useful to have a different starter as for the host?
-      //        case (ctx, StartGameBehavior(behavior, hostRef)) =>
-      //          val gameCoordinator = ctx.spawn(behavior, "GameCoordinatorActor")
-      //          viewActorRef ! InitialViewMessages.ReadyToPlay(gameCoordinator)
-      //          hostRef ! SynchronizationAck(userId)
-      //          //todo - a joiner initially check connection only with the host, in the game he should check also with other players?
-      //          connectionHandler ! ConnectionHandler.UpdateList(game.players)
-      //          inGameBehavior(gameCoordinator, game.players.map(p => p -> true).toMap, hostRef)
     })
   }
 
@@ -522,11 +497,6 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
 
     //    lazy val otherPlayers = playersStatus.filterNot(_.playerID.equals(this.userId))
     def otherPlayersOnline = playersStatus.filterNot(p => !p.isOnline || p.playerInfo.userID.equals(this.userId))
-
-    //    case class ElectionStarted(candidateRank: Int, replyTo: ActorRef[ClientInternalCommand]) extends ClientInternalCommand
-    //    case class NoYouCanNot() extends ClientInternalCommand
-    //    case class ElectionWon() extends ClientInternalCommand
-    //    case class NewHostElected(replyTo: ActorRef[ClientInternalCommand]) extends ClientInternalCommand
 
     def checkNextTurn(gameCoordinator: ActorRef[GameCoordinatorMessage], gameInProgress: GameInProgress, ctx: ActorContext[Message]): Unit = {
 
@@ -538,10 +508,8 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
         case Some(value) =>
           if (!value.isOnline) {
             //todo - ask gameCoordinator to skip the turn
-            //            ctx.log.info(s"Next turn is for offline player: ${value.playerID}, skipping turn")
             logInfo(ctx, s"Next turn is for offline player: ${value.playerInfo.userID}, skipping turn")
           } else {
-            //            ctx.log.info(s"Next turn is for player: ${value.playerID} and it is online")
             logInfo(ctx, s"Next turn is for player: ${value.playerInfo.userID} and it is online")
           }
         case None =>
@@ -640,7 +608,6 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
 
       case (ctx, TurnEnded(game, log)) =>
         logInfo(ctx,s"My turn ended: ${this.userId}")
-//        playersStatus.filter(l => !l.playerInfo.userID.equals(this.userId) && l.isOnline).map(_.playerInfo.address).foreach(_ ! GameInProgressUpdate(ctx.self, game, log))
         otherPlayersOnline.map(_.playerInfo.address).foreach(_ ! GameInProgressUpdate(ctx.self, game, log))
         awaitSynchronization(ctx, otherPlayersOnline.map(_.playerInfo.userID), () => {
           logInfo(ctx,s"All players synchronized after my turn, ${this.userId}, waiting for my turn again: ${game.code}")
@@ -652,22 +619,25 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
         })
 
       case (ctx, GameInProgressUpdate(replyTo, game, log)) =>
-        //todo - update gameCoordinator
-        //        ctx.log.info(s"Game info update: ${this.userId}")
         logInfo(ctx, s"Game info update")
         gameCoordinator ! NewTurn(game, log)
-        //todo - sync to all the players, wait for gameCoordinator ack?
-        withShared({
-          case (ctx, TurnUpdated()) =>
-            //            ctx.log.info(s"GameCoordinator updated the turn")
-            logInfo(ctx, s"GameCoordinator updated the turn")
-            replyTo ! SynchronizationAck(userId)
-            inGameBehavior(gameCoordinator, playersStatus, hostRef)
-        })
+        //todo - take in consideration if the coordinator doesn't update
+        Behaviors.withStash(50) { buffer =>
+          withShared({
+            case (ctx, TurnUpdated()) =>
+              logInfo(ctx, s"GameCoordinator updated the turn")
+              replyTo ! SynchronizationAck(userId)
+              buffer.unstashAll(inGameBehavior(gameCoordinator, playersStatus, hostRef))
+
+            case (ctx, other) =>
+              logInfo(ctx, s"Stashing message until turn is updated: $other")
+              buffer.stash(other)
+              Behaviors.same
+          })
+        }
 
       case (ctx, LeaveTheGame()) =>
         //todo
-        //        ctx.log.info(s"Leaving game, informing other players like I am unreachable")
         logInfo(ctx, s"Leaving game, informing other players like I am unreachable")
         otherPlayersOnline.foreach(_.playerInfo.address ! PlayerUnreachable(PlayerInLobby(userId, name, ctx.self)))
         returnToStart(ctx)
@@ -679,24 +649,18 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
       // GAME LOGIC LEVEL MESSAGES - END
 
       case (ctx, PlayerUnreachable(playerInLobby)) =>
-        //todo - host management
-
         playersStatus.find(_.playerInfo.userID == playerInLobby.userID) match {
           case None =>
-            //            ctx.log.warn(s"Received unreachable for unknown player: ${playerInLobby.userID}")
             logError(ctx, s"Received unreachable for unknown player: ${playerInLobby.userID}")
             inGameBehavior(gameCoordinator, playersStatus, hostRef)
           case Some(p) =>
             if !p.isOnline then
-              //              ctx.log.info(s"Received unreachable for already offline player: ${p.playerID}")
               logInfo(ctx, s"Received unreachable for already offline player: ${p.playerInfo.userID}")
               inGameBehavior(gameCoordinator, playersStatus, hostRef)
             else {
               logInfo(ctx,s"Player: ${playerInLobby.userID} is unreachable")
 
               //todo - inform view
-
-              //              otherPlayers.foreach(_.address ! PlayerUnreachable(playerInLobby))
 
               val onlineUpdate = playersStatus.map { ps =>
                 if ps.playerInfo.userID == playerInLobby.userID then
@@ -709,23 +673,14 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
               connectionHandler ! ConnectionHandler.UpdateList(onlineUpdate.filter(_.isOnline).map(_.playerInfo))
 
               if p.playerInfo.address equals hostRef then {
-                //                ctx.log.info(s"Player: ${playerInLobby.userID} was the host, starting election")
                 logInfo(ctx, s"Player: ${playerInLobby.userID} was the host, starting election")
                 //start election
                 val myRank = playersStatus.find(_.playerInfo.userID == userId).map(_.rank).getOrElse(-1)
-                //                otherPlayers.filter(p => p.isOnline && p.rank < myRank).foreach(_.address ! ElectionStarted(myRank, ctx.self))
                 onlineUpdate.filter(p => !p.playerInfo.userID.equals(this.userId) && p.isOnline && p.rank < myRank).foreach(_.playerInfo.address ! ElectionStarted(myRank, ctx.self))
                 Behaviors.withTimers(timer => {
                   timer.startSingleTimer(ElectionWon(), 5.seconds)
                   inElectionBehavior(myRank)
-                  //                  Behaviors.receiveMessagePartial {
-                  //                    case NoYouCanNot() =>
-                  //                      logInfo(ctx, "Someone has a lower rank, stopping my election")
-                  //                      timer.cancelAll()
-                  //                      inGameBehavior(gameCoordinator, onlineUpdate, hostRef)
-                  //                  }
                 })
-                //                  inGameBehavior(gameCoordinator, onlineUpdate, hostRef)
               } else
                 inGameBehavior(gameCoordinator, onlineUpdate, hostRef)
             }
@@ -735,40 +690,20 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
       // ELECTION HOST LOGIC MESSAGES - START
       case (ctx, ElectionStarted(candidateRank, replyTo)) =>
         //another player is starting an election
-        //        ctx.log.info(s"Election started by another player: ${replyTo}")
         logInfo(ctx, s"Election started by another player: ${replyTo}")
         val myRank = playersStatus.find(_.playerInfo.userID == userId).map(_.rank).getOrElse(-1)
         if myRank < candidateRank then {
           //i have lower rank, so i can not accept the election
-          //          ctx.log.info(s"My rank ($myRank) is lower than sender rank ($candidateRank), refusing election")
           logInfo(ctx, s"My rank ($myRank) is lower than sender rank ($candidateRank), refusing election")
           replyTo ! NoYouCanNot()
           // i start my own election
-//          otherPlayersOnline.filter(p => p.isOnline && p.rank < myRank).foreach(_.playerInfo.address ! ElectionStarted(myRank, ctx.self))
           otherPlayersOnline.filter(_.rank < myRank).foreach(_.playerInfo.address ! ElectionStarted(myRank, ctx.self))
           inElectionBehavior(myRank)
-          //          Behaviors.withTimers(timer => {
-          //            timer.startSingleTimer(ElectionWon(), 5.seconds)
-          //            inGameBehavior(gameCoordinator, playersStatus, hostRef)
-          //          })
         } else {
           inGameBehavior(gameCoordinator, playersStatus, hostRef)
         }
 
-      //      case (ctx, ElectionWon()) =>
-      //        //i won the election
-      //        logInfo(ctx,s"I won the election, becoming the new host")
-      //        logInfo(ctx, s"I won the election, becoming the new host")
-      //        otherPlayers.filter(p => p.isOnline).foreach(_.address ! NewHostElected(ctx.self))
-      //        inGameBehavior(gameCoordinator, playersStatus, ctx.self)
-      //
-      //      case (ctx, NewHostElected(replyTo)) =>
-      //        logInfo(ctx,s"New host elected: $replyTo")
-      //        logInfo(ctx, s"New host elected: $replyTo")
-      //        inGameBehavior(gameCoordinator, playersStatus, replyTo)
-
-
-
+        // messages for test purpose
       case (ctx, RemoveCheckPlayerStatus()) =>
         logInfo(ctx, s"Removing player status checking, clearing player list")
         connectionHandler ! ConnectionHandler.UpdateList(List())
