@@ -49,7 +49,7 @@ object Client:
   case class GameInProgressUpdate(replyTo: ActorRef[ClientInternalCommand], game: GameInProgress, turnLog: TurnLog) extends ClientInternalCommand
 
   // messages added for test purpose
-  
+
   case class StartGameBehavior(thisBehavior: () => Behavior[GameCoordinatorMessage], hostRef: ActorRef[ClientInternalCommand]) extends ClientInternalCommand
 
   case class RemoveCheckPlayerStatus() extends ClientInternalCommand
@@ -498,6 +498,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
     //    lazy val otherPlayers = playersStatus.filterNot(_.playerID.equals(this.userId))
     def otherPlayersOnline = playersStatus.filterNot(p => !p.isOnline || p.playerInfo.userID.equals(this.userId))
 
+    // used by the host to check if who has the next turn is online, if not, it will skip the turn
     def checkNextTurn(gameCoordinator: ActorRef[GameCoordinatorMessage], gameInProgress: GameInProgress, ctx: ActorContext[Message]): Unit = {
 
       logInfo(ctx,s"Checking who has turn after ${gameInProgress.currentRound} in game: ${gameInProgress.code}")
@@ -571,7 +572,6 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
       start
     }
 
-    //todo - receive GameCancelled if the host failed to synchronize with the other players
     //todo - initial phase when exchanging log about cards viewed
     withShared({
       // GAME LOGIC LEVEL MESSAGES - START
@@ -605,6 +605,11 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
         Behaviors.same
       // todo: aggiunti da Angelo fino che non è definito come far passare la fase di reveal delle carte - END
 
+      // send by the host when it cannot synchronize all the players at the start of the game
+      case (ctx, GameCancelled()) =>
+        logInfo(ctx,s"Game has been cancelled, returning to initial phase")
+        //todo - which message to send to the view?
+        returnToStart(ctx)
 
       case (ctx, TurnEnded(game, log)) =>
         logInfo(ctx,s"My turn ended: ${this.userId}")
