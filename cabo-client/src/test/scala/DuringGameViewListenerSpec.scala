@@ -1,10 +1,8 @@
 import akka.actor.testkit.typed.scaladsl.{ScalaTestWithActorTestKit, TestProbe}
-import akka.actor.typed.ActorRef
-import messages.GameCoordinatorMessage
+import messages.{IViewUserCommand, ViewUserCommandMessages as VUCMsg}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatest.wordspec.AnyWordSpecLike
-import utils.Message
 import view.lobbyphase.ViewListener.IDuringGameViewListener
 import view.gamephase.actors.DuringGameViewListener
 
@@ -18,91 +16,85 @@ class DuringGameViewListenerSpec extends ScalaTestWithActorTestKit
 
   import org.scalatest.matchers.must.Matchers.mustBe
 
-  private var gameCoordinatorActor: ActorRef[Message] = _
-  private var testProbe: TestProbe[Message] = _
+  private var testProbe: TestProbe[IViewUserCommand] = _
 
   override def beforeEach(): Unit = {
     super.beforeEach()
-    testProbe = createTestProbe[Message]()
+    testProbe = createTestProbe[IViewUserCommand]()
   }
 
   "During Game view listener" must {
-    "send message of show a card" when {
-      "method to show card is called" in {
+    "send message card selected" when {
+      "the method is called" in {
         val duringGameActionListener: IDuringGameViewListener = DuringGameViewListener(testProbe.ref)
         val index = 2
-        duringGameActionListener.showCardNth(index)
-        val cardIndex = testProbe.expectMessageType[GameCoordinatorMessage.ShowYourNthCard](FiniteDuration(3, SECONDS))
+        duringGameActionListener.ownCardSelected(index)
+        val cardIndex = testProbe.expectMessageType[VUCMsg.OwnCardSelected](FiniteDuration(3, SECONDS))
         cardIndex.index mustBe index
       }
     }
-    "send message to draw from deck" when {
+    "send message deck selected" when {
       "method to draw from deck is called" in {
         val duringGameActionListener: IDuringGameViewListener = DuringGameViewListener(testProbe.ref)
         duringGameActionListener.drawFromDeck()
-        testProbe.expectMessageType[GameCoordinatorMessage.DrawCardFromDeck](FiniteDuration(3, SECONDS))
+        testProbe.expectMessageType[VUCMsg.DeckSelected](FiniteDuration(3, SECONDS))
       }
     }
-    "send message to draw from discard stack" when {
+    "send message discard stack selected" when {
       "method to draw from discard stack is called" in {
         val duringGameActionListener: IDuringGameViewListener = DuringGameViewListener(testProbe.ref)
         duringGameActionListener.drawFromDiscard()
-        testProbe.expectMessageType[GameCoordinatorMessage.DrawCardFromDiscardStack](FiniteDuration(3, SECONDS))
+        testProbe.expectMessageType[VUCMsg.DiscardStackSelected](FiniteDuration(3, SECONDS))
       }
     }
-    "send message to discard the drawn card" when {
+    "send message discard the drawn card selected" when {
       "method to discard the drawn card is called" in {
         val duringGameActionListener: IDuringGameViewListener = DuringGameViewListener(testProbe.ref)
         duringGameActionListener.discardCardDrawn()
-        testProbe.expectMessageType[GameCoordinatorMessage.DiscardCardDrawn](FiniteDuration(3, SECONDS))
-      }
-    }
-    "send message to discard a specific card" when {
-      "method to discard a specific card is called" in {
-        val duringGameActionListener: IDuringGameViewListener = DuringGameViewListener(testProbe.ref)
-        val index = 1
-        duringGameActionListener.discardCardNth(index)
-        val cardIndex = testProbe.expectMessageType[GameCoordinatorMessage.DiscardYourNthCard](FiniteDuration(3, SECONDS))
-        cardIndex.index mustBe index
-      }
-    }
-    "send message to show an adversary's specific card" when {
-      "method to show an adversary's specific card is called" in {
-        val duringGameActionListener: IDuringGameViewListener = DuringGameViewListener(testProbe.ref)
-        val adversaryID = "adversaryID"
-        val adversaryNthCard = 1
-        duringGameActionListener.showAdversaryNthCard(adversaryID, adversaryNthCard)
-        val msg = testProbe.expectMessageType[GameCoordinatorMessage.ShowAdversaryNthCard](FiniteDuration(3, SECONDS))
-        msg.playerID mustBe adversaryID
-        msg.cardIndex mustBe adversaryNthCard
-      }
-    }
-    "send message to swap a specific card with an adversary's specific card" when {
-      "method to swap a specific card with an adversary's specific card is called" in {
-        val duringGameActionListener: IDuringGameViewListener = DuringGameViewListener(testProbe.ref)
-        val ownCardIndex = 1
-        val adversaryID = "adversaryID"
-        val adversaryCardIndex = 2
-        duringGameActionListener.swapCardWithAdversaryNthCard(ownCardIndex, adversaryID, adversaryCardIndex)
-        val msg = testProbe.expectMessageType[GameCoordinatorMessage.ReplaceOwnNthCardWithAdversaryNthOne](FiniteDuration(3, SECONDS))
-        msg.ownCardIndex mustBe ownCardIndex
-        msg.adversaryID mustBe adversaryID
-        msg.adversaryCardIndex mustBe adversaryCardIndex
-      }
-    }
-    "send message to end the turn" when {
-      "method to end the turn is called" in {
-        val duringGameActionListener: IDuringGameViewListener = DuringGameViewListener(testProbe.ref)
-        duringGameActionListener.endTurn()
-        testProbe.expectMessageType[GameCoordinatorMessage.EndTurn](FiniteDuration(3, SECONDS))
-      }
-    }
-    "send message to call cabo" when {
-      "method to call cabo is called" in {
-        val duringGameActionListener: IDuringGameViewListener = DuringGameViewListener(testProbe.ref)
-        duringGameActionListener.callCabo()
-        testProbe.expectMessageType[GameCoordinatorMessage.CallCabo](FiniteDuration(3, SECONDS))
+        testProbe.expectMessageType[VUCMsg.DiscardCardDrawnSelected](FiniteDuration(3, SECONDS))
       }
     }
 
+    "send message adversary's card selected" when {
+      "method to select adversary's specific card is called" in {
+        val duringGameActionListener: IDuringGameViewListener = DuringGameViewListener(testProbe.ref)
+        val adversaryID = "adversaryID"
+        val adversaryNthCard = 1
+        duringGameActionListener.adversaryCardSelected(adversaryID, adversaryNthCard)
+        val msg = testProbe.expectMessageType[VUCMsg.AdversaryCardSelected](FiniteDuration(3, SECONDS))
+        msg.adversaryID mustBe adversaryID
+        msg.index mustBe adversaryNthCard
+      }
+    }
+
+    "send message end turn selected" when {
+      "method to end the turn is called" in {
+        val duringGameActionListener: IDuringGameViewListener = DuringGameViewListener(testProbe.ref)
+        duringGameActionListener.endTurn()
+        testProbe.expectMessageType[VUCMsg.EndTurnSelected](FiniteDuration(3, SECONDS))
+      }
+    }
+    "send message call cabo selected" when {
+      "method to call cabo is called" in {
+        val duringGameActionListener: IDuringGameViewListener = DuringGameViewListener(testProbe.ref)
+        duringGameActionListener.callCabo()
+        testProbe.expectMessageType[VUCMsg.CallCaboSelected](FiniteDuration(3, SECONDS))
+      }
+    }
+
+    "send message exit selected selected" when {
+      "method to exit is called" in {
+        val duringGameActionListener: IDuringGameViewListener = DuringGameViewListener(testProbe.ref)
+        duringGameActionListener.exit()
+        testProbe.expectMessageType[VUCMsg.ExitSelected](FiniteDuration(3, SECONDS))
+      }
+    }
+
+    "send message consulting results ended" when {
+      "method to end consulting results is called" in {
+        val duringGameActionListener: IDuringGameViewListener = DuringGameViewListener(testProbe.ref)
+        duringGameActionListener.consultingResultsEnded()
+        testProbe.expectMessageType[VUCMsg.ConsultingResultsEnded](FiniteDuration(3, SECONDS))
+      }
+    }
   }
