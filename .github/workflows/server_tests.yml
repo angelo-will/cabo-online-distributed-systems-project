@@ -1,20 +1,31 @@
-name: Scala Tests
+name: Server Tests
 
 on:
   push:
     branches:
-      - test-actions
-      - feature/add_github_actions
-      - feature/distribuited_data_for_server
+      - develop
+      - fix/ci-akka
+    paths:
+      - 'cabo-server/**'
+      - 'cabo-commons/**'
+      - 'build.sbt'
+      - 'project/**'
+      - '.github/workflows/server_tests.yml'
   pull_request:
     branches:
-      - test-actions
-      - feature/add_github_actions
-      - feature/distribuited_data_for_server
+      - develop
+      - fix/ci-akka
+    paths:
+      - 'cabo-server/**'
+      - 'cabo-commons/**'
+      - 'build.sbt'
+      - 'project/**'
+      - '.github/workflows/server_tests.yml'
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
       - name: Checkout code
@@ -26,8 +37,22 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
+      # --- INIZIO NUOVO BLOCCO CACHE ---
+      - name: Cache sbt
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.sbt
+            ~/.ivy2/cache
+            ~/.coursier/cache
+          key: ${{ runner.os }}-sbt-${{ hashFiles('**/build.sbt') }}
+          restore-keys: |
+            ${{ runner.os }}-sbt-
+      # --- FINE NUOVO BLOCCO CACHE ---
+
       - name: Setup sbt launcher
         uses: sbt/setup-sbt@v1
 
-      - name: Build and Test
-        run: sbt +test
+      - name: Build and Test Server
+        # Esegue i test solo sul progetto 'server' (che include commons)
+        run: sbt "project server" test
