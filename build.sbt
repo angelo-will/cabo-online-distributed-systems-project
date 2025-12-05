@@ -2,9 +2,11 @@ ThisBuild / version := "0.1.0-SNAPSHOT"
 
 ThisBuild / scalaVersion := "3.3.3"
 
-ThisBuild / resolvers += "Akka library repository".at("https://repo.akka.io/maven")
+//ThisBuild / resolvers += "Akka library repository".at("https://repo.akka.io/maven")
 
-val akkaVersion = "2.9.3"
+//val akkaVersion = "2.9.3"
+val akkaVersion = "2.6.20"
+val x = "to trigger new buil"
 
 lazy val deps = Seq(
   "com.typesafe.akka" %% "akka-actor-typed" % akkaVersion, // For standard log configuration
