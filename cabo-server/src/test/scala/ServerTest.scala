@@ -20,7 +20,7 @@ class ServerTest extends ScalaTestWithActorTestKit
   import org.scalatest.matchers.must.Matchers.mustBe
 
   val serverCode = "TestServer"
-  var server: ActorRef[Message] = _
+  var server: ActorRef[Message] = testKit.spawn(Server())
   var testProbe: TestProbe[Message] = _
 
   override def beforeAll(): Unit =
@@ -28,15 +28,15 @@ class ServerTest extends ScalaTestWithActorTestKit
     cluster.manager.tell(Join.create(cluster.selfMember.address))
 
   override def beforeEach(): Unit =
-    server = testKit.spawn(Server())
+//    server = testKit.spawn(Server())
     testProbe = testKit.createTestProbe[Message]()
 
   override def afterEach(): Unit =
     // Clear the server's game list after each test to avoid state leakage
+    server ! ClearGames(testProbe.ref)
+    testProbe.expectMessage(GamesCleared(server))
 
     eventually(timeout(3.seconds), interval(100.millis)) {
-      server ! ClearGames(testProbe.ref)
-      testProbe.expectMessage(GamesCleared(server))
       server ! GetGames(testProbe.ref)
       testProbe.expectMessage(GamesList(Set()))
     }

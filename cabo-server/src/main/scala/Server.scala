@@ -22,7 +22,7 @@ object Server:
 
   private case class InternalUpdateResponse(rsp: UpdateResponse[ORSet[GameInConstruction]], game: GameInConstruction, replyTo: ActorRef[Message]) extends InternalCommand
 
-  private case class InternalRemoveResponse(rsp: UpdateResponse[ORSet[GameInConstruction]], onComplete: () => Unit) extends InternalCommand
+  private case class InternalRemoveResponse(rsp: UpdateResponse[ORSet[GameInConstruction]]) extends InternalCommand
 
   private case class InternalGetResponse(rsp: GetResponse[ORSet[GameInConstruction]], replyTo: ActorRef[Message]) extends InternalCommand
 
@@ -43,7 +43,7 @@ object Server:
       val listOfGames = ORSetKey[GameInConstruction]("listOfGames")
       replicatorAdapter.subscribe(listOfGames, InternalSubscribeResponse.apply)
 
-      def removeGameFromList(game: GameInConstruction, onComplete: () => Unit): Unit = {
+      def removeGameFromList(game: GameInConstruction): Unit = {
         replicatorAdapter.askUpdate(
           askReplyTo => Update(listOfGames, ORSet.empty, writeLocal, askReplyTo) { currentSet =>
             val gameToRemove = currentSet.elements.find(_.code == game.code)
@@ -53,7 +53,8 @@ object Server:
               case None => currentSet
             }
           },
-          rsp => InternalRemoveResponse(rsp, onComplete)
+          InternalRemoveResponse.apply
+//          rsp => InternalRemoveResponse(rsp, onComplete)
         )
       }
 
@@ -80,22 +81,12 @@ object Server:
 
         case StartGame(game, ref) =>
           ctx.log.info(s"Game started: $game, deleting from list")
-          removeGameFromList(game, () => {
-            replicatorAdapter.askGet(
-              askReplyTo => Get(listOfGames, Replicator.ReadLocal, askReplyTo),
-              rsp => InternalGetResponse(rsp, ref)
-            )
-          })
+          removeGameFromList(game)
           Behaviors.same
 
         case AbortGame(game, ref) =>
           ctx.log.info(s"Deleting game: $game")
-          removeGameFromList(game, () => {
-            replicatorAdapter.askGet(
-              askReplyTo => Get(listOfGames, Replicator.ReadLocal, askReplyTo),
-              rsp => InternalGetResponse(rsp, ref)
-            )
-          })
+          removeGameFromList(game)
           Behaviors.same
 
         case GetGames(ref) =>
@@ -155,12 +146,11 @@ object Server:
           ref ! GamesCleared(ctx.self)
           Behaviors.same
 
-        case InternalRemoveResponse(_: UpdateSuccess[_], onComplete) =>
+        case InternalRemoveResponse(_: UpdateSuccess[_]) =>
           ctx.log.info(s"Removed game from the list")
-          onComplete()
           Behaviors.same
 
-        case InternalRemoveResponse(_: UpdateFailure[_], onComplete) =>
+        case InternalRemoveResponse(_: UpdateFailure[_]) =>
           ctx.log.info(s"Failed to removed game from the list")
           Behaviors.same
 
@@ -170,7 +160,7 @@ object Server:
           val gameToRemove = data.elements.find(_.code == gameUpdated.code)
           gameToRemove match
             case Some(value) =>
-              removeGameFromList(value, () => {})
+              removeGameFromList(value)
               addGameInList(gameUpdated, ref)
             case None => ref ! FailedToUpdate(gameUpdated, ctx.self)
           Behaviors.same
