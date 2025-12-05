@@ -4,8 +4,8 @@ ThisBuild / scalaVersion := "3.3.3"
 
 //ThisBuild / resolvers += "Akka library repository".at("https://repo.akka.io/maven")
 
-//val akkaVersion = "2.9.3"
-val akkaVersion = "2.6.20"
+val akkaVersion = "2.8.8"
+//val akkaVersion = "2.6.19"
 val x = "to trigger new buil"
 
 lazy val deps = Seq(
@@ -21,6 +21,7 @@ lazy val deps = Seq(
 
 lazy val clientDeps = deps ++ Seq(
   "org.scala-lang.modules" %% "scala-swing" % "3.0.0",
+  "com.thesamet.scalapb" %% "scalapb-runtime" % "0.11.17"
 )
 
 lazy val root = (project in file("."))
