@@ -15,14 +15,15 @@ import org.scalatest.concurrent.Futures.{interval, timeout}
 import messages.ClientMessages.{JoinAddress, StartTheGame, TakeGetInProgressGame}
 import utils.Message
 
+import scala.concurrent.Await
 import scala.concurrent.duration.DurationInt
 import scala.language.implicitConversions
 
-class SingleElectionMultiJvmNode1 extends SingleElection
-class SingleElectionMultiJvmNode2 extends SingleElection
-class SingleElectionMultiJvmNode3 extends SingleElection
+class EventuallyElectionMultiJvmNode1 extends EventuallyElection
+class EventuallyElectionMultiJvmNode2 extends EventuallyElection
+class EventuallyElectionMultiJvmNode3 extends EventuallyElection
 
-abstract class SingleElection extends MultiNodeSpec(MultiNodeConfig) with STMultiNodeSpec with ImplicitSender{
+abstract class EventuallyElection extends MultiNodeSpec(MultiNodeConfig) with STMultiNodeSpec with ImplicitSender {
 
   import MultiNodeConfig.*
 
@@ -49,30 +50,27 @@ abstract class SingleElection extends MultiNodeSpec(MultiNodeConfig) with STMult
       testConductor.enter("all-up")
     }
 
-    "change host if the host disconnects with a single election" in {
-      // This test can be implemented similarly by having the host disconnect and verifying that another player is promoted to host.
-
-      // node1 is a joinee because node2 will be the host and disconnect
+    "change host if the host disconnects with multiple elections" in {
       runOn(node1) {
         // Client code
         val probeClient = TestProbe[Message]()
         val viewProbe = TestProbe[Message]()
-        val client = system.spawn(Behaviors.monitor(probeClient.ref, Client("client3-1", "Gino", viewProbe.ref)), "Client3-1")
+        val client = system.spawn(Behaviors.monitor(probeClient.ref, Client("client5-1/", "Gino", viewProbe.ref)), "client5-1")
 
         enterBarrier("game-created")
 
         val probe = TestProbe[Receptionist.Listing]()
         eventually(timeout(3.seconds), interval(100.millis)) {
-          typedSystem.receptionist ! Receptionist.Find(ServiceKey[Message]("host3game"), probe.ref)
+          typedSystem.receptionist ! Receptionist.Find(ServiceKey[Message]("host5game"), probe.ref)
           val listing = probe.receiveMessage()
-          assert(listing.serviceInstances(ServiceKey[Message]("host3game")).map(_.path.name).contains("Host3"))
+          assert(listing.serviceInstances(ServiceKey[Message]("host5game")).map(_.path.name).contains("Host4"))
         }
 
         client ! ClientMessages.JoinAGame()
         probeClient.expectMessage(ClientMessages.JoinAGame())
 
-        client ! JoinAddress("host3game")
-        probeClient.expectMessage(ClientMessages.JoinAddress("host3game"))
+        client ! JoinAddress("host5game")
+        probeClient.expectMessage(ClientMessages.JoinAddress("host5game"))
 
         probeClient.expectMessageType[YouJoinedTheGame]
 
@@ -86,15 +84,15 @@ abstract class SingleElection extends MultiNodeSpec(MultiNodeConfig) with STMult
 
         probeClient.expectMessageType[GameHasStarted]
 
-        enterBarrier("removed-host-check")
+        val exitFuture = testConductor.exit(node2, 0)
+        Await.result(exitFuture, 30.seconds)
 
-        testConductor.exit(node2, 0)
+        enterBarrier("host5-removed")
 
-        val m = probeClient.expectMessageType[PlayerUnreachable]
-
-        assert(m.playerInLobby.userID contains "host3")
-
-        probeClient.expectMessageType[ElectionWon](10.seconds)
+        eventually(timeout(10.seconds), interval(500.millis)) {
+          val m = probeClient.receiveMessage()
+          assert(m.isInstanceOf[ElectionWon])
+        }
 
       }
 
@@ -102,16 +100,16 @@ abstract class SingleElection extends MultiNodeSpec(MultiNodeConfig) with STMult
         // Host code
         val probeHost = TestProbe[Message]()
         val viewProbe = TestProbe[Message]()
-        val host = system.spawn(Behaviors.monitor(probeHost.ref, Client("host3", "Gino", viewProbe.ref)), "Host3")
+        val host = system.spawn(Behaviors.monitor(probeHost.ref, Client("host5", "Gino", viewProbe.ref)), "Host4")
 
-        host ! ClientMessages.CreateNewGame(gameCode = Some("host3game"))
+        host ! ClientMessages.CreateNewGame(gameCode = Some("host5game"))
         probeHost.receiveMessages(1)
 
         val probe = TestProbe[Receptionist.Listing]()
         eventually(timeout(3.seconds), interval(100.millis)) {
-          typedSystem.receptionist ! Receptionist.Find(ServiceKey[Message]("host3game"), probe.ref)
+          typedSystem.receptionist ! Receptionist.Find(ServiceKey[Message]("host5game"), probe.ref)
           val listing = probe.receiveMessage()
-          assert(listing.serviceInstances(ServiceKey[Message]("host3game")).contains(host))
+          assert(listing.serviceInstances(ServiceKey[Message]("host5game")).contains(host))
         }
 
         enterBarrier("game-created")
@@ -133,27 +131,21 @@ abstract class SingleElection extends MultiNodeSpec(MultiNodeConfig) with STMult
 
         enterBarrier("game-started")
 
-        // theoretically not necessary but to keep the barriers aligned
-        enterBarrier("removed-host-check")
-
-        // now die to simulate host failure
-
       }
-
 
       runOn(node3) {
         // Another Client code
         val probeClient = TestProbe[Message]()
         val viewProbe = TestProbe[Message]()
-        val client = system.spawn(Behaviors.monitor(probeClient.ref, Client("client3-2", "Gino", viewProbe.ref)), "Client3-2")
+        val client = system.spawn(Behaviors.monitor(probeClient.ref, Client("client5-2/", "Gino", viewProbe.ref)), "client5-2")
 
         enterBarrier("game-created")
 
         val probe = TestProbe[Receptionist.Listing]()
         eventually(timeout(3.seconds), interval(100.millis)) {
-          typedSystem.receptionist ! Receptionist.Find(ServiceKey[Message]("host3game"), probe.ref)
+          typedSystem.receptionist ! Receptionist.Find(ServiceKey[Message]("host5game"), probe.ref)
           val listing = probe.receiveMessage()
-          assert(listing.serviceInstances(ServiceKey[Message]("host3game")).map(_.path.name).contains("Host3"))
+          assert(listing.serviceInstances(ServiceKey[Message]("host5game")).map(_.path.name).contains("Host4"))
         }
 
         enterBarrier("player2-joined")
@@ -161,8 +153,8 @@ abstract class SingleElection extends MultiNodeSpec(MultiNodeConfig) with STMult
         client ! ClientMessages.JoinAGame()
         probeClient.expectMessage(ClientMessages.JoinAGame())
 
-        client ! JoinAddress("host3game")
-        probeClient.expectMessage(ClientMessages.JoinAddress("host3game"))
+        client ! JoinAddress("host5game")
+        probeClient.expectMessage(ClientMessages.JoinAddress("host5game"))
 
         probeClient.expectMessageType[YouJoinedTheGame]
 
@@ -172,16 +164,17 @@ abstract class SingleElection extends MultiNodeSpec(MultiNodeConfig) with STMult
 
         probeClient.expectMessageType[GameHasStarted]
 
-        client ! RemoveCheckPlayerStatus()
-        probeClient.expectMessageType[RemoveCheckPlayerStatus]
+        enterBarrier("host5-removed")
 
-        enterBarrier("removed-host-check")
+        eventually(timeout(10.seconds), interval(500.millis)) {
+          val m = probeClient.receiveMessage()
+          assert(m.isInstanceOf[NewHostElected])
+          assert(m.asInstanceOf[NewHostElected].replyTo.toString.toLowerCase contains "client5-1")
+        }
 
-        val m = probeClient.expectMessageType[NewHostElected](10.seconds)
-
-        assert(m.replyTo.toString.toLowerCase contains "client3-1")
       }
     }
     enterBarrier("test-completed")
   }
+
 }
