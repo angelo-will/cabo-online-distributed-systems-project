@@ -25,7 +25,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 15 # Sicurezza per evitare loop infiniti
+    timeout-minutes: 15
 
     steps:
       - name: Checkout code
@@ -37,7 +37,6 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      # --- INIZIO NUOVO BLOCCO CACHE ---
       - name: Cache sbt
         uses: actions/cache@v3
         with:
@@ -48,11 +47,15 @@ jobs:
           key: ${{ runner.os }}-sbt-${{ hashFiles('**/build.sbt') }}
           restore-keys: |
             ${{ runner.os }}-sbt-
-      # --- FINE NUOVO BLOCCO CACHE ---
 
       - name: Setup sbt launcher
         uses: sbt/setup-sbt@v1
 
-      - name: Build and Test Client
-        # Esegue i test solo sul progetto 'client' e le sue dipendenze
-        run: sbt "project client" test
+      - name: "Build: Compile Client and Commons Modules"
+        run: sbt "project client" compile
+
+      - name: "Test: Client Actor Logic (ClientTest)"
+        run: sbt "project client" "testOnly ClientTest"
+
+      - name: "Test: Game Coordinator Logic (GameCoordinatorActorSpec)"
+        run: sbt "project client" "testOnly GameCoordinatorActorSpec"
