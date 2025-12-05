@@ -15,7 +15,6 @@ object GameCoordinatorActor:
 
   import akka.actor.typed.ActorRef
 
-  import utils.Message
   import model.CardStack
   import model.GameStatus
   import model.Game
@@ -273,6 +272,10 @@ object GameCoordinatorActor:
       ctx.log.info(s"I draw $topCard from discard stack")
       gameData.turnLog.addEvent(TurnEvent.DrawCardFromDiscardStack(topCard))
       gameData.viewReference ! DGVMsg.CardDrawn(topCard)
+      if newDiscardStack.cards.isEmpty then
+        gameData.viewReference ! DGVMsg.EmptyDiscardStack()
+      else
+        gameData.viewReference ! DGVMsg.NewTopCardDiscardStack(newDiscardStack.cards.head)
       val newTempGame = gameData.temporaryGame.copy(discardDeckStack = newDiscardStack)
       myTurnAfterDrawFromDiscard(gameData.copy(temporaryGame = newTempGame), topCard)
   }
@@ -312,7 +315,9 @@ object GameCoordinatorActor:
                                     nextBehaviors: GameData => Behavior[GameCoordinatorMessage]
                                   ): PartialFunction[(ActorContext[GameCoordinatorMessage], GameCoordinatorMessage), Behavior[GameCoordinatorMessage]] = {
     case (ctx, GCMsg.SendGameStatus(ref)) =>
-      ref ! DGVMsg.GameInformation(gameData.game)
+      // todo: which keep?
+      //ref ! GCMsg.GameInformation(gameData.game)
+      ref ! GCMsg.GameInformation(gameData.temporaryGame)
       nextBehaviors(gameData)
   }
 
@@ -333,7 +338,7 @@ object GameCoordinatorActor:
       val playerIDHaveToPlay = getPlayerIDWhoHasToPlay(actualGame)
       val isGameEnded = gameEnded(actualGame, playerIDHaveToPlay)
       val isMyTurnNext = playerIDHaveToPlay == gameData.playerOwnUserID
-
+      ctx.log.info(s"Next player who play is $playerIDHaveToPlay, isMyTurnNext = $isMyTurnNext")
       isGameEnded match
         case NotEnded() =>
           newGameData.viewReference ! DGVMsg.LastTurnPlayed(turnLog, actualGame)
@@ -345,10 +350,13 @@ object GameCoordinatorActor:
         case _ => transitionToShowingResults(isGameEnded, newGameData, turnLog)
     case (ctx, GCMsg.GetEmptyTurn(userID)) =>
       ctx.log.info(s"GetEmptyTurn received")
-      val actualTurn = gameData.game.currentRound + 1
+      val actualTurn = gameData.game.currentRound
       val gameTurnUpdated = gameData.game.copy(currentRound = actualTurn)
       val log = new DuringGameTurnLog(userID, actualTurn)
       log.addEvent(TurnEvent.JumpTurnForDisconnection())
+      println(s"------ GAME ACTUAL v ------ ${gameData.game}")
+      println(s"------ GAME GENERATED v ------ $gameTurnUpdated")
+      println(s"log created $log")
       gameData.clientReference ! CLMsg.TurnEnded(gameTurnUpdated, log)
       Behaviors.same
   }
@@ -418,6 +426,7 @@ object GameCoordinatorActor:
       val newGameData = gameData.copy(temporaryGame = gameData.game, turnLog = newTurnLogJumping)
       gameData.viewReference ! DGVMsg.EndTurnByTimeEnded()
       gameData.clientReference ! CLMsg.TurnEnded(newGameData.game, newGameData.turnLog)
+      ctx.self ! GCMsg.NewTurn(newGameData.game, newGameData.turnLog)
       notMyTurn(newGameData)
   }
 

@@ -66,8 +66,6 @@ object GameViewMessages {
    */
   case class EmptyDiscardStack() extends IGameViewMessage
 
-  case class GameInformation(game: Game.GameInProgress) extends IGameViewMessage
-
   /**
    * Notify to actor the previously card requested.
    *
