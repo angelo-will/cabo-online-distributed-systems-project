@@ -2,6 +2,7 @@ package model
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
+import utils.CborSerializable
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
 @JsonSubTypes(
@@ -12,7 +13,7 @@ import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
     new JsonSubTypes.Type(value = classOf[Suit.Hearts], name = "hearts")
   )
 )
-abstract class Suit(val name: String, val shortName: String)
+abstract class Suit(val name: String, val shortName: String) extends CborSerializable
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
 @JsonSubTypes(
@@ -32,7 +33,7 @@ abstract class Suit(val name: String, val shortName: String)
     new JsonSubTypes.Type(value = classOf[Rank.King], name = "king")
   )
 )
-abstract class Rank(val value: Int, val name: String, val shortName: String)
+abstract class Rank(val value: Int, val name: String, val shortName: String) extends CborSerializable
 
 object Suit:
   case class Clubs() extends Suit("Clubs", "♣")
@@ -111,7 +112,7 @@ object Card:
     case pattern(rank, suit) => Card(rank, suit)
     case _ => throw new RuntimeException(f"Invalid card string $s")
 
-case class Card(rank: Rank, suit: Suit):
+case class Card(rank: Rank, suit: Suit) extends CborSerializable:
 
   def name: String = f"${rank.name} of ${suit.name}"
 
@@ -144,7 +145,7 @@ case class Card(rank: Rank, suit: Suit):
     if (rank == Rank.Jack()) true
     else this == other
 
-//  override def toString: String = name
+  //  override def toString: String = name
   override def toString: String = shortName
 
 object CardStack:
@@ -181,7 +182,7 @@ object CardStack:
 
     remove(list.reverse).reverse
 
-case class CardStack(cards: List[Card]):
+case class CardStack(cards: List[Card]) extends CborSerializable:
   def removeCard(card: Card): CardStack = CardStack(CardStack.removeLast(cards, card))
 
   /**
@@ -235,8 +236,8 @@ object Hand:
  *
  * @param cards the cards in the hand
  */
-case class Hand private (cards: List[Card]):
-  
+case class Hand private(cards: List[Card]) extends CborSerializable:
+
   def score: Int = cards.map(_.score).sum
 
   def viewFirstCard: Card = cards.head
