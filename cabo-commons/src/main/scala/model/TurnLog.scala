@@ -4,7 +4,7 @@ import utils.Message
 import model.TurnEvent.*
 import model.TurnPhase.*
 import model.PhaseEvents.*
-import akka.serialization.jackson.CborSerializable
+import utils.CborSerializable
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 
 object TurnEvent:

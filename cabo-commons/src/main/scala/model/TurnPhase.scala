@@ -1,7 +1,6 @@
 package model
 
-import utils.Message
-import akka.serialization.jackson.CborSerializable
+import utils.CborSerializable
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 
 object TurnPhase:
@@ -17,7 +16,7 @@ object TurnPhase:
       new JsonSubTypes.Type(value = classOf[TurnPhase.EndedTurn], name = "endedTurn")
     )
   )
-  sealed trait TurnPhase extends Message
+  sealed trait TurnPhase extends CborSerializable
 
   case class AwaitingFirstShow() extends TurnPhase
 

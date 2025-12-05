@@ -1,7 +1,6 @@
 package model
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import akka.serialization.jackson.CborSerializable
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
