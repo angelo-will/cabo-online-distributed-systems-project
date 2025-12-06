@@ -24,6 +24,8 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
   import org.scalatest.matchers.must.Matchers.mustBe
 
   private val userID = "GoodPlayer01"
+  private val opponent01 = "Adversary01"
+  private val opponent02 = "Adversary02"
   private var gameCoordinatorActor: ActorRef[GameCoordinatorMessage] = _
   private var viewProbe: TestProbe[IViewMessage] = _
   private var clientProbe: TestProbe[ClientCommand] = _
@@ -80,18 +82,18 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
       }
     }
     "allow to draw from deck" in {
-      val game = jumpToFirstTurn()
-      val card = drawCardFromDeck()
+      val game = jumpToFirstTurnAndGetGame()
+      val card = drawAngGetCardFromDeck()
       game.deckStack.drawFirstCard._1 mustBe card
     }
     "allow to draw from discard" in {
-      val game = jumpToFirstTurn()
+      val game = jumpToFirstTurnAndGetGame()
       val card = drawCardFromDiscardStack()
       game.discardDeckStack.drawFirstCard._1 mustBe card
     }
     "send discard top card to view" when {
       "empty for drawing from discard in first turn" in {
-        val game = jumpToFirstTurn()
+        val game = jumpToFirstTurnAndGetGame()
         val card = drawCardFromDiscardStack()
         viewProbe.expectMessageType[GameViewMessages.EmptyDiscardStack]
       }
@@ -99,15 +101,15 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
 
       }
       "discard card drawn" in {
-        val game = jumpToFirstTurn()
-        val card = drawCardFromDeck()
+        val game = jumpToFirstTurnAndGetGame()
+        val card = drawAngGetCardFromDeck()
         discardCardDrawn()
         val cardDiscarded = viewProbe.expectMessageType[GameViewMessages.NewTopCardDiscardStack].card
         cardDiscarded mustBe card
       }
       "discard one of own cards" in {
-        val game = jumpToFirstTurn()
-        val cardDrawn = drawCardFromDeck()
+        val game = jumpToFirstTurnAndGetGame()
+        val cardDrawn = drawAngGetCardFromDeck()
         val indexCardToDiscard = 2
         val handCards = game.getPlayerWithID(userID).hand.cards
         val cardToDiscard = handCards(indexCardToDiscard)
@@ -118,8 +120,8 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
     }
     "modify hand's card" when {
       "discard one of own" in {
-        val game = jumpToFirstTurn()
-        val card = drawCardFromDeck()
+        val game = jumpToFirstTurnAndGetGame()
+        val card = drawAngGetCardFromDeck()
         val oldPlayerHand = game.getHandOfPlayerWithID(userID)
         val indexCardToChange = 1
         val newPlayerHand = oldPlayerHand.changeNthCard(indexCardToChange, card)
@@ -132,28 +134,28 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
 
     "send to view the round is ended by time" when {
       "receive turn time ended" in {
-        jumpToFirstTurn()
+        jumpToFirstTurnAndGetGame()
         endTurnByTime()
         viewProbe.expectMessageType[GameViewMessages.EndTurnByTimeEnded]
       }
     }
     "send to client turn ended message" when {
       "receive turn time ended" in {
-        jumpToFirstTurn()
+        jumpToFirstTurnAndGetGame()
         endTurnByTime()
         skipViewProbeMessage()
         clientProbe.expectMessageType[ClientMessages.TurnEnded]
       }
       "receive end turn command" in {
-        jumpToFirstTurn()
-        drawCardFromDeck()
+        jumpToFirstTurnAndGetGame()
+        drawAngGetCardFromDeck()
         discardCardDrawn()
         endTurn()
         clientProbe.expectMessageType[ClientMessages.TurnEnded]
       }
       "receive call cabo command" in {
-        jumpToFirstTurn()
-        drawCardFromDeck()
+        jumpToFirstTurnAndGetGame()
+        drawAngGetCardFromDeck()
         discardCardDrawn()
         callCabo()
         clientProbe.expectMessageType[ClientMessages.TurnEnded]
@@ -161,7 +163,7 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
     }
     "send to view last turn played" when {
       "receive new turn" in {
-        val game = jumpToFirstTurn()
+        val game = jumpToFirstTurnAndGetGame()
         endTurnByTime()
         skipViewProbeMessage()
         skipClientProbeMessage()
@@ -173,7 +175,7 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
     "send turn updated ack" when {
       "receive new turn" in {
         // new turn is sent from coordinator to itself after turn ended
-        jumpToFirstTurn()
+        jumpToFirstTurnAndGetGame()
         endTurnByTime()
         skipViewProbeMessage()
         skipClientProbeMessage()
@@ -182,7 +184,7 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
     }
     "send and empty turn" when {
       "requested" in {
-        jumpToFirstTurn()
+        jumpToFirstTurnAndGetGame()
         endTurnByTime()
         skipViewProbeMessage()
         skipClientProbeMessage()
@@ -195,12 +197,12 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
     }
     "send own card value" when {
       "drawn card with power to show one of own card" in {
-        val game00 = jumpToFirstTurn()
-        endMyTurn()
+        val game00 = jumpToFirstTurnAndGetGame()
+        endMyTurnForMaxTimeReached()
         val card = CardStack.buildSortedFullDeck.cards.find(_.power == Power.SeeYourCard()).get
         val game01 = game00.copy(deckStack = CardStack(List(card)))
         jumpRoundsUntilMyTurnAgain(game01)
-        val cardDrawn = drawCardFromDeck()
+        val cardDrawn = drawAngGetCardFromDeck()
         val cardIndex = 0
         val cardToSee = game01.getPlayerWithID(userID).hand.cards(cardIndex)
         val cardSeen = showYourNthCard(cardIndex)
@@ -209,12 +211,12 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
     }
     "send opponent card value" when {
       "draw card with power to see one of opponent card" in {
-        val game00 = jumpToFirstTurn()
-        endMyTurn()
+        val game00 = jumpToFirstTurnAndGetGame()
+        endMyTurnForMaxTimeReached()
         val card = CardStack.buildSortedFullDeck.cards.find(_.power == Power.SeeYourOpponentCard()).get
         val game01 = game00.copy(deckStack = CardStack(List(card)))
         jumpRoundsUntilMyTurnAgain(game01)
-        val cardDrawn = drawCardFromDeck()
+        val cardDrawn = drawAngGetCardFromDeck()
         val adversaryID = game01.players.find(_.userID != userID).get.userID
         val cardIndex = 0
         val cardToSee = game01.getPlayerWithID(adversaryID).hand.cards(cardIndex)
@@ -224,12 +226,12 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
     }
     "change one of own card with opponent one" when {
       "draw card with power to change one of own card with opponent one" in {
-        val game00 = jumpToFirstTurn()
-        endMyTurn()
+        val game00 = jumpToFirstTurnAndGetGame()
+        endMyTurnForMaxTimeReached()
         val card = CardStack.buildSortedFullDeck.cards.find(_.power == Power.ChangeOneOfYourCardWithOpponent()).get
         val game01 = game00.copy(deckStack = CardStack(List(card)))
         jumpRoundsUntilMyTurnAgain(game01)
-        val cardDrawn = drawCardFromDeck()
+        val cardDrawn = drawAngGetCardFromDeck()
 
         val adversaryID = game01.players.find(_.userID != userID).get.userID
         val indexOfCardToChange = 0
@@ -250,13 +252,80 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
           afterChanged.getHandOfPlayerWithID(adversaryID).cards(indexOfCardToChange)
       }
     }
+    "send game when cabo specified" when {
+      "someone call cabo" in {
+        val game = jumpToFirstTurnAndGetGame()
+        val _ = drawAngGetCardFromDeck()
+        discardCardDrawn()
+        callCabo()
+        val endedTurn = clientProbe.expectMessageType[ClientMessages.TurnEnded]
+        endedTurn.game.caboState.get mustBe game.getPlayerWithID(userID)
+      }
+    }
+    "send game ended by cabo" when {
+      "is player-caller turn again" in {
+        val _ = jumpToFirstTurnAndGetGame()
+        val _ = drawAngGetCardFromDeck()
+        discardCardDrawn()
+        viewProbe.expectMessageType[GameViewMessages.NewTopCardDiscardStack]
+        callCabo()
+        val ended = clientProbe.expectMessageType[ClientMessages.TurnEnded]
+        clientProbe.expectMessageType[ClientMessages.TurnUpdated]
+        viewProbe.expectMessageType[GameViewMessages.LastTurnPlayed]
+        viewProbe.expectMessageType[GameViewMessages.StartTurnPlayer]
+        val game = ended.game.copy(currentRound = ended.game.currentRound + 1)
+        gameCoordinatorActor ! GCMessage.NewTurn(game, new DuringGameTurnLog("", 0))
+        clientProbe.expectMessageType[ClientMessages.TurnUpdated]
+        viewProbe.expectMessageType[GameViewMessages.LastTurnPlayed]
+        viewProbe.expectMessageType[GameViewMessages.GameEndedByCabo]
+      }
+    }
+    "send game ended by empty deck" when {
+      "start a turn with empty deck" in {
+        val _ = jumpToFirstTurnAndGetGame()
+        val _ = drawAngGetCardFromDeck()
+        discardCardDrawn()
+        viewProbe.expectMessageType[GameViewMessages.NewTopCardDiscardStack]
+        endTurn()
+        val ended = clientProbe.expectMessageType[ClientMessages.TurnEnded]
+        clientProbe.expectMessageType[ClientMessages.TurnUpdated]
+        viewProbe.expectMessageType[GameViewMessages.LastTurnPlayed]
+        viewProbe.expectMessageType[GameViewMessages.StartTurnPlayer]
+        val newRound = ended.game.currentRound + 1
+        val emptyDeck = CardStack.buildEmptyDeck
+        val game = ended.game.copy(deckStack = emptyDeck, currentRound = ended.game.currentRound + 1)
+        gameCoordinatorActor ! GCMessage.NewTurn(game, new DuringGameTurnLog("", 0))
+        clientProbe.expectMessageType[ClientMessages.TurnUpdated]
+        viewProbe.expectMessageType[GameViewMessages.LastTurnPlayed]
+        viewProbe.expectMessageType[GameViewMessages.GameEndedByEmptyDeck]
+      }
+    }
+    "send game ended by turn limit deck" when {
+      "start a turn with max turn reached" in {
+        val _ = jumpToFirstTurnAndGetGame()
+        val _ = drawAngGetCardFromDeck()
+        discardCardDrawn()
+        viewProbe.expectMessageType[GameViewMessages.NewTopCardDiscardStack]
+        endTurn()
+        val ended = clientProbe.expectMessageType[ClientMessages.TurnEnded]
+        clientProbe.expectMessageType[ClientMessages.TurnUpdated]
+        viewProbe.expectMessageType[GameViewMessages.LastTurnPlayed]
+        viewProbe.expectMessageType[GameViewMessages.StartTurnPlayer]
+        val game = ended.game.copy(currentRound = 100)
+        gameCoordinatorActor ! GCMessage.NewTurn(game, new DuringGameTurnLog("", 0))
+        clientProbe.expectMessageType[ClientMessages.TurnUpdated]
+        viewProbe.expectMessageType[GameViewMessages.LastTurnPlayed]
+        viewProbe.expectMessageType[GameViewMessages.GameEndedByTurnsLimit]
+      }
+    }
+
   }
 
   private def endTurnByTime(): Unit = {
     gameCoordinatorActor ! GCMessage.TurnTimeEnded()
   }
 
-  private def endMyTurn() = {
+  private def endMyTurnForMaxTimeReached() = {
     endTurnByTime()
     viewProbe.expectMessageType[GameViewMessages.EndTurnByTimeEnded]
     viewProbe.expectMessageType[GameViewMessages.LastTurnPlayed]
@@ -267,7 +336,7 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
 
   private def startActorAndGenerateGameData(): Unit = {
     val generatedGame = generateGameInConstruction(
-      playerIDs = List(userID, "Adversary01"),
+      playerIDs = List(userID, opponent01),
       probes = List(createTestProbe[Message](), createTestProbe[Message]())
     )
     gameCoordinatorActor = testKit.spawn(GameCoordinatorActor(clientProbe.ref, viewProbe.ref, userID, generatedGame))
@@ -302,7 +371,7 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
   }
 
 
-  private def jumpToFirstTurn() = {
+  private def jumpToFirstTurnAndGetGame() = {
     val game = jumpToAfterRevealingSection()
     gameCoordinatorActor ! GCMessage.StartPlayCycle()
     viewProbe.expectMessageType[GameViewMessages.StartTurnPlayer]
@@ -329,7 +398,7 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
     gameCoordinatorActor ! GCMessage.SendGameStatus(statusProbe.ref)
     statusProbe.expectMessageType[GCMessage.GameInformation].game
 
-  private def drawCardFromDeck() =
+  private def drawAngGetCardFromDeck() =
     gameCoordinatorActor ! GCMessage.DrawCardFromDeck()
     viewProbe.expectMessageType[GameViewMessages.CardDrawn].card
 
@@ -396,7 +465,8 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
 
     Game.GameInProgress(
       code = "test-game-in-progress",
-      gameParameters = GameParameters(maxPlayers = playerIDs.size),
+//      gameParameters = GameParameters(maxPlayers = playerIDs.size),
+      gameParameters = GameParameters(maxPlayers = playerIDs.size, roundLimitation = 20),
       gameStatus = model.GameStatus.InProgress(),
       players = playersPlaying,
       deckStack = finalDeck,

@@ -12,19 +12,19 @@ import utils.Message
 import view.gamephase.DuringGameMainFrame
 import view.gamephase.traits.IDuringGameInterface
 
-object DuringGameViewActor {
+object GameViewActor {
   def apply(
              userID: String,
              clientRef: ActorRef[ClientCommand],
              mainMenuRef: ActorRef[IPreGameViewMessage]
            ): Behavior[IGameViewMessage] = {
     Behaviors.setup { ctx =>
-      new DuringGameViewActor(ctx, userID, clientRef, mainMenuRef).start()
+      new GameViewActor(ctx, userID, clientRef, mainMenuRef).start()
     }
   }
 }
 
-private class DuringGameViewActor private(
+private class GameViewActor private(
                                            val ctx: ActorContext[IGameViewMessage],
                                            val userID: String,
                                            val clientRef: ActorRef[ClientCommand],
@@ -55,7 +55,7 @@ private class DuringGameViewActor private(
 
   def start(): Behavior[IGameViewMessage] = Behaviors.setup { _ =>
     log("start", "DuringGameViewActor started")
-    val frame = new DuringGameMainFrame(DuringGameViewListener(ctx.self))
+    val frame = new DuringGameMainFrame(ViewUserCommandListener(ctx.self))
     frame.open()
     frame.visible = true
 
