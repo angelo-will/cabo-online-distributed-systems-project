@@ -6,7 +6,7 @@ import messages.ClientMessages.ClientCommand
 import messages.{GameViewMessages, IGameViewMessage, IPreGameViewMessage, IViewMessage, PreGameViewMessages}
 import utils.Message
 import view.lobbyphase.actors.InitialPhaseViewActor
-import view.gamephase.actors.DuringGameViewActor
+import view.gamephase.actors.GameViewActor
 
 object ViewsProxyActor {
 
@@ -33,7 +33,7 @@ private class ViewsProxyActor(ctx: ActorContext[IViewMessage], userId: String, u
       case SwitchToGameView() =>
         ctx.log.info("Switching to GAME View")
         val actorName = s"DuringGameView-$userId-${System.currentTimeMillis()}"
-        val gameView= ctx.spawn(DuringGameViewActor(userId, clientRef, null), actorName)
+        val gameView= ctx.spawn(GameViewActor(userId, clientRef, null), actorName)
         game(gameView)
       case msg: IPreGameViewMessage =>
         currentView ! msg

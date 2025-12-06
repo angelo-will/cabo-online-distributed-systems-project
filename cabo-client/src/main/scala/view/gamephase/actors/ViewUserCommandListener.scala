@@ -4,7 +4,7 @@ import akka.actor.typed.ActorRef
 import messages.{IViewUserCommand, ViewUserCommandMessages as VUCMessages}
 import view.lobbyphase.ViewListener.IDuringGameViewListener
 
-case class DuringGameViewListener(whoToResponse: ActorRef[IViewUserCommand]) extends IDuringGameViewListener:
+case class ViewUserCommandListener(whoToResponse: ActorRef[IViewUserCommand]) extends IDuringGameViewListener:
   override def ownCardSelected(cardIndex: Int): Unit =
     whoToResponse ! VUCMessages.OwnCardSelected(cardIndex)
 
