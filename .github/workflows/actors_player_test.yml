@@ -65,4 +65,4 @@ jobs:
         run: sbt "project client" "testOnly ViewUserCommandListenerSpec"
 
       - name: "Test: Multi-JVM Tests for Actor Player (ActorPlayerMultiJvmSpec)"
-        run: sbt "project client" "multi-jvm:testOnly MultiNodeSpecClient"
+        run: sbt "project client" "multi-jvm:test"
