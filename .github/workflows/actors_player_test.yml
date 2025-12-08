@@ -5,7 +5,6 @@ on:
     branches:
       - develop
       - fix/ci-akka
-      - tests/add_multi_jvm_to_actions
     paths:
       - 'cabo-client/**'
       - 'cabo-commons/**'
