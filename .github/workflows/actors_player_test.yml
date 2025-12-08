@@ -63,3 +63,6 @@ jobs:
 
       - name: "Test: View Command listenere (ViewUserCommandListenerSpec)"
         run: sbt "project client" "testOnly ViewUserCommandListenerSpec"
+
+      - name: "Test: Multi-JVM Tests for Actor Player (ActorPlayerMultiJvmSpec)"
+        run: sbt "project client" "multi-jvm:testOnly MultiNodeSpecClient"
