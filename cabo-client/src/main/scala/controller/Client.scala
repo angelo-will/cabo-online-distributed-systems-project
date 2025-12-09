@@ -508,7 +508,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
       playersStatus.find(_.rank == gameInProgress.currentRound + 1 % playerNumber) match {
         case Some(value) =>
           if (!value.isOnline) {
-            //todo - ask gameCoordinator to skip the turn
+            gameCoordinator ! GameCoordinatorMessage.GetEmptyTurn(value.playerInfo.userID)
             logInfo(ctx, s"Next turn is for offline player: ${value.playerInfo.userID}, skipping turn")
           } else {
             logInfo(ctx, s"Next turn is for player: ${value.playerInfo.userID} and it is online")
@@ -608,7 +608,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
       // send by the host when it cannot synchronize all the players at the start of the game
       case (ctx, GameCancelled()) =>
         logInfo(ctx,s"Game has been cancelled, returning to initial phase")
-        //todo - which message to send to the view?
+        viewActorRef ! GameViewMessages.GameDeleted()
         returnToStart(ctx)
 
       case (ctx, TurnEnded(game, log)) =>

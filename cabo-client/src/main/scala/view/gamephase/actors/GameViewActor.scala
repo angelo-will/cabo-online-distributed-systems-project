@@ -80,6 +80,7 @@ private class GameViewActor private(
     Behaviors.receiveMessagePartial {
       handleShowCard(context, watchYourCards)(stateName)
         .orElse(handleAdversariesRevealingLog(context)(stateName))
+        .orElse(handleGameDeleted(context)(stateName))
         .orElse({
           case WaitAfterRevealingSection() =>
             log(stateName, s"Handling message: ${WaitAfterRevealingSection()}")
@@ -95,6 +96,7 @@ private class GameViewActor private(
     Behaviors.receiveMessagePartial {
       handleAdversariesRevealingLog(context)(stateName)
         .orElse(handleStartTurnPlayer(context)(stateName))
+        .orElse(handleGameDeleted(context)(stateName))
         .orElse(sharedHandlers(context)(stateName))
     }
   }
@@ -266,6 +268,12 @@ private class GameViewActor private(
     case RevealingCardsPhaseAdversaryLog(revealingLog) =>
       log(actualState, s"Handling RevealingCardsPhaseAdversaryLog with message: ${RevealingCardsPhaseAdversaryLog(revealingLog)}")
       context.ui.updateRevealingLog(revealingLog)
+      Behaviors.same
+  }
+
+  private def handleGameDeleted(context: GameContext)(actualState: String): PartialFunction[IGameViewMessage, Behavior[IGameViewMessage]] = {
+    case GameDeleted() =>
+      //todo: aggiungere modifiche alla view da fare
       Behaviors.same
   }
   // HANDLERS revealing section - END ---

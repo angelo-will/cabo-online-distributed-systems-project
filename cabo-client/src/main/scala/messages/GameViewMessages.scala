@@ -99,5 +99,7 @@ object GameViewMessages {
   case class OpponentImpossibleToReach(player: PlayerPlaying) extends IGameViewMessage
 
   case class OpponentDisconnected(player: PlayerPlaying) extends IGameViewMessage
+  
+  case class GameDeleted() extends IGameViewMessage
 
 }
