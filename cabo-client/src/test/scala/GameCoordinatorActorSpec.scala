@@ -270,7 +270,6 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
         viewProbe.expectMessageType[GameViewMessages.NewTopCardDiscardStack]
         callCabo()
         val ended = clientProbe.expectMessageType[ClientMessages.TurnEnded]
-        clientProbe.expectMessageType[ClientMessages.TurnUpdated]
         viewProbe.expectMessageType[GameViewMessages.LastTurnPlayed]
         viewProbe.expectMessageType[GameViewMessages.StartTurnPlayer]
         val game = ended.game.copy(currentRound = ended.game.currentRound + 1)
@@ -288,7 +287,6 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
         viewProbe.expectMessageType[GameViewMessages.NewTopCardDiscardStack]
         endTurn()
         val ended = clientProbe.expectMessageType[ClientMessages.TurnEnded]
-        clientProbe.expectMessageType[ClientMessages.TurnUpdated]
         viewProbe.expectMessageType[GameViewMessages.LastTurnPlayed]
         viewProbe.expectMessageType[GameViewMessages.StartTurnPlayer]
         val newRound = ended.game.currentRound + 1
@@ -308,7 +306,6 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
         viewProbe.expectMessageType[GameViewMessages.NewTopCardDiscardStack]
         endTurn()
         val ended = clientProbe.expectMessageType[ClientMessages.TurnEnded]
-        clientProbe.expectMessageType[ClientMessages.TurnUpdated]
         viewProbe.expectMessageType[GameViewMessages.LastTurnPlayed]
         viewProbe.expectMessageType[GameViewMessages.StartTurnPlayer]
         val game = ended.game.copy(currentRound = 100)

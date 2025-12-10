@@ -38,6 +38,8 @@ object GameCoordinatorActor:
   private case class EndedByEmptyDeck() extends EndingGame
 
   private case class NotEnded() extends EndingGame
+  
+  private case class UpdateAfterMyTurn(game: GameInProgress, log: TurnLog) extends GameCoordinatorMessage
 
   private case class GameData(
                                clientReference: ActorRef[CCommand],
@@ -212,14 +214,15 @@ object GameCoordinatorActor:
           gameData.turnLog.addEvent(TurnEvent.EndTurn())
           val newGameData = gameData.syncAllTemporaryDecks
           gameData.clientReference ! CLMsg.TurnEnded(newGameData.game, gameData.turnLog)
-          ctx.self ! GCMsg.NewTurn(newGameData.game, newGameData.turnLog)
+//          ctx.self ! GCMsg.NewTurn(newGameData.game, newGameData.turnLog)
+          ctx.self ! UpdateAfterMyTurn(newGameData.game, newGameData.turnLog)
           notMyTurn(newGameData)
         case (ctx, GCMsg.CallCabo()) =>
           gameData.turnLog.addEvent(TurnEvent.CaboCalled())
           val tempGame = gameData.temporaryGame.copy(caboState = Some(gameData.getSelfPlayer))
           val newGameData = gameData.copy(temporaryGame = tempGame).syncAllTemporaryDecks
           gameData.clientReference ! CLMsg.TurnEnded(newGameData.game, gameData.turnLog)
-          ctx.self ! GCMsg.NewTurn(newGameData.game, newGameData.turnLog)
+          ctx.self ! UpdateAfterMyTurn(newGameData.game, newGameData.turnLog)
           notMyTurn(newGameData)
       })
   }
@@ -234,6 +237,7 @@ object GameCoordinatorActor:
         case (_, GCMsg.EndTurn()) => Behaviors.same
       })
       .orElse(handleNewTurnOrEmptyTurn(gameData))
+      .orElse(handleUpdateMyTurn(gameData))
   }
 
   //
@@ -327,27 +331,7 @@ object GameCoordinatorActor:
     case (ctx, GCMsg.NewTurn(game, turnLog)) =>
       ctx.log.info(s"NewTurn received, \nactual game = ${gameData.game} \ngameReceived = $game")
       gameData.clientReference ! CLMsg.TurnUpdated()
-      val gameDataTempUpdated = gameData.copy(temporaryGame = game)
-      val actualTurn = game.currentRound + 1
-      val actualGame = game.copy(currentRound = actualTurn)
-      val newGameData = gameDataTempUpdated.copy(
-        game = actualGame,
-        temporaryGame = actualGame,
-        turnLog = new DuringGameTurnLog(gameData.playerOwnUserID, actualTurn))
-
-      val playerIDHaveToPlay = getPlayerIDWhoHasToPlay(actualGame)
-      val isGameEnded = gameEnded(actualGame, playerIDHaveToPlay)
-      val isMyTurnNext = playerIDHaveToPlay == gameData.playerOwnUserID
-      ctx.log.info(s"Next player who play is $playerIDHaveToPlay, isMyTurnNext = $isMyTurnNext")
-      isGameEnded match
-        case NotEnded() =>
-          newGameData.viewReference ! DGVMsg.LastTurnPlayed(turnLog, actualGame)
-          newGameData.viewReference ! DGVMsg.StartTurnPlayer(playerIDHaveToPlay)
-          if isMyTurnNext then
-            myTurnBeforeDraw(newGameData)
-          else
-            notMyTurn(newGameData)
-        case _ => transitionToShowingResults(isGameEnded, newGameData, turnLog)
+      updateNewTurn(game, turnLog, gameData)
     case (ctx, GCMsg.GetEmptyTurn(userID)) =>
       ctx.log.info(s"GetEmptyTurn received")
       val actualTurn = gameData.game.currentRound
@@ -360,8 +344,38 @@ object GameCoordinatorActor:
       gameData.clientReference ! CLMsg.TurnEnded(gameTurnUpdated, log)
       Behaviors.same
   }
+  
+  private def handleUpdateMyTurn(data: GameData): PartialFunction[(ActorContext[GameCoordinatorMessage],GameCoordinatorMessage), Behavior[GameCoordinatorMessage]] = {
+    case (ctx, UpdateAfterMyTurn(game, turnLog)) =>
+      ctx.log.info(s"UpdateAfterMyTurn received, \nactual game = ${data.game} \ngameReceived = $game")
+      updateNewTurn(game, turnLog, data)
+  }
 
   // POWERS implementation
+
+  private def updateNewTurn(game: GameInProgress, turnLog: TurnLog, gameData: GameData) = {
+    val gameDataTempUpdated = gameData.copy(temporaryGame = game)
+    val actualTurn = game.currentRound + 1
+    val actualGame = game.copy(currentRound = actualTurn)
+    val newGameData = gameDataTempUpdated.copy(
+      game = actualGame,
+      temporaryGame = actualGame,
+      turnLog = new DuringGameTurnLog(gameData.playerOwnUserID, actualTurn))
+
+    val playerIDHaveToPlay = getPlayerIDWhoHasToPlay(actualGame)
+    val isGameEnded = gameEnded(actualGame, playerIDHaveToPlay)
+    val isMyTurnNext = playerIDHaveToPlay == gameData.playerOwnUserID
+    println(s"Next player who play is $playerIDHaveToPlay, isMyTurnNext = $isMyTurnNext")
+    isGameEnded match
+      case NotEnded() =>
+        newGameData.viewReference ! DGVMsg.LastTurnPlayed(turnLog, actualGame)
+        newGameData.viewReference ! DGVMsg.StartTurnPlayer(playerIDHaveToPlay)
+        if isMyTurnNext then
+          myTurnBeforeDraw(newGameData)
+        else
+          notMyTurn(newGameData)
+      case _ => transitionToShowingResults(isGameEnded, newGameData, turnLog)
+  }
 
   private def handleShowOwnNthCard(
                                     gameData: GameData,
