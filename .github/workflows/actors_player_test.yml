@@ -47,9 +47,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-sbt-
 
-      - name: Setup sbt launcher
-        uses: sbt/setup-sbt@v1
-
       - name: "Build: Compile Client and Commons Modules"
         run: sbt "project client" compile
 
@@ -87,6 +84,9 @@ jobs:
           key: ${{ runner.os }}-sbt-${{ hashFiles('**/build.sbt') }}
           restore-keys: |
             ${{ runner.os }}-sbt-
+
+      - name: Setup sbt launcher
+        uses: sbt/setup-sbt@v1
 
       - name: "Build: Compile Client and Commons Modules"
         run: sbt "project client" compile
