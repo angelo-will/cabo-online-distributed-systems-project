@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - develop
-      - fix/ci-akka
     paths:
       - 'cabo-server/**'
       - 'cabo-commons/**'
@@ -14,7 +13,6 @@ on:
   pull_request:
     branches:
       - develop
-      - fix/ci-akka
     paths:
       - 'cabo-server/**'
       - 'cabo-commons/**'
