@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - develop
-      - fix/ci-akka
     paths:
       - 'cabo-client/**'
       - 'cabo-commons/**'
@@ -14,7 +13,6 @@ on:
   pull_request:
     branches:
       - develop
-      - fix/ci-akka
     paths:
       - 'cabo-client/**'
       - 'cabo-commons/**'
@@ -23,9 +21,10 @@ on:
       - '.github/workflows/actors_player_test.yml'
 
 jobs:
-  build:
+  build_and_test_with_single_jvmm:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    name: "Build and Test Player Client components with Single-JVM"
 
     steps:
       - name: Checkout code
@@ -62,6 +61,35 @@ jobs:
 
       - name: "Test: View Command listenere (ViewUserCommandListenerSpec)"
         run: sbt "project client" "testOnly ViewUserCommandListenerSpec"
+
+  build_and_test_with_multi_jvm:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    name: "Build and Test Multi-JVM"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Cache sbt
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.sbt
+            ~/.ivy2/cache
+            ~/.coursier/cache
+          key: ${{ runner.os }}-sbt-${{ hashFiles('**/build.sbt') }}
+          restore-keys: |
+            ${{ runner.os }}-sbt-
+
+      - name: "Build: Compile Client and Commons Modules"
+        run: sbt "project client" compile
 
       - name: "Test: Multi-JVM Tests for Actor Player (ActorPlayerMultiJvmSpec)"
         run: sbt "project client" "multi-jvm:test"
