@@ -122,32 +122,32 @@ object GameCoordinatorActor:
         ctx.log.info("GameLogic Actor started")
         ctx.log.info(s"Game has started with this data:\n${gameData.game}")
         gameData.viewReference ! DGVMsg.StartGame(gameData.game, ctx.self)
-        watchOwnCardsPhase(gameData, cardSeenRemaining = Game.cardsInitialVisible)
+        revealingSection(gameData, cardSeenRemaining = Game.cardsInitialVisible)
     }
   }
 
   // START of Behaviors - states
 
   // FIRST PHASE - player watch two of own cards
-  private def watchOwnCardsPhase(gameData: GameData, cardSeenRemaining: Int): Behavior[GameCoordinatorMessage] = {
+  private def revealingSection(gameData: GameData, cardSeenRemaining: Int): Behavior[GameCoordinatorMessage] = {
     log.log(s"GCoord actor of ${gameData.playerOwnUserID}, watchOwnCardsPhase called with cardSeenRemaining $cardSeenRemaining")
 
     if cardSeenRemaining <= 0 then
       println(s"GCoord actor of ${gameData.playerOwnUserID}, sending StartPlayPhase to ${gameData.viewReference}")
       gameData.clientReference ! CLMsg.RevealingCardsPhaseLog(gameData.turnLog)
       gameData.viewReference ! DGVMsg.WaitAfterRevealingSection()
-      waitOtherHaveSeenOwnCard(gameData)
+      waitStartPlayCycle(gameData)
     else
       Behaviors.receivePartial {
-        handleShowOwnNthCard(gameData, watchOwnCardsPhase(_, cardSeenRemaining - 1))
-          .orElse(handleSendGameStatus(gameData, watchOwnCardsPhase(_, cardSeenRemaining)))
+        handleShowOwnNthCard(gameData, revealingSection(_, cardSeenRemaining - 1))
+          .orElse(handleSendGameStatus(gameData, revealingSection(_, cardSeenRemaining)))
       }
   }
 
   // WAIT OTHERS HAVE SEEN CARDS
-  private def waitOtherHaveSeenOwnCard(gameData: GameData): Behavior[GameCoordinatorMessage] = {
+  private def waitStartPlayCycle(gameData: GameData): Behavior[GameCoordinatorMessage] = {
     Behaviors.receivePartial {
-      handleSendGameStatus(gameData, waitOtherHaveSeenOwnCard)
+      handleSendGameStatus(gameData, waitStartPlayCycle)
         .orElse({
           case (ctx, GCMsg.StartPlayCycle()) =>
             val firstPlayer = gameData.game.players.find(_.rank == 1).get.userID
@@ -186,13 +186,13 @@ object GameCoordinatorActor:
       .orElse(handleSendGameStatus(gameData, myTurnAfterDrawNoPower(_, cardInHand)))
   }
 
-  private def myTurnAfterDrawWithPower(gameData: GameData, cardInHand: Card): Behavior[GameCoordinatorMessage] = Behaviors.receivePartial {
+  private def myTurnAfterDrawPower(gameData: GameData, cardInHand: Card): Behavior[GameCoordinatorMessage] = Behaviors.receivePartial {
     (cardInHand.power match
       case Power.SeeYourCard() => handleShowOwnNthCard(gameData, myTurnAfterDrawNoPower(_, cardInHand))
       case Power.SeeYourOpponentCard() => handleShowAdversaryNthCard(gameData, myTurnAfterDrawNoPower(_, cardInHand))
       case Power.ChangeOneOfYourCardWithOpponent() => handleChangeAdversaryCardWithOwnNthCard(gameData, myTurnAfterDrawNoPower(_, cardInHand)))
       .orElse(handleTurnTimeEnded(gameData))
-      .orElse(handleSendGameStatus(gameData, myTurnAfterDrawWithPower(_, cardInHand)))
+      .orElse(handleSendGameStatus(gameData, myTurnAfterDrawPower(_, cardInHand)))
   }
 
   private def myTurnAfterDrawFromDiscard(gameData: GameData, cardInHand: Card): Behavior[GameCoordinatorMessage] = Behaviors.receivePartial {
@@ -263,7 +263,7 @@ object GameCoordinatorActor:
       gameData.viewReference ! DGVMsg.CardDrawn(topCard)
       val newTempGame = gameData.temporaryGame.copy(deckStack = newDeck)
       if topCard.power != Power.NoPower() then
-        myTurnAfterDrawWithPower(gameData.copy(temporaryGame = newTempGame), cardInHand = topCard)
+        myTurnAfterDrawPower(gameData.copy(temporaryGame = newTempGame), cardInHand = topCard)
       else
         myTurnAfterDrawNoPower(gameData.copy(temporaryGame = newTempGame), cardInHand = topCard)
   }
@@ -326,8 +326,6 @@ object GameCoordinatorActor:
   }
 
   private def handleNewTurnOrEmptyTurn(gameData: GameData): PartialFunction[(ActorContext[GameCoordinatorMessage], GameCoordinatorMessage), Behavior[GameCoordinatorMessage]] = {
-    // TODO: implementare l'arrivo delle nuove informazioni e la sequenza dei passaggi fatti in un turno.
-    //       Se un giocatore per problemi o altro non gioca non fa andare avanti il mazzo, quindi può arrivarmi un messaggio con niente
     case (ctx, GCMsg.NewTurn(game, turnLog)) =>
       ctx.log.info(s"NewTurn received, \nactual game = ${gameData.game} \ngameReceived = $game")
       gameData.clientReference ! CLMsg.TurnUpdated()
@@ -338,9 +336,6 @@ object GameCoordinatorActor:
       val gameTurnUpdated = gameData.game.copy(currentRound = actualTurn)
       val log = new DuringGameTurnLog(userID, actualTurn)
       log.addEvent(TurnEvent.JumpTurnForDisconnection())
-      println(s"------ GAME ACTUAL v ------ ${gameData.game}")
-      println(s"------ GAME GENERATED v ------ $gameTurnUpdated")
-      println(s"log created $log")
       gameData.clientReference ! CLMsg.TurnEnded(gameTurnUpdated, log)
       Behaviors.same
   }
@@ -440,7 +435,7 @@ object GameCoordinatorActor:
       val newGameData = gameData.copy(temporaryGame = gameData.game, turnLog = newTurnLogJumping)
       gameData.viewReference ! DGVMsg.EndTurnByTimeEnded()
       gameData.clientReference ! CLMsg.TurnEnded(newGameData.game, newGameData.turnLog)
-      ctx.self ! GCMsg.NewTurn(newGameData.game, newGameData.turnLog)
+      ctx.self ! UpdateAfterMyTurn(newGameData.game, newGameData.turnLog)
       notMyTurn(newGameData)
   }
 
