@@ -4,10 +4,9 @@ import akka.actor.typed.ActorRef
 import messages.ClientMessages
 import model.Game
 import messages.ClientMessages.ClientCommand
-import utils.Message
-import view.lobbyphase.ViewListener.IInitialViewListener
+import view.lobbyphase.ViewListener.IPreGameViewListener
 
-case class ViewActorListener(ref: ActorRef[ClientCommand]) extends IInitialViewListener:
+case class ViewActorListener(ref: ActorRef[ClientCommand]) extends IPreGameViewListener:
   override def changeName(newName: String): Unit =
     ref ! ClientMessages.ChangePlayerName(newName, ref)
 

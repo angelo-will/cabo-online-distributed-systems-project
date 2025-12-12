@@ -5,7 +5,7 @@ import model.PlayerInLobby
 
 object ViewListener:
 
-  trait IInitialViewListener:
+  trait IPreGameViewListener:
 
     def changeName(newName: String): Unit
 
@@ -23,22 +23,3 @@ object ViewListener:
 
     def exitFromTheGame(): Unit
 
-  trait IDuringGameViewListener:
-
-    def ownCardSelected(cardIndex: Int): Unit
-
-    def adversaryCardSelected(adversaryID: String, cardIndex: Int): Unit
-
-    def drawFromDeck(): Unit
-
-    def drawFromDiscard(): Unit
-
-    def discardCardDrawn(): Unit
-
-    def endTurn(): Unit
-
-    def callCabo(): Unit
-
-    def exit(): Unit
-
-    def consultingResultsEnded(): Unit

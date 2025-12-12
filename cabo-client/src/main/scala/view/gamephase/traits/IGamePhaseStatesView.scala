@@ -4,7 +4,7 @@ import model.EndGameReason
 import model.Game.GameInProgress
 
 trait IGamePhaseStatesView {
-  def enterRevealingInitialCardsPhase(): Unit
+  def enterRevealingSection(): Unit
 
   def enterWaitingPhase(): Unit
 

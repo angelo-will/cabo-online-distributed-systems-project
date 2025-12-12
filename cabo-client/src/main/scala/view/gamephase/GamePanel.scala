@@ -6,8 +6,7 @@ import model.{Card, EndGameReason, PlayerPlaying, Power, TurnLog}
 import view.gamephase.components.*
 import view.gamephase.dialogs.DisplayEndingResultsDialog
 import view.gamephase.dialogs.DisplayEndingResultsDialog.*
-import view.gamephase.traits.IDuringGameInterface
-import view.lobbyphase.ViewListener.IDuringGameViewListener
+import view.gamephase.traits.{IGameView, IGameViewUserCommandListener}
 
 import java.awt.{Color, GridBagLayout, Font as AwtFont}
 import javax.swing.BorderFactory
@@ -15,9 +14,9 @@ import scala.swing.GridBagPanel.Fill
 import scala.swing.*
 import scala.swing.event.ButtonClicked
 
-class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: GProg, userID: String)
+class GamePanel(viewListener: IGameViewUserCommandListener, gameInProgress: GProg, userID: String)
   extends GridBagPanel
-    with IDuringGameInterface {
+    with IGameView {
 
   // --- COSTANTI DI LAYOUT ---
   private object LayoutConstants {
@@ -187,7 +186,7 @@ class DuringGamePanel(viewListener: IDuringGameViewListener, gameInProgress: GPr
   }
 
   // IGamePhaseStatesView Implementation
-  override def enterRevealingInitialCardsPhase(): Unit = Swing.onEDT {
+  override def enterRevealingSection(): Unit = Swing.onEDT {
     disableAll()
     playerPanel.enableCardsButton(true)
     this.myActionsTArea.text = "Starting revealing section. Select two cards to see their values, try to remember its!"

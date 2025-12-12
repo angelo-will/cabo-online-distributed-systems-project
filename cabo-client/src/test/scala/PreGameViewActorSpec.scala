@@ -8,14 +8,14 @@ import org.scalatest.BeforeAndAfterEach
 import org.scalatest.matchers.must.Matchers.mustBe
 import utils.Message
 import view.lobbyphase.ViewApplication
-import view.lobbyphase.actors.InitialPhaseViewActor.ViewCreated
-import view.lobbyphase.actors.{InitialPhaseViewActor, ViewActorListener}
+import view.lobbyphase.actors.PreGameViewActor.ViewCreated
+import view.lobbyphase.actors.{PreGameViewActor, ViewActorListener}
 
 import scala.swing.{BoxPanel, Label, MainFrame, Orientation, Swing}
 import scala.swing.MenuBar.NoMenuBar.border
 
 
-class InitialPhaseViewActorSpec extends ScalaTestWithActorTestKit
+class PreGameViewActorSpec extends ScalaTestWithActorTestKit
   with AnyWordSpecLike
   with BeforeAndAfterEach
   with Matchers:

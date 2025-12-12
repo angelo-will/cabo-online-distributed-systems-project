@@ -3,7 +3,7 @@ package view.lobbyphase.components
 import model.Game.GameInConstruction
 import model.{Game, PlayerInLobby}
 import view.lobbyphase.ScreenNavigator
-import view.lobbyphase.ViewListener.IInitialViewListener
+import view.lobbyphase.ViewListener.IPreGameViewListener
 
 import java.awt.{Font, GridBagConstraints, Insets, Toolkit}
 import java.awt.GridBagConstraints.*

@@ -6,7 +6,7 @@ import utils.Message
 import view.*
 import view.lobbyphase.components.{CreateGamePanel, GameListPanel, JoinGameWithLinkPanel, WelcomePanel}
 import view.lobbyphase.components.*
-import view.lobbyphase.ViewListener.IInitialViewListener
+import view.lobbyphase.ViewListener.IPreGameViewListener
 
 import java.awt
 import java.awt.event.WindowAdapter
@@ -22,7 +22,7 @@ enum DialogType:
   case WaitingAccessToGameFromServer extends DialogType
   case WaitingAccessToGameOfUser extends DialogType
 
-class InitialPhaseMainFrame(val viewListener: IInitialViewListener, val playerName: String) extends MainFrame:
+class PreGameMainFrame(val viewListener: IPreGameViewListener, val playerName: String) extends MainFrame:
   val screenSize: Dimension = Toolkit.getDefaultToolkit.getScreenSize
   val screenWidth: Int = screenSize.getWidth.toInt
   val screenHeight: Int = screenSize.getHeight.toInt
@@ -174,14 +174,14 @@ class InitialPhaseMainFrame(val viewListener: IInitialViewListener, val playerNa
 
 object ViewApplication {
   def startView(
-                 viewListener: IInitialViewListener,
+                 viewListener: IPreGameViewListener,
                  playerName: String,
-                 afterCreation: (frame: InitialPhaseMainFrame) => Unit
+                 afterCreation: (frame: PreGameMainFrame) => Unit
                ): Unit =
     //    var mainFrame: InitialPhaseMainFrame = null
     SwingUtilities.invokeLater(() =>
       println("InitialPhaseMainFrame - ViewApplication.startView - Creating main frame")
-      var mainFrame = new InitialPhaseMainFrame(viewListener, playerName)
+      var mainFrame = new PreGameMainFrame(viewListener, playerName)
       mainFrame.open()
       mainFrame.visible = true
       afterCreation(mainFrame)

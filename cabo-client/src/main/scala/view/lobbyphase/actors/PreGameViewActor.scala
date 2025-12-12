@@ -8,9 +8,9 @@ import messages.IPreGameViewMessage
 import messages.PreGameViewMessages.*
 
 import view.lobbyphase.components.{IWaitingToStartListener, WaitingFrame}
-import view.lobbyphase.{InitialPhaseMainFrame, ViewApplication}
+import view.lobbyphase.{PreGameMainFrame, ViewApplication}
 
-object InitialPhaseViewActor {
+object PreGameViewActor {
 
   case class ViewCreated() extends ClientCommand
 
@@ -22,7 +22,7 @@ object InitialPhaseViewActor {
       Behaviors.receiveMessage {
         case WhoToSendResponse(clientRef) => {
           ctx.log.info("Client reference received. Starting View Logic.")
-          new InitialPhaseViewLogic(ctx, clientRef, playerName).startViewCreation()
+          new PreGameViewBehavior(ctx, clientRef, playerName).startViewCreation()
         }
         case other => {
           ctx.log.error(s"Unexpected message while waiting for client ref: $other")
@@ -33,15 +33,15 @@ object InitialPhaseViewActor {
     }
   }
 
-  private class InitialPhaseViewLogic(
+  private class PreGameViewBehavior(
                                        ctx: ActorContext[IPreGameViewMessage],
                                        clientRef: ActorRef[ClientCommand],
                                        playerName: String
                                      ) {
 
-    import InitialPhaseViewActor.*
+    import PreGameViewActor.*
 
-    private case class ViewEndCreation(mainFrame: InitialPhaseMainFrame) extends IPreGameViewMessage
+    private case class ViewEndCreation(mainFrame: PreGameMainFrame) extends IPreGameViewMessage
 
     def startViewCreation(): Behavior[IPreGameViewMessage] = {
       ViewApplication.startView(
@@ -65,7 +65,7 @@ object InitialPhaseViewActor {
       }
     }
 
-    private def idle(frame: InitialPhaseMainFrame): Behavior[IPreGameViewMessage] = {
+    private def idle(frame: PreGameMainFrame): Behavior[IPreGameViewMessage] = {
       Behaviors.receiveMessage {
 
         case GameList(games) => {
@@ -86,7 +86,7 @@ object InitialPhaseViewActor {
                 ctx.self ! RestartView()
             })
           waitingFrame.open()
-          waiting(waitingFrame)
+          waitingLobby(waitingFrame)
         }
 
         case GameJoined(game) => {
@@ -101,7 +101,7 @@ object InitialPhaseViewActor {
                 ctx.self ! RestartView()
             })
           waitingFrame.open()
-          waiting(waitingFrame)
+          waitingLobby(waitingFrame)
         }
         case RestartView() => {
           ctx.log.info("Restart requested while in IDLE. Reloading view.")
@@ -115,7 +115,7 @@ object InitialPhaseViewActor {
       }
     }
 
-    private def waiting(frame: WaitingFrame): Behavior[IPreGameViewMessage] = {
+    private def waitingLobby(frame: WaitingFrame): Behavior[IPreGameViewMessage] = {
       Behaviors.receiveMessage {
 
         case GameInfoUpdate(game) =>

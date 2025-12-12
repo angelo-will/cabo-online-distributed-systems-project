@@ -2,15 +2,14 @@ package view.gamephase
 
 import model.{CardStack, GameParameters, GameStatus, Hand, IGameParameters, PlayerPlaying}
 import model.Game.GameInProgress
-import view.gamephase.traits.IDuringGameInterface
-import view.lobbyphase.ViewListener.IDuringGameViewListener
+import view.gamephase.traits.{IGameView, IGameViewUserCommandListener}
 
 import java.awt.{Dimension, Toolkit}
 import java.util.{Timer, TimerTask}
 import scala.swing.BorderPanel.Position
 import scala.swing.{BorderPanel, BoxPanel, Label, MainFrame, Orientation, Panel, Point, Swing}
 
-class DuringGameMainFrame(val viewListener: IDuringGameViewListener) extends MainFrame:
+class GameMainFrame(val viewListener: IGameViewUserCommandListener) extends MainFrame:
   title = "Cabo - The Game"
 
   // Set frame dimension
@@ -41,7 +40,7 @@ class DuringGameMainFrame(val viewListener: IDuringGameViewListener) extends Mai
     border = Swing.EmptyBorder(30, 30, 30, 30)
   }
 
-  private var duringGamePanel: Option[DuringGamePanel] = None
+  private var duringGamePanel: Option[GamePanel] = None
 
   setPanel(new WaitingToStartGamePanel())
   contents = containerPanel
@@ -53,9 +52,9 @@ class DuringGameMainFrame(val viewListener: IDuringGameViewListener) extends Mai
     containerPanel.revalidate()
     containerPanel.repaint()
 
-  def startGame(game: GameInProgress, userID: String): IDuringGameInterface = {
+  def startGame(game: GameInProgress, userID: String): IGameView = {
     println(s"DuringGameMainFrame > startGame: Starting game... $userID")
-    duringGamePanel = Some(new DuringGamePanel(viewListener, game, userID))
+    duringGamePanel = Some(new GamePanel(viewListener, game, userID))
     //    duringGamePanel.get.peer.putClientProperty("JComponent.outline", "true")
     setPanel(duringGamePanel.get)
 

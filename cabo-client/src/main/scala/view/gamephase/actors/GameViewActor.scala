@@ -9,8 +9,8 @@ import messages.GameViewMessages.*
 import messages.ViewUserCommandMessages.*
 import messages.{IGameViewMessage, IPreGameViewMessage, GameCoordinatorMessage as GCMsg}
 import utils.Message
-import view.gamephase.DuringGameMainFrame
-import view.gamephase.traits.IDuringGameInterface
+import view.gamephase.GameMainFrame
+import view.gamephase.traits.IGameView
 
 object GameViewActor {
   def apply(
@@ -33,8 +33,8 @@ private class GameViewActor private(
 
   private case class GameContext(
                                   coordinator: ActorRef[GameCoordinatorMessage.GameCoordinatorMessage],
-                                  frame: DuringGameMainFrame,
-                                  ui: IDuringGameInterface
+                                  frame: GameMainFrame,
+                                  ui: IGameView
                                 )
 
   private case class AdversaryCardRequested(
@@ -55,7 +55,7 @@ private class GameViewActor private(
 
   def start(): Behavior[IGameViewMessage] = Behaviors.setup { _ =>
     log("start", "DuringGameViewActor started")
-    val frame = new DuringGameMainFrame(ViewUserCommandListener(ctx.self))
+    val frame = new GameMainFrame(GameViewUserCommandListener(ctx.self))
     frame.open()
     frame.visible = true
 
@@ -65,7 +65,7 @@ private class GameViewActor private(
       case StartGame(game, gameCoordinatorRef) =>
         log("start", s"Handling game started with message: ${StartGame(game, gameCoordinatorRef)}")
         val userInterface = frame.startGame(game, userID)
-        userInterface.enterRevealingInitialCardsPhase()
+        userInterface.enterRevealingSection()
         watchYourCards(GameContext(gameCoordinatorRef, frame, userInterface))
       case msg =>
         ctx.log.warn(s"DuringGameViewActor of player $userID in state start received unexpected message: $msg")

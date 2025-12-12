@@ -5,7 +5,7 @@ import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import messages.ClientMessages.ClientCommand
 import messages.{GameViewMessages, IGameViewMessage, IPreGameViewMessage, IViewMessage, PreGameViewMessages}
 import utils.Message
-import view.lobbyphase.actors.InitialPhaseViewActor
+import view.lobbyphase.actors.PreGameViewActor
 import view.gamephase.actors.GameViewActor
 
 object ViewsProxyActor {
@@ -17,7 +17,7 @@ object ViewsProxyActor {
   def apply(userId: String, userName: String, clientRef: ActorRef[ClientCommand]): Behavior[IViewMessage] =
     Behaviors.setup { ctx =>
       ctx.log.info(s"ViewCoordinator started for user $userId")
-      val initialView = ctx.spawn(InitialPhaseViewActor(clientRef, userName), "InitialView")
+      val initialView = ctx.spawn(PreGameViewActor(clientRef, userName), "InitialView")
       initialView ! PreGameViewMessages.WhoToSendResponse(clientRef)
       new ViewsProxyActor(ctx, userId, userName, clientRef).preGame(initialView)
     }
@@ -50,7 +50,7 @@ private class ViewsProxyActor(ctx: ActorContext[IViewMessage], userId: String, u
         ctx.log.info("Switching to INITIAL View")
         ctx.stop(currentView)
         val actorName = s"InitialView-$userId-${System.currentTimeMillis()}"
-        val initialView = ctx.spawn(InitialPhaseViewActor(clientRef, userName), actorName)
+        val initialView = ctx.spawn(PreGameViewActor(clientRef, userName), actorName)
         initialView ! PreGameViewMessages.WhoToSendResponse(clientRef)
         preGame(initialView)
       case msg: IGameViewMessage =>
