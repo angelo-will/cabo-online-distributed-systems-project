@@ -5,7 +5,7 @@ import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import messages.ClientMessages.ClientCommand
 import messages.{GameViewMessages, IGameViewMessage, IPreGameViewMessage, IViewMessage, PreGameViewMessages}
 import utils.Message
-import view.lobbyphase.actors.PreGameViewActor
+import view.pregamephase.actors.PreGameViewActor
 import view.gamephase.actors.GameViewActor
 
 object ViewsProxyActor {

@@ -5,11 +5,11 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.BeforeAndAfterEach
 import utils.Message
-import view.lobbyphase.ViewApplication
-import view.lobbyphase.actors.ViewActorListener
+import view.pregamephase.ViewApplication
+import view.pregamephase.actors.PreGameViewListener
 
 
-class ViewActorListenerSpec extends ScalaTestWithActorTestKit
+class PreGameViewListenerSpec extends ScalaTestWithActorTestKit
   with AnyWordSpecLike
   with BeforeAndAfterEach
   with Matchers:

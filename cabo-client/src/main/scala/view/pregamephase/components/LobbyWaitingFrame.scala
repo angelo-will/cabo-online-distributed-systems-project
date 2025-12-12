@@ -1,9 +1,7 @@
-package view.lobbyphase.components
+package view.pregamephase.components
 
 import model.Game.GameInConstruction
 import model.{Game, PlayerInLobby}
-import view.lobbyphase.ScreenNavigator
-import view.lobbyphase.ViewListener.IPreGameViewListener
 
 import java.awt.{Font, GridBagConstraints, Insets, Toolkit}
 import java.awt.GridBagConstraints.*
@@ -14,14 +12,13 @@ import scala.swing.GridBagPanel.Fill
 import scala.swing.event.ButtonClicked
 //import scala.swing.{Alignment, BoxPanel, Button, Dialog, Dimension, Label, MainFrame, Orientation, ScrollPane, Swing}
 import scala.swing._
-import scala.util.Random
 
 trait IWaitingToStartListener:
   def startGame(): Unit
 
   def exitFromTheGame(): Unit
 
-class WaitingFrame(
+class LobbyWaitingFrame(
                     //                    navigator: ScreenNavigator,
                     listener: IWaitingToStartListener,
                     private var game: GameInConstruction,

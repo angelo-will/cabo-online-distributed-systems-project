@@ -1,4 +1,4 @@
-package view.lobbyphase.actors
+package view.pregamephase.actors
 
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
@@ -7,8 +7,8 @@ import messages.ClientMessages.ClientCommand
 import messages.IPreGameViewMessage
 import messages.PreGameViewMessages.*
 
-import view.lobbyphase.components.{IWaitingToStartListener, WaitingFrame}
-import view.lobbyphase.{PreGameMainFrame, ViewApplication}
+import view.pregamephase.components.{IWaitingToStartListener, LobbyWaitingFrame}
+import view.pregamephase.{PreGameMainFrame, ViewApplication}
 
 object PreGameViewActor {
 
@@ -45,7 +45,7 @@ object PreGameViewActor {
 
     def startViewCreation(): Behavior[IPreGameViewMessage] = {
       ViewApplication.startView(
-        ViewActorListener(clientRef),
+        PreGameViewListener(clientRef),
         playerName,
         afterCreation = frame => {
           println("View constructed, sending ViewEndCreation to self")
@@ -115,7 +115,7 @@ object PreGameViewActor {
       }
     }
 
-    private def waitingLobby(frame: WaitingFrame): Behavior[IPreGameViewMessage] = {
+    private def waitingLobby(frame: LobbyWaitingFrame): Behavior[IPreGameViewMessage] = {
       Behaviors.receiveMessage {
 
         case GameInfoUpdate(game) =>
@@ -157,7 +157,7 @@ object PreGameViewActor {
                                     game: Game.GameInConstruction,
                                     isHost: Boolean,
                                     listener: IWaitingToStartListener
-                                  ): WaitingFrame =
-      new WaitingFrame(listener, game, isHost)
+                                  ): LobbyWaitingFrame =
+      new LobbyWaitingFrame(listener, game, isHost)
   }
 }

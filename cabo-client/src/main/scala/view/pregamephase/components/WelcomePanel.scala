@@ -1,4 +1,4 @@
-package view.lobbyphase.components
+package view.pregamephase.components
 
 import java.awt.{Dimension, Font}
 import scala.swing.{Alignment, BoxPanel, Button, Color, Label, Orientation, Swing}

@@ -7,9 +7,9 @@ import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.matchers.must.Matchers.mustBe
 import utils.Message
-import view.lobbyphase.ViewApplication
-import view.lobbyphase.actors.PreGameViewActor.ViewCreated
-import view.lobbyphase.actors.{PreGameViewActor, ViewActorListener}
+import view.pregamephase.ViewApplication
+import view.pregamephase.actors.PreGameViewActor.ViewCreated
+import view.pregamephase.actors.{PreGameViewActor, PreGameViewListener}
 
 import scala.swing.{BoxPanel, Label, MainFrame, Orientation, Swing}
 import scala.swing.MenuBar.NoMenuBar.border

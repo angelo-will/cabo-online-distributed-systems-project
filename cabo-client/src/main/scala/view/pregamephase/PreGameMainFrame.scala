@@ -1,12 +1,12 @@
-package view.lobbyphase
+package view.pregamephase
 
 import akka.actor.typed.{ActorRef, ActorSystem}
 import model.{Game, GameParameters, PlayerInLobby}
 import utils.Message
 import view.*
-import view.lobbyphase.components.{CreateGamePanel, GameListPanel, JoinGameWithLinkPanel, WelcomePanel}
-import view.lobbyphase.components.*
-import view.lobbyphase.ViewListener.IPreGameViewListener
+import view.pregamephase.components.{CreateGamePanel, GameListPanel, JoinGameWithLinkPanel, WelcomePanel}
+import view.pregamephase.components.*
+import view.pregamephase.IPreGameViewListener
 
 import java.awt
 import java.awt.event.WindowAdapter

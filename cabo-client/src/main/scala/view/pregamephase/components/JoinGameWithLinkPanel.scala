@@ -1,7 +1,7 @@
-package view.lobbyphase.components
+package view.pregamephase.components
 
-import view.lobbyphase.ViewListener.IPreGameViewListener
-import view.lobbyphase.ScreenNavigator
+import view.pregamephase.IPreGameViewListener
+import view.pregamephase.ScreenNavigator
 
 import java.awt.Font
 import scala.swing.{Alignment, BoxPanel, Button, Dimension, Label, Orientation, Swing, TextField}

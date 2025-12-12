@@ -10,7 +10,7 @@ import utils.Message
 import view.gamephase
 import view.gamephase.actors
 import view.gamephase.actors.GameViewActor
-import view.lobbyphase.actors.PreGameViewActor
+import view.pregamephase.actors.PreGameViewActor
 
 import scala.swing.*
 import scala.swing.event.ButtonClicked

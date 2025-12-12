@@ -1,7 +1,7 @@
-package view.lobbyphase.components
+package view.pregamephase.components
 
 import model.Game.GameInConstruction
-import view.lobbyphase.ScreenNavigator
+import view.pregamephase.ScreenNavigator
 
 import java.awt.{Color, Font}
 import javax.swing.SwingUtilities
