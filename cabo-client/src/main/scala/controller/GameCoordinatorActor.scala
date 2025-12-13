@@ -38,8 +38,6 @@ object GameCoordinatorActor:
   private case class EndedByEmptyDeck() extends EndingGame
 
   private case class NotEnded() extends EndingGame
-  
-  private case class UpdateAfterMyTurn(game: GameInProgress, log: TurnLog) extends GameCoordinatorMessage
 
   private case class GameData(
                                clientReference: ActorRef[CCommand],
@@ -214,16 +212,13 @@ object GameCoordinatorActor:
           gameData.turnLog.addEvent(TurnEvent.EndTurn())
           val newGameData = gameData.syncAllTemporaryDecks
           gameData.clientReference ! CLMsg.TurnEnded(newGameData.game, gameData.turnLog)
-//          ctx.self ! GCMsg.NewTurn(newGameData.game, newGameData.turnLog)
-          ctx.self ! UpdateAfterMyTurn(newGameData.game, newGameData.turnLog)
-          notMyTurn(newGameData)
+          updateNewTurn(newGameData.game, newGameData.turnLog, newGameData)
         case (ctx, GCMsg.CallCabo()) =>
           gameData.turnLog.addEvent(TurnEvent.CaboCalled())
           val tempGame = gameData.temporaryGame.copy(caboState = Some(gameData.getSelfPlayer))
           val newGameData = gameData.copy(temporaryGame = tempGame).syncAllTemporaryDecks
           gameData.clientReference ! CLMsg.TurnEnded(newGameData.game, gameData.turnLog)
-          ctx.self ! UpdateAfterMyTurn(newGameData.game, newGameData.turnLog)
-          notMyTurn(newGameData)
+          updateNewTurn(newGameData.game, newGameData.turnLog, newGameData)
       })
   }
 
@@ -237,7 +232,6 @@ object GameCoordinatorActor:
         case (_, GCMsg.EndTurn()) => Behaviors.same
       })
       .orElse(handleNewTurnOrEmptyTurn(gameData))
-      .orElse(handleUpdateMyTurn(gameData))
   }
 
   //
@@ -327,7 +321,7 @@ object GameCoordinatorActor:
 
   private def handleNewTurnOrEmptyTurn(gameData: GameData): PartialFunction[(ActorContext[GameCoordinatorMessage], GameCoordinatorMessage), Behavior[GameCoordinatorMessage]] = {
     case (ctx, GCMsg.NewTurn(game, turnLog)) =>
-      ctx.log.info(s"NewTurn received, \nactual game = ${gameData.game} \ngameReceived = $game")
+      ctx.log.info(s"${gameData.playerOwnUserID} - NewTurn received!")
       gameData.clientReference ! CLMsg.TurnUpdated()
       updateNewTurn(game, turnLog, gameData)
     case (ctx, GCMsg.GetEmptyTurn(userID)) =>
@@ -338,12 +332,6 @@ object GameCoordinatorActor:
       log.addEvent(TurnEvent.JumpTurnForDisconnection())
       gameData.clientReference ! CLMsg.TurnEnded(gameTurnUpdated, log)
       Behaviors.same
-  }
-  
-  private def handleUpdateMyTurn(data: GameData): PartialFunction[(ActorContext[GameCoordinatorMessage],GameCoordinatorMessage), Behavior[GameCoordinatorMessage]] = {
-    case (ctx, UpdateAfterMyTurn(game, turnLog)) =>
-      ctx.log.info(s"UpdateAfterMyTurn received, \nactual game = ${data.game} \ngameReceived = $game")
-      updateNewTurn(game, turnLog, data)
   }
 
   // POWERS implementation
@@ -435,8 +423,7 @@ object GameCoordinatorActor:
       val newGameData = gameData.copy(temporaryGame = gameData.game, turnLog = newTurnLogJumping)
       gameData.viewReference ! DGVMsg.EndTurnByTimeEnded()
       gameData.clientReference ! CLMsg.TurnEnded(newGameData.game, newGameData.turnLog)
-      ctx.self ! UpdateAfterMyTurn(newGameData.game, newGameData.turnLog)
-      notMyTurn(newGameData)
+      updateNewTurn(newGameData.game, newGameData.turnLog, newGameData)
   }
 
   private def transitionToShowingResults(gameEnd: EndingGame, gameData: GameData, lastTurnLog: TurnLog): Behavior[GameCoordinatorMessage] = {
