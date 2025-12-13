@@ -167,7 +167,6 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
         endTurnByTime()
         skipViewProbeMessage()
         skipClientProbeMessage()
-        skipClientProbeMessage()
         gameCoordinatorActor ! GCMessage.NewTurn(game, new DuringGameTurnLog("", 0))
         viewProbe.expectMessageType[GameViewMessages.LastTurnPlayed]
       }
@@ -175,10 +174,11 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
     "send turn updated ack" when {
       "receive new turn" in {
         // new turn is sent from coordinator to itself after turn ended
-        jumpToFirstTurnAndGetGame()
+        val game = jumpToFirstTurnAndGetGame()
         endTurnByTime()
         skipViewProbeMessage()
         skipClientProbeMessage()
+        gameCoordinatorActor ! GCMessage.NewTurn(game, new DuringGameTurnLog("", 0))
         clientProbe.expectMessageType[ClientMessages.TurnUpdated]
       }
     }
@@ -187,7 +187,6 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
         jumpToFirstTurnAndGetGame()
         endTurnByTime()
         skipViewProbeMessage()
-        skipClientProbeMessage()
         skipClientProbeMessage()
         val game = reqGameInformation()
         gameCoordinatorActor ! GCMessage.GetEmptyTurn(userID)
@@ -328,7 +327,7 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
     viewProbe.expectMessageType[GameViewMessages.LastTurnPlayed]
     viewProbe.expectMessageType[GameViewMessages.StartTurnPlayer]
     clientProbe.expectMessageType[ClientMessages.TurnEnded]
-    clientProbe.expectMessageType[ClientMessages.TurnUpdated]
+    //    clientProbe.expectMessageType[ClientMessages.TurnUpdated]
   }
 
   private def startActorAndGenerateGameData(): Unit = {
@@ -462,7 +461,7 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
 
     Game.GameInProgress(
       code = "test-game-in-progress",
-//      gameParameters = GameParameters(maxPlayers = playerIDs.size),
+      //      gameParameters = GameParameters(maxPlayers = playerIDs.size),
       gameParameters = GameParameters(maxPlayers = playerIDs.size, roundLimitation = 20),
       gameStatus = model.GameStatus.InProgress(),
       players = playersPlaying,

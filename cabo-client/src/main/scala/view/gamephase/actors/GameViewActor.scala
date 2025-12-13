@@ -25,11 +25,11 @@ object GameViewActor {
 }
 
 private class GameViewActor private(
-                                           val ctx: ActorContext[IGameViewMessage],
-                                           val userID: String,
-                                           val clientRef: ActorRef[ClientCommand],
-                                           val mainMenuRef: ActorRef[IPreGameViewMessage]
-                                         ) {
+                                     val ctx: ActorContext[IGameViewMessage],
+                                     val userID: String,
+                                     val clientRef: ActorRef[ClientCommand],
+                                     val mainMenuRef: ActorRef[IPreGameViewMessage]
+                                   ) {
 
   private case class GameContext(
                                   coordinator: ActorRef[GameCoordinatorMessage.GameCoordinatorMessage],
@@ -249,6 +249,7 @@ private class GameViewActor private(
     handleExitSelected(context)(actualState)
       .orElse(handleOpponentDisconnected(context)(actualState))
       .orElse(handleOpponentImpossibleToReach(context)(actualState))
+      .orElse(handleEndTurnByTimeEnded(context)(actualState))
       .orElse(handleUnexpectedMessage(actualState))
   }
 
@@ -277,6 +278,8 @@ private class GameViewActor private(
       Behaviors.same
   }
   // HANDLERS revealing section - END ---
+
+  // HANDLERS PLAY CYCLE - START ---
 
   private def handleUpdateLastTurnPlayed(context: GameContext)(actualState: String): PartialFunction[IGameViewMessage, Behavior[IGameViewMessage]] = {
     case LastTurnPlayed(turnLog, game) =>
@@ -377,6 +380,13 @@ private class GameViewActor private(
       context.coordinator ! GCMsg.EndTurn()
       waitMyTurn(context)
   }
+
+  private def handleEndTurnByTimeEnded(context: GameContext)(actualState: String): PartialFunction[IGameViewMessage, Behavior[IGameViewMessage]] = {
+    case EndTurnByTimeEnded() =>
+      log(actualState, "Received TurnTimeEnded")
+      context.ui.enterWaitingPhase()
+      waitMyTurn(context)
+  }
   // --- HANDLERS my turn - END ---
 
   // --- HANDLERS game ending - START ---
@@ -406,6 +416,9 @@ private class GameViewActor private(
       Behaviors.stopped
   }
   // --- HANDLERS game ending - END ---
+
+  // HANDLERS PLAY CYCLE - END ---
+
 
   // HANDLERS connections problem - START
 
