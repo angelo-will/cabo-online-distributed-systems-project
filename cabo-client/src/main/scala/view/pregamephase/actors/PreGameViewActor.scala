@@ -133,8 +133,7 @@ object PreGameViewActor {
           //        frame.dispose()
           frame.hostCancelledTheGame(() => ctx.self ! RestartView())
           //        startViewCreation()
-
-          Behaviors.same
+          waitingRestart(frame)
 
         case GameStarted() =>
           ctx.log.info("Game started. Closing Waiting Room.")
@@ -148,6 +147,19 @@ object PreGameViewActor {
 
         case other =>
           ctx.log.warn(s"Unhandled message in WAITING: $other")
+          Behaviors.same
+      }
+    }
+
+    private def waitingRestart(frame: LobbyWaitingFrame): Behavior[IPreGameViewMessage] = {
+      Behaviors.receiveMessage {
+        case RestartView() =>
+          ctx.log.info("Restart requested. Reloading view.")
+          frame.dispose()
+          startViewCreation()
+
+        case other =>
+          ctx.log.warn(s"Unhandled message while waiting for restart: $other")
           Behaviors.same
       }
     }
