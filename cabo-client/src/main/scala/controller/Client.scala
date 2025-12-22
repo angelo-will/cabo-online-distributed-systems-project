@@ -67,6 +67,8 @@ object Client:
   // todo: inserito da angelo per far passare la prima fase fino che non è definito come farla
   case class RevealingCardsPhaseForOtherClients(log: TurnLog) extends ClientInternalCommand
 
+  case class AllTheLogs(logs: List[TurnLog]) extends ClientInternalCommand
+
 //  case class PlayerStatus(playerID: String, address: ActorRef[ClientInternalCommand], rank: Int, isOnline: Boolean)
   case class PlayerStatus(playerInfo: PlayerInLobby, rank: Int, isOnline: Boolean)
 
@@ -100,6 +102,10 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
     ctx.log.error(s"Client[$userId]: $msg")
   }
 
+  private def logWarn(ctx: ActorContext[Message], msg: String): Unit = {
+    ctx.log.warn(s"Client[$userId]: $msg")
+  }
+
   private def contactInReceptionistAndAsk[T](key: ServiceKey[T])(whatToAskTo: ActorRef[T] => Unit)(ifFailure: () => Unit): Behavior[Message] = {
     Behaviors.setup { ctx =>
       val listingResponseAdapter = ctx.messageAdapter[Receptionist.Listing](ListingResponse.apply)
@@ -121,17 +127,19 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
     }
   }
 
-  private def awaitSynchronization(ctx: ActorContext[Message], usersToWait: List[String], nextBehavior: () => Behavior[Message], ifFailure: () => Behavior[Message]): Behavior[Message] = {
+  private def awaitSynchronization(ctx: ActorContext[Message], usersToWait: List[String], nextBehavior: () => Behavior[Message], ifFailure: (failures: List[String]) => Behavior[Message]): Behavior[Message] = {
+    logInfo(ctx, s"Awaiting synchronization from players: ${usersToWait.mkString(", ")}")
     Behaviors.withStash(100) { buffer =>
       Behaviors.withTimers { timers =>
         var checkSync = Map.empty[String, Boolean] ++ usersToWait.map(id => id -> false)
         //todo - make the timeout configurable
-        timers.startTimerAtFixedRate(FailedToSynchronize(), 5.seconds)
+        timers.startSingleTimer(FailedToSynchronize(), 5.seconds)
         Behaviors.receiveMessage {
           case FailedToSynchronize() =>
             logError(ctx,s"Failed to synchronize all players in time: ${checkSync.filterNot(_._2).keys.mkString(", ")} did not respond")
             timers.cancelAll()
-            buffer.unstashAll(ifFailure())
+            // call the failure behavior with the list of players who did not respond
+            buffer.unstashAll(ifFailure(checkSync.filterNot(_._2).keys.toList))
           case SynchronizationAck(fromWho) =>
             logInfo(ctx,s"Synchronization ack received from: $fromWho")
             checkSync = checkSync.updatedWith(fromWho)({ case None => None case Some(v) => Some(true) })
@@ -141,9 +149,12 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
               buffer.unstashAll(nextBehavior())
             } else {
               logInfo(ctx,s"Waiting for players to synchronize: ${checkSync.filterNot(_._2).keys.mkString(", ")}")
+              // restart the timer so that the timeout is counted from the last received ack
+              timers.startSingleTimer(FailedToSynchronize(), 5.seconds)
               Behaviors.same
             }
           case other =>
+            logInfo(ctx,s"Stashing message while waiting for synchronization: $other")
             buffer.stash(other)
             Behaviors.same
         }
@@ -159,15 +170,17 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
   }
 
   private def withShared(
-                          specific: PartialFunction[(ActorContext[Message], Message), Behavior[Message]]
+                          specific: PartialFunction[(ActorContext[Message], Message), Behavior[Message]],
+                          whereAmI: String = ""
                         ): Behavior[Message] = {
     Behaviors.receivePartial(sharedHandler
       .orElse(specific)
       .orElse({
         case (ctx, msg) =>
-          ctx.log.warn(s"Unhandled message in Client actor: $msg")
+          logWarn(ctx, s"In $whereAmI Unhandled message in Client actor: $msg")
           Behaviors.same
-      }))
+      })
+    )
   }
 
   private def start: Behavior[Message] = Behaviors.setup { ctx =>
@@ -210,22 +223,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
     })
   }
 
-
-//  def createPlayersStatus(playersInLobby: List[PlayerInLobby], playersPlaying: List[PlayerPlaying]): List[PlayerStatus] = {
-//    val idAddress = playersInLobby.map(p => (p.userID, p.address))
-//    val idRank = playersPlaying.map(p => (p.userID, p.rank))
-//
-//    val rankById = idRank.map(r => r._1 -> r).toMap
-//
-//    idAddress.flatMap { a =>
-//      rankById.get(a._1).map { r =>
-//        PlayerStatus(a._1, a._2, r._2, true)
-//      }
-//    }
-//  }
-
   private def createPlayersStatus(playersInLobby: List[PlayerInLobby], playersPlaying: List[PlayerPlaying]): List[PlayerStatus] = {
-//    val idAddress = playersInLobby.map(p => (p.userID, p.address))
     val idRank = playersPlaying.map(p => (p.userID, p.rank))
 
     val rankById = idRank.map(r => r._1 -> r).toMap
@@ -373,8 +371,8 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
         awaitSynchronization(ctx, game.players.filter(!_.address.equals(ctx.self)).map(_.userID), () => {
           logInfo(ctx, s"All players synchronized, starting the game: ${gameInProgress.code}")
           gameCoordinator ! GameCoordinatorMessage.StartGame()
-          inGameBehavior(gameCoordinator, createPlayersStatus(game.players, gameInProgress.players), hostRef)
-        }, () => {
+          preGamePhase(gameCoordinator, createPlayersStatus(game.players, gameInProgress.players), hostRef)
+        }, _ => {
           //If failed to synchronize
           //Brutal policy, we abort the game
           logError(ctx, s"Failed to synchronize all players, aborting the game: ${gameInProgress.code}")
@@ -487,8 +485,69 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
         val gameCoordinator = ctx.spawn(GameCoordinatorActor(ctx.self, viewActorRef, userId, gameInProgress), "GameCoordinatorActor")
         gameCoordinator ! GameCoordinatorMessage.StartGame()
         connectionHandler ! ConnectionHandler.UpdateList(game.players)
-        inGameBehavior(gameCoordinator, createPlayersStatus(game.players, gameInProgress.players), hostRef)
+        preGamePhase(gameCoordinator, createPlayersStatus(game.players, gameInProgress.players), hostRef)
     })
+  }
+
+  private def preGamePhase(gameCoordinator: ActorRef[GameCoordinatorMessage], playersStatus: List[PlayerStatus], hostRef: ActorRef[ClientInternalCommand]): Behavior[Message] = {
+
+    def otherPlayersOnline = playersStatus.filterNot(p => !p.isOnline || p.playerInfo.userID.equals(this.userId))
+
+    var phaseLogs: List[TurnLog] = List()
+
+    def hostCheckIfReady(ctx: ActorContext[Message], log: TurnLog): Behavior[Message] = {
+      phaseLogs = phaseLogs :+ log
+
+      if phaseLogs.size == playersStatus.size then {
+        logInfo(ctx, s"All players have sent their logs, informing other players")
+        // informing view of the logs
+        phaseLogs.foreach(viewActorRef ! GameViewMessages.RevealingCardsPhaseAdversaryLog(_))
+        // sending all the logs to other players
+        otherPlayersOnline.map(_.playerInfo.address).foreach(_ ! AllTheLogs(phaseLogs))
+        // synchronizing all players
+        awaitSynchronization(ctx, otherPlayersOnline.map(_.playerInfo.userID), () => {
+          logInfo(ctx, s"All players synchronized after revealing cards phase, proceeding to game start")
+          gameCoordinator ! GameCoordinatorMessage.StartPlayCycle()
+          inGameBehavior(gameCoordinator, playersStatus, hostRef)
+        }, _ => {
+          //If failed to synchronize
+          //Brutal policy, we abort the game
+          logError(ctx, s"Failed to synchronize all players after revealing cards phase, aborting the game")
+          ctx.stop(gameCoordinator)
+          otherPlayersOnline.map(_.playerInfo.address).foreach(_ ! GameCancelled())
+          viewActorRef ! GameViewMessages.GameDeleted()
+          connectionHandler ! ConnectionHandler.UpdateList(List())
+          start
+        })
+      }
+      else {
+        Behaviors.same
+      }
+    }
+
+    withShared({
+      case (ctx, RevealingCardsPhaseLog(log)) =>
+        logInfo(ctx, s"Received ${RevealingCardsPhaseLog(log)}")
+
+        if !(ctx.self equals hostRef) then {
+          hostRef ! RevealingCardsPhaseForOtherClients(log)
+          Behaviors.same
+        } else {
+          hostCheckIfReady(ctx, log)
+        }
+
+      case (ctx, RevealingCardsPhaseForOtherClients(log)) =>
+        logInfo(ctx, s"Received ${RevealingCardsPhaseForOtherClients(log)}")
+        hostCheckIfReady(ctx, log)
+
+      case (ctx, AllTheLogs(logs)) =>
+        logInfo(ctx, s"Received all the logs from host")
+        // todo - think about if we want to pass through the coordinator
+        logs.foreach(viewActorRef ! GameViewMessages.RevealingCardsPhaseAdversaryLog(_))
+        hostRef ! SynchronizationAck(userId)
+        gameCoordinator ! GameCoordinatorMessage.StartPlayCycle()
+        inGameBehavior(gameCoordinator, playersStatus, hostRef)
+    }, "preGamePhase")
   }
 
   //todo - retrieve who am i, so the rank, by id from the game players?
@@ -572,38 +631,8 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
       start
     }
 
-    //todo - initial phase when exchanging log about cards viewed
     withShared({
       // GAME LOGIC LEVEL MESSAGES - START
-
-      // todo: aggiunti da Angelo fino che non è definito come far passare la fase di reveal delle carte - START
-      case (ctx, RevealingCardsPhaseLog(log)) =>
-        logInfo(ctx, s"Received ${RevealingCardsPhaseLog(log)}")
-        howManyHaveWatchedCards += 1
-//        playersStatus.filter(l => !l.playerInfo.userID.equals(this.userId) && l.isOnline).map(_.playerInfo.address).foreach(_ ! RevealingCardsPhaseForOtherClients(log))
-        otherPlayersOnline.map(_.playerInfo.address).foreach(_ ! RevealingCardsPhaseForOtherClients(log))
-        logInfo(ctx,s"Number of players that have watched the cards: $howManyHaveWatchedCards")
-        if howManyHaveWatchedCards == playersStatus.size then {
-          logInfo(ctx,s"All players have watched the cards, resetting counter and informing GameCoordinator to proceed")
-          howManyHaveWatchedCards = 0
-          gameCoordinator ! GameCoordinatorMessage.StartPlayCycle()
-        }
-        Behaviors.same
-
-      case (ctx, RevealingCardsPhaseForOtherClients(log)) =>
-        logInfo(ctx, s"Received ${RevealingCardsPhaseForOtherClients(log)}")
-        viewActorRef ! GameViewMessages.RevealingCardsPhaseAdversaryLog(log)
-        //        if hostRef == ctx.self then
-        howManyHaveWatchedCards += 1
-        logInfo(ctx,s"Number of players that have watched the cards: $howManyHaveWatchedCards")
-        if howManyHaveWatchedCards == playersStatus.size then {
-          logInfo(ctx,s"All players have watched the cards, resetting counter and informing GameCoordinator to proceed")
-          howManyHaveWatchedCards = 0
-          gameCoordinator ! GameCoordinatorMessage.StartPlayCycle()
-        }
-
-        Behaviors.same
-      // todo: aggiunti da Angelo fino che non è definito come far passare la fase di reveal delle carte - END
 
       // send by the host when it cannot synchronize all the players at the start of the game
       case (ctx, GameCancelled()) =>
@@ -618,8 +647,23 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
           logInfo(ctx,s"All players synchronized after my turn, ${this.userId}, waiting for my turn again: ${game.code}")
           if ctx.self equals hostRef then checkNextTurn(gameCoordinator, game, ctx)
           inGameBehavior(gameCoordinator, playersStatus, hostRef)
-        }, () => {
+        }, failures => {
           //todo - what to do if not all the players have synchronized?
+          logError(ctx,s"Some Players failed to synchronise: ${failures.mkString(", ")}, retrying for them")
+          otherPlayersOnline.filter(p => failures.contains(p.playerInfo.userID)).map(_.playerInfo.address).foreach(_ ! GameInProgressUpdate(ctx.self, game, log))
+          awaitSynchronization(ctx, failures, () => {
+            logInfo(ctx,s"All players synchronized after my turn, ${this.userId}, waiting for my turn again: ${game.code}")
+            if ctx.self equals hostRef then checkNextTurn(gameCoordinator, game, ctx)
+            inGameBehavior(gameCoordinator, playersStatus, hostRef)
+          }, _ => {
+            //If failed to synchronize
+            //Brutal policy, we abort the game
+            logError(ctx,s"Failed to synchronize all players after retrying, aborting the game: ${game.code}")
+            ctx.stop(gameCoordinator)
+            otherPlayersOnline.map(_.playerInfo.address).foreach(_ ! GameCancelled())
+            viewActorRef ! GameViewMessages.GameDeleted()
+            returnToStart(ctx)
+          })
           Behaviors.same
         })
 

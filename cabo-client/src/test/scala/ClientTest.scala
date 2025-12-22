@@ -207,6 +207,34 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(
       case SynchronizationAck(id) => // ok
       case _ => fail("Host probe expected SynchronizationAck message")
     }
+
+    //In preGame phase
+
+    // simulate gameCoordinator sending RevealingCardsPhaseLog in host
+    clientHost ! RevealingCardsPhaseLog(null)
+    probeClientHost.expectMessage(RevealingCardsPhaseLog(null))
+
+    joiners.foreach { case (clientJoiner, probeClientJoiner, clientJoinerView) =>
+      // simulate gameCoordinator sending RevealingCardsPhaseLog in joiners
+      clientJoiner ! RevealingCardsPhaseLog(null)
+      probeClientJoiner.expectMessageType[RevealingCardsPhaseLog]
+    }
+
+    // host receives the log of the other clients
+    probeClientHost.receiveMessages(joiners.size).foreach {
+      case RevealingCardsPhaseForOtherClients(_) => // ok
+      case _ => fail("Host probe expected logs message")
+    }
+
+    joiners.foreach { case (clientJoiner, probeClientJoiner, clientJoinerView) =>
+      probeClientJoiner.expectMessageType[AllTheLogs]
+    }
+
+    probeClientHost.receiveMessages(joiners.size).foreach {
+      case SynchronizationAck(id) => // ok
+      case _ => fail("Host probe expected SynchronizationAck message")
+    }
+
   }
 
   "A client" should {
