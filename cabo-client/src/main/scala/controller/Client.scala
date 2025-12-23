@@ -371,7 +371,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
         awaitSynchronization(ctx, game.players.filter(!_.address.equals(ctx.self)).map(_.userID), () => {
           logInfo(ctx, s"All players synchronized, starting the game: ${gameInProgress.code}")
           gameCoordinator ! GameCoordinatorMessage.StartGame()
-          preGamePhase(gameCoordinator, createPlayersStatus(game.players, gameInProgress.players), hostRef)
+          preGamePhaseHost(gameCoordinator, createPlayersStatus(game.players, gameInProgress.players), hostRef)
         }, _ => {
           //If failed to synchronize
           //Brutal policy, we abort the game
@@ -485,11 +485,11 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
         val gameCoordinator = ctx.spawn(GameCoordinatorActor(ctx.self, viewActorRef, userId, gameInProgress), "GameCoordinatorActor")
         gameCoordinator ! GameCoordinatorMessage.StartGame()
         connectionHandler ! ConnectionHandler.UpdateList(game.players)
-        preGamePhase(gameCoordinator, createPlayersStatus(game.players, gameInProgress.players), hostRef)
+        preGamePhaseJoined(gameCoordinator, createPlayersStatus(game.players, gameInProgress.players), hostRef)
     })
   }
 
-  private def preGamePhase(gameCoordinator: ActorRef[GameCoordinatorMessage], playersStatus: List[PlayerStatus], hostRef: ActorRef[ClientInternalCommand]): Behavior[Message] = {
+  private def preGamePhaseHost(gameCoordinator: ActorRef[GameCoordinatorMessage], playersStatus: List[PlayerStatus], hostRef: ActorRef[ClientInternalCommand]): Behavior[Message] = {
 
     def otherPlayersOnline = playersStatus.filterNot(p => !p.isOnline || p.playerInfo.userID.equals(this.userId))
 
@@ -528,17 +528,21 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
     withShared({
       case (ctx, RevealingCardsPhaseLog(log)) =>
         logInfo(ctx, s"Received ${RevealingCardsPhaseLog(log)}")
-
-        if !(ctx.self equals hostRef) then {
-          hostRef ! RevealingCardsPhaseForOtherClients(log)
-          Behaviors.same
-        } else {
-          hostCheckIfReady(ctx, log)
-        }
+        hostCheckIfReady(ctx, log)
 
       case (ctx, RevealingCardsPhaseForOtherClients(log)) =>
         logInfo(ctx, s"Received ${RevealingCardsPhaseForOtherClients(log)}")
         hostCheckIfReady(ctx, log)
+    })
+  }
+
+  private def preGamePhaseJoined(gameCoordinator: ActorRef[GameCoordinatorMessage], playersStatus: List[PlayerStatus], hostRef: ActorRef[ClientInternalCommand]): Behavior[Message] = {
+
+    withShared({
+      case (ctx, RevealingCardsPhaseLog(log)) =>
+        logInfo(ctx, s"Received ${RevealingCardsPhaseLog(log)}")
+        hostRef ! RevealingCardsPhaseForOtherClients(log)
+        Behaviors.same
 
       case (ctx, AllTheLogs(logs)) =>
         logInfo(ctx, s"Received all the logs from host")
