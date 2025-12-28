@@ -551,7 +551,20 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
         hostRef ! SynchronizationAck(userId)
         gameCoordinator ! GameCoordinatorMessage.StartPlayCycle()
         inGameBehavior(gameCoordinator, playersStatus, hostRef)
+
+      case (ctx, GameCancelled()) =>
+        logInfo(ctx, s"Game has been cancelled, returning to initial phase")
+        viewActorRef ! GameViewMessages.GameDeleted()
+        returnToStart(ctx, gameCoordinator)
+        
     }, "preGamePhase")
+  }
+
+  private def returnToStart[T](ctx: ActorContext[Message], toStop: ActorRef[T]) = {
+    ctx.stop(toStop)
+    connectionHandler ! ConnectionHandler.UpdateList(List())
+    viewActorRef ! ViewsProxyActor.SwitchToInitialView()
+    start
   }
 
   //todo - retrieve who am i, so the rank, by id from the game players?
@@ -628,13 +641,6 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
       }
     }
 
-    def returnToStart(ctx: ActorContext[Message]) = {
-      ctx.stop(gameCoordinator)
-      connectionHandler ! ConnectionHandler.UpdateList(List())
-      viewActorRef ! ViewsProxyActor.SwitchToInitialView()
-      start
-    }
-
     withShared({
       // GAME LOGIC LEVEL MESSAGES - START
 
@@ -642,7 +648,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
       case (ctx, GameCancelled()) =>
         logInfo(ctx,s"Game has been cancelled, returning to initial phase")
         viewActorRef ! GameViewMessages.GameDeleted()
-        returnToStart(ctx)
+        returnToStart(ctx, gameCoordinator)
 
       case (ctx, TurnEnded(game, log)) =>
         logInfo(ctx,s"My turn ended: ${this.userId}")
@@ -666,7 +672,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
             ctx.stop(gameCoordinator)
             otherPlayersOnline.map(_.playerInfo.address).foreach(_ ! GameCancelled())
             viewActorRef ! GameViewMessages.GameDeleted()
-            returnToStart(ctx)
+            returnToStart(ctx, gameCoordinator)
           })
           Behaviors.same
         })
@@ -693,11 +699,11 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
         //todo
         logInfo(ctx, s"Leaving game, informing other players like I am unreachable")
         otherPlayersOnline.foreach(_.playerInfo.address ! PlayerUnreachable(PlayerInLobby(userId, name, ctx.self)))
-        returnToStart(ctx)
+        returnToStart(ctx, gameCoordinator)
 
       case (ctx, GameEnded()) =>
         logInfo(ctx,s"Game has ended, returning to initial phase")
-        returnToStart(ctx)
+        returnToStart(ctx, gameCoordinator)
 
       // GAME LOGIC LEVEL MESSAGES - END
 
@@ -755,6 +761,10 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
         } else {
           inGameBehavior(gameCoordinator, playersStatus, hostRef)
         }
+
+      case (ctx, NewHostElected(replyTo)) =>
+        logInfo(ctx, "New host elected: " + replyTo)
+        inGameBehavior(gameCoordinator, playersStatus, replyTo)
 
         // messages for test purpose
       case (ctx, RemoveCheckPlayerStatus()) =>
