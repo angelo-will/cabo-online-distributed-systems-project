@@ -12,7 +12,7 @@ import controller.Client.*
 import messages.ClientMessages
 import org.scalatest.concurrent.Eventually.eventually
 import org.scalatest.concurrent.Futures.{interval, timeout}
-import messages.ClientMessages.{JoinAddress, StartTheGame, TakeGetInProgressGame}
+import messages.ClientMessages.{JoinAddress, RevealingCardsPhaseLog, StartTheGame, TakeGetInProgressGame}
 import utils.Message
 
 import scala.concurrent.duration.DurationInt
@@ -86,6 +86,18 @@ abstract class SingleElection extends MultiNodeSpec(MultiNodeConfig) with STMult
 
         probeClient.expectMessageType[GameHasStarted]
 
+        //preGamePhase
+        enterBarrier("pre-game-phase")
+
+        client ! RevealingCardsPhaseLog(null)
+        probeClient.expectMessageType[RevealingCardsPhaseLog]
+
+        enterBarrier("all-the-logs-sent")
+
+        probeClient.expectMessageType[AllTheLogs]
+
+        enterBarrier("pre-game-phase-completed")
+
         enterBarrier("removed-host-check")
 
         testConductor.exit(node2, 0)
@@ -131,7 +143,29 @@ abstract class SingleElection extends MultiNodeSpec(MultiNodeConfig) with STMult
 
         probeHost.expectMessageType[TakeGetInProgressGame]
 
+        probeHost.expectMessageType[SynchronizationAck]
+        probeHost.expectMessageType[SynchronizationAck]
+
         enterBarrier("game-started")
+
+        enterBarrier("pre-game-phase")
+
+        //preGamePhase
+
+        //simulate revealing cards phase for host player
+        host ! RevealingCardsPhaseLog(null)
+        probeHost.expectMessageType[RevealingCardsPhaseLog]
+
+        //receive log of other clients
+        probeHost.expectMessageType[RevealingCardsPhaseForOtherClients]
+        probeHost.expectMessageType[RevealingCardsPhaseForOtherClients]
+
+        enterBarrier("all-the-logs-sent")
+
+        probeHost.expectMessageType[SynchronizationAck]
+        probeHost.expectMessageType[SynchronizationAck]
+
+        enterBarrier("pre-game-phase-completed")
 
         // theoretically not necessary but to keep the barriers aligned
         enterBarrier("removed-host-check")
@@ -171,6 +205,18 @@ abstract class SingleElection extends MultiNodeSpec(MultiNodeConfig) with STMult
         enterBarrier("game-started")
 
         probeClient.expectMessageType[GameHasStarted]
+
+        //preGamePhase
+        enterBarrier("pre-game-phase")
+
+        client ! RevealingCardsPhaseLog(null)
+        probeClient.expectMessageType[RevealingCardsPhaseLog]
+
+        enterBarrier("all-the-logs-sent")
+
+        probeClient.expectMessageType[AllTheLogs]
+
+        enterBarrier("pre-game-phase-completed")
 
         client ! RemoveCheckPlayerStatus()
         probeClient.expectMessageType[RemoveCheckPlayerStatus]

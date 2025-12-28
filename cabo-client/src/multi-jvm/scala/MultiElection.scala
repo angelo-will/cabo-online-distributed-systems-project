@@ -89,10 +89,10 @@ abstract class MultiElection extends MultiNodeSpec(MultiNodeConfig) with STMulti
 
         enterBarrier("removed-host-check")
 
-        val exitFuture = testConductor.exit(node2, 0)
-        Await.result(exitFuture, 30.seconds)
+//        val exitFuture = testConductor.exit(node2, 0)
+//        Await.result(exitFuture, 30.seconds)
 
-        enterBarrier("host4-removed")
+//        enterBarrier("host4-removed")
 
         val m = probeClient.expectMessageType[ElectionStarted]
         assert((m.replyTo.toString.toLowerCase contains "client4-2") && m.candidateRank == 3)
@@ -140,11 +140,11 @@ abstract class MultiElection extends MultiNodeSpec(MultiNodeConfig) with STMulti
         enterBarrier("removed-host-check")
 
         // now die to simulate host failure
-//        System.exit(0)
+        System.exit(0)
 
-        //        host ! LeaveTheGame()
-        //
-        //        enterBarrier("host4-removed")
+//        host ! LeaveTheGame()
+//
+//        enterBarrier("host4-removed")
 
       }
 
@@ -181,7 +181,7 @@ abstract class MultiElection extends MultiNodeSpec(MultiNodeConfig) with STMulti
 
         enterBarrier("removed-host-check")
 
-        enterBarrier("host4-removed")
+//        enterBarrier("host4-removed")
 
         val m = probeClient.expectMessageType[PlayerUnreachable]
 

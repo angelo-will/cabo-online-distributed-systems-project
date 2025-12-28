@@ -12,7 +12,7 @@ import controller.Client.*
 import messages.ClientMessages
 import org.scalatest.concurrent.Eventually.eventually
 import org.scalatest.concurrent.Futures.{interval, timeout}
-import messages.ClientMessages.{JoinAddress, StartTheGame, TakeGetInProgressGame}
+import messages.ClientMessages.{JoinAddress, RevealingCardsPhaseLog, StartTheGame, TakeGetInProgressGame}
 import utils.Message
 
 import scala.concurrent.Await
@@ -84,6 +84,19 @@ abstract class EventuallyElection extends MultiNodeSpec(MultiNodeConfig) with ST
 
         probeClient.expectMessageType[GameHasStarted]
 
+        //preGamePhase
+        enterBarrier("pre-game-phase")
+
+        client ! RevealingCardsPhaseLog(null)
+        probeClient.expectMessageType[RevealingCardsPhaseLog]
+
+        enterBarrier("all-the-logs-sent")
+
+        probeClient.expectMessageType[AllTheLogs]
+
+        enterBarrier("pre-game-phase-completed")
+
+        //simulate crash
         val exitFuture = testConductor.exit(node2, 0)
         Await.result(exitFuture, 30.seconds)
 
@@ -129,7 +142,30 @@ abstract class EventuallyElection extends MultiNodeSpec(MultiNodeConfig) with ST
 
         probeHost.expectMessageType[TakeGetInProgressGame]
 
+        probeHost.expectMessageType[SynchronizationAck]
+        probeHost.expectMessageType[SynchronizationAck]
+
         enterBarrier("game-started")
+
+        enterBarrier("pre-game-phase")
+
+        //preGamePhase
+
+        //simulate revealing cards phase for host player
+        host ! RevealingCardsPhaseLog(null)
+        probeHost.expectMessageType[RevealingCardsPhaseLog]
+
+        //receive log of other clients
+        probeHost.expectMessageType[RevealingCardsPhaseForOtherClients]
+        probeHost.expectMessageType[RevealingCardsPhaseForOtherClients]
+
+        enterBarrier("all-the-logs-sent")
+
+        probeHost.expectMessageType[SynchronizationAck]
+        probeHost.expectMessageType[SynchronizationAck]
+
+        enterBarrier("pre-game-phase-completed")
+
 
       }
 
@@ -163,6 +199,18 @@ abstract class EventuallyElection extends MultiNodeSpec(MultiNodeConfig) with ST
         enterBarrier("game-started")
 
         probeClient.expectMessageType[GameHasStarted]
+
+        //preGamePhase
+        enterBarrier("pre-game-phase")
+
+        client ! RevealingCardsPhaseLog(null)
+        probeClient.expectMessageType[RevealingCardsPhaseLog]
+
+        enterBarrier("all-the-logs-sent")
+
+        probeClient.expectMessageType[AllTheLogs]
+
+        enterBarrier("pre-game-phase-completed")
 
         enterBarrier("host5-removed")
 
