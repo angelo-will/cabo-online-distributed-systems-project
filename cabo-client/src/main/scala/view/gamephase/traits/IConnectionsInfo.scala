@@ -1,9 +1,9 @@
 package view.gamephase.traits
 
-import model.PlayerPlaying
+import model.{PlayerInLobby, PlayerPlaying}
 
 trait IConnectionsInfo {
-  def opponentsDisconnected(player: PlayerPlaying): Unit
+  def opponentsDisconnected(player: PlayerInLobby): Unit
 
-  def opponentImpossibleToReach(player: PlayerPlaying): Unit
+  def opponentImpossibleToReach(player: PlayerInLobby): Unit
 }

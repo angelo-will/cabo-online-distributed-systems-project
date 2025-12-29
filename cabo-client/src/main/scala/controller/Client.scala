@@ -715,6 +715,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
               logInfo(ctx,s"Player: ${playerInLobby.userID} is unreachable")
 
               //todo - inform view
+              viewActorRef ! GameViewMessages.OpponentDisconnected(playerInLobby)
 
               val onlineUpdate = playersStatus.map { ps =>
                 if ps.playerInfo.userID == playerInLobby.userID then

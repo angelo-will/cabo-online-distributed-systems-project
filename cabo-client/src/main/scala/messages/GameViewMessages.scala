@@ -1,7 +1,7 @@
 package messages
 
 import akka.actor.typed.ActorRef
-import model.{Card, Game, PlayerPlaying, TurnLog}
+import model.{Card, Game, PlayerInLobby, PlayerPlaying, TurnLog}
 import model.Game.GameInProgress
 
 object GameViewMessages {
@@ -96,9 +96,9 @@ object GameViewMessages {
 
   case class EndTurnByTimeEnded() extends IGameViewMessage
 
-  case class OpponentImpossibleToReach(player: PlayerPlaying) extends IGameViewMessage
+  case class OpponentImpossibleToReach(player: PlayerInLobby) extends IGameViewMessage
 
-  case class OpponentDisconnected(player: PlayerPlaying) extends IGameViewMessage
+  case class OpponentDisconnected(player: PlayerInLobby) extends IGameViewMessage
   
   case class GameDeleted() extends IGameViewMessage
 
