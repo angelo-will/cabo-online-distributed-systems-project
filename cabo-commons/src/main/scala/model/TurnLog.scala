@@ -53,8 +53,8 @@ object PhaseEvents:
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
 @JsonSubTypes(
   Array(
-    new JsonSubTypes.Type(value = classOf[DuringGameTurnLog], name = "duringGameTurnLog"),
-    new JsonSubTypes.Type(value = classOf[InitialPhaseTurnLog], name = "initialPhaseTurnLog")))
+    new JsonSubTypes.Type(value = classOf[PlayCycleTurnLog], name = "duringGameTurnLog"),
+    new JsonSubTypes.Type(value = classOf[RevealingSectionTurnLog], name = "initialPhaseTurnLog")))
 trait TurnLog:
   def playerName: String
 
@@ -69,7 +69,7 @@ trait TurnLog:
 class InvalidTurnEventException(event: TurnEvent.TurnEvent)
   extends IllegalArgumentException(s"Invalid event '$event' in turn phase.")
 
-class DuringGameTurnLog(val ofUserID: String, val round: Int) extends TurnLog with Message:
+class PlayCycleTurnLog(val ofUserID: String, val round: Int) extends TurnLog with Message:
 
   private var phaseEvents: PhaseEvents = new PhaseEvents(AwaitDrawCard(), List())
 
@@ -142,7 +142,7 @@ class DuringGameTurnLog(val ofUserID: String, val round: Int) extends TurnLog wi
     s"DuringGameTurnLog\n\tuserID=$ofUserID,\n\tactual phase = ${phaseEvents.phase} \n\tevents = $events"
   }
 
-class InitialPhaseTurnLog(val userID: String) extends TurnLog with Message:
+class RevealingSectionTurnLog(val userID: String) extends TurnLog with Message:
 
   private var phaseEvents: PhaseEvents = new PhaseEvents(AwaitingFirstShow(), List())
 

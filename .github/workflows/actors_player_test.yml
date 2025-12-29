@@ -1,4 +1,4 @@
-name: Actor Player Tests
+name: Actors Player Tests
 
 on:
   push:
@@ -59,7 +59,7 @@ jobs:
       - name: "Test: Game Coordinator Logic (GameCoordinatorActorSpec)"
         run: sbt "project client" "testOnly GameCoordinatorActorSpec"
 
-      - name: "Test: View Command listenere (ViewUserCommandListenerSpec)"
+      - name: "Test: View Command listener (ViewUserCommandListenerSpec)"
         run: sbt "project client" "testOnly ViewUserCommandListenerSpec"
 
   build_and_test_with_multi_jvm:

@@ -66,7 +66,7 @@ private class GameViewActor private(
         log("start", s"Handling game started with message: ${StartGame(game, gameCoordinatorRef)}")
         val userInterface = frame.startGame(game, userID)
         userInterface.enterRevealingSection()
-        watchYourCards(GameContext(gameCoordinatorRef, frame, userInterface))
+        revealingSection(GameContext(gameCoordinatorRef, frame, userInterface))
       case msg =>
         ctx.log.warn(s"DuringGameViewActor of player $userID in state start received unexpected message: $msg")
         Behaviors.same
@@ -75,10 +75,10 @@ private class GameViewActor private(
 
   // --- WAITING STATES ---
 
-  private def watchYourCards(context: GameContext): Behavior[IGameViewMessage] = {
-    val stateName = "watchYourCards"
+  private def revealingSection(context: GameContext): Behavior[IGameViewMessage] = {
+    val stateName = "revealingSection"
     Behaviors.receiveMessagePartial {
-      handleShowCard(context, watchYourCards)(stateName)
+      handleShowCard(context, revealingSection)(stateName)
         .orElse(handleAdversariesRevealingLog(context)(stateName))
         .orElse(handleGameDeleted(context)(stateName))
         .orElse({

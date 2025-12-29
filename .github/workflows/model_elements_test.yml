@@ -1,0 +1,62 @@
+name: Model Elements Test.yml
+on:
+  push:
+    branches:
+      - develop
+    paths:
+      - 'cabo-client/**'
+      - 'cabo-commons/**'
+      - 'build.sbt'
+      - 'project/**'
+      - '.github/workflows/model_elements_test.yml'
+  pull_request:
+    branches:
+      - develop
+    paths:
+      - 'cabo-client/**'
+      - 'cabo-commons/**'
+      - 'build.sbt'
+      - 'project/**'
+      - '.github/workflows/model_elements_test.yml'
+
+jobs:
+  build_and_test_model_elements:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    name: "Build and Test Model Element"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Cache sbt
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.sbt
+            ~/.ivy2/cache
+            ~/.coursier/cache
+          key: ${{ runner.os }}-sbt-${{ hashFiles('**/build.sbt') }}
+          restore-keys: |
+            ${{ runner.os }}-sbt-
+
+      - name: Setup sbt launcher
+        uses: sbt/setup-sbt@v1
+
+      - name: "Build: Compile Commons Modules"
+        run: sbt "project commons" compile
+
+      - name: "Test: Card, Hand, Stack Model"
+        run: sbt "project commons" "testOnly *CardSpec"
+
+      - name: "Test: Revealing Section Turn Log Model (RevealingSectionTurnLogSpec)"
+        run: sbt "project commons" "testOnly *RevealingSectionTurnLogSpec"
+
+      - name: "Test: Play Cycle Turn Log Model (PlayCycleTurnLogSpec)"
+        run: sbt "project commons" "testOnly *PlayCycleTurnLogSpec"

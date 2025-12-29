@@ -2,7 +2,7 @@ import akka.actor.testkit.typed.scaladsl.{ScalaTestWithActorTestKit, TestProbe}
 import akka.actor.typed.ActorRef
 import messages.{ClientMessages, GameCoordinatorMessage, GameViewMessages, IGameViewMessage}
 import model.Game.GameInProgress
-import model.{Card, CardStack, DuringGameTurnLog, Game, GameParameters, GameStatus, Hand, IGameParameters, PlayerPlaying, Power, TurnEvent, TurnLog, TurnPhase}
+import model.{Card, CardStack, PlayCycleTurnLog, Game, GameParameters, GameStatus, Hand, IGameParameters, PlayerPlaying, Power, TurnEvent, TurnLog, TurnPhase}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.BeforeAndAfterEach
@@ -330,7 +330,7 @@ class GameViewActorSpec extends ScalaTestWithActorTestKit
   }
 
   private def generateTurnWithDrawFromDeck(userID: String, game: GameInProgress): (GameInProgress, TurnLog) = {
-    val turnLog = new DuringGameTurnLog(userID, game.currentRound + 1)
+    val turnLog = new PlayCycleTurnLog(userID, game.currentRound + 1)
     val (cardDrawn, newDeck) = game.deckStack.drawFirstCard
     turnLog.addEvent(TurnEvent.DrawCardFromDeck(cardDrawn))
     turnLog.currentPhase match {
