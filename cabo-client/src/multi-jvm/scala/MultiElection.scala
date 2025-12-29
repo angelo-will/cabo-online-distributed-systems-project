@@ -12,7 +12,7 @@ import controller.Client.*
 import messages.ClientMessages
 import org.scalatest.concurrent.Eventually.eventually
 import org.scalatest.concurrent.Futures.{interval, timeout}
-import messages.ClientMessages.{JoinAddress, StartTheGame, TakeGetInProgressGame}
+import messages.ClientMessages.{IntialPhaseCompleted, JoinAddress, StartTheGame, TakeGetInProgressGame}
 import utils.Message
 
 import scala.concurrent.Await
@@ -84,13 +84,25 @@ abstract class MultiElection extends MultiNodeSpec(MultiNodeConfig) with STMulti
 
         probeClient.expectMessageType[GameHasStarted]
 
+        //preGamePhase
+        enterBarrier("pre-game-phase")
+
+        client ! IntialPhaseCompleted(null)
+        probeClient.expectMessageType[IntialPhaseCompleted]
+
+        enterBarrier("all-the-logs-sent")
+
+        probeClient.expectMessageType[AllTheLogs]
+
+        enterBarrier("pre-game-phase-completed")
+
         client ! RemoveCheckPlayerStatus()
         probeClient.expectMessageType[RemoveCheckPlayerStatus]
 
         enterBarrier("removed-host-check")
 
-//        val exitFuture = testConductor.exit(node2, 0)
-//        Await.result(exitFuture, 30.seconds)
+        val exitFuture = testConductor.exit(node2, 0)
+        Await.result(exitFuture, 30.seconds)
 
 //        enterBarrier("host4-removed")
 
@@ -134,13 +146,32 @@ abstract class MultiElection extends MultiNodeSpec(MultiNodeConfig) with STMulti
 
         probeHost.expectMessageType[TakeGetInProgressGame]
 
+        probeHost.expectMessageType[SynchronizationAck]
+        probeHost.expectMessageType[SynchronizationAck]
+
         enterBarrier("game-started")
+
+        enterBarrier("pre-game-phase")
+
+        //preGamePhase
+
+        //simulate revealing cards phase for host player
+        host ! IntialPhaseCompleted(null)
+        probeHost.expectMessageType[IntialPhaseCompleted]
+
+        //receive log of other clients
+        probeHost.expectMessageType[InitialGamePhaseLog]
+        probeHost.expectMessageType[InitialGamePhaseLog]
+
+        enterBarrier("all-the-logs-sent")
+
+        probeHost.expectMessageType[SynchronizationAck]
+        probeHost.expectMessageType[SynchronizationAck]
+
+        enterBarrier("pre-game-phase-completed")
 
         // theoretically not necessary but to keep the barriers aligned
         enterBarrier("removed-host-check")
-
-        // now die to simulate host failure
-        System.exit(0)
 
 //        host ! LeaveTheGame()
 //
@@ -179,6 +210,18 @@ abstract class MultiElection extends MultiNodeSpec(MultiNodeConfig) with STMulti
 
         probeClient.expectMessageType[GameHasStarted]
 
+        //preGamePhase
+        enterBarrier("pre-game-phase")
+
+        client ! IntialPhaseCompleted(null)
+        probeClient.expectMessageType[IntialPhaseCompleted]
+
+        enterBarrier("all-the-logs-sent")
+
+        probeClient.expectMessageType[AllTheLogs]
+
+        enterBarrier("pre-game-phase-completed")
+        
         enterBarrier("removed-host-check")
 
 //        enterBarrier("host4-removed")
