@@ -211,18 +211,18 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(
     //In preGame phase
 
     // simulate gameCoordinator sending RevealingCardsPhaseLog in host
-    clientHost ! RevealingCardsPhaseLog(null)
-    probeClientHost.expectMessage(RevealingCardsPhaseLog(null))
+    clientHost ! IntialPhaseCompleted(null)
+    probeClientHost.expectMessage(IntialPhaseCompleted(null))
 
     joiners.foreach { case (clientJoiner, probeClientJoiner, clientJoinerView) =>
       // simulate gameCoordinator sending RevealingCardsPhaseLog in joiners
-      clientJoiner ! RevealingCardsPhaseLog(null)
-      probeClientJoiner.expectMessageType[RevealingCardsPhaseLog]
+      clientJoiner ! IntialPhaseCompleted(null)
+      probeClientJoiner.expectMessageType[IntialPhaseCompleted]
     }
 
     // host receives the log of the other clients
     probeClientHost.receiveMessages(joiners.size).foreach {
-      case RevealingCardsPhaseForOtherClients(_) => // ok
+      case InitialGamePhaseLog(_) => // ok
       case _ => fail("Host probe expected logs message")
     }
 

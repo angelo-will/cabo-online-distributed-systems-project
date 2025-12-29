@@ -362,7 +362,7 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
     for i <- 0 until Game.cardsInitialVisible do
       showYourNthCard(i)
     viewProbe.expectMessageType[GameViewMessages.WaitAfterRevealingSection]
-    clientProbe.expectMessageType[ClientMessages.RevealingCardsPhaseLog]
+    clientProbe.expectMessageType[ClientMessages.IntialPhaseCompleted]
     game
   }
 

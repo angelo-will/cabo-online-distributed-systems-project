@@ -12,7 +12,7 @@ import controller.Client.*
 import messages.ClientMessages
 import org.scalatest.concurrent.Eventually.eventually
 import org.scalatest.concurrent.Futures.{interval, timeout}
-import messages.ClientMessages.{JoinAddress, RevealingCardsPhaseLog, StartTheGame, TakeGetInProgressGame}
+import messages.ClientMessages.{JoinAddress, IntialPhaseCompleted, StartTheGame, TakeGetInProgressGame}
 import utils.Message
 
 import scala.concurrent.Await
@@ -87,8 +87,8 @@ abstract class EventuallyElection extends MultiNodeSpec(MultiNodeConfig) with ST
         //preGamePhase
         enterBarrier("pre-game-phase")
 
-        client ! RevealingCardsPhaseLog(null)
-        probeClient.expectMessageType[RevealingCardsPhaseLog]
+        client ! IntialPhaseCompleted(null)
+        probeClient.expectMessageType[IntialPhaseCompleted]
 
         enterBarrier("all-the-logs-sent")
 
@@ -152,12 +152,12 @@ abstract class EventuallyElection extends MultiNodeSpec(MultiNodeConfig) with ST
         //preGamePhase
 
         //simulate revealing cards phase for host player
-        host ! RevealingCardsPhaseLog(null)
-        probeHost.expectMessageType[RevealingCardsPhaseLog]
+        host ! IntialPhaseCompleted(null)
+        probeHost.expectMessageType[IntialPhaseCompleted]
 
         //receive log of other clients
-        probeHost.expectMessageType[RevealingCardsPhaseForOtherClients]
-        probeHost.expectMessageType[RevealingCardsPhaseForOtherClients]
+        probeHost.expectMessageType[InitialGamePhaseLog]
+        probeHost.expectMessageType[InitialGamePhaseLog]
 
         enterBarrier("all-the-logs-sent")
 
@@ -203,8 +203,8 @@ abstract class EventuallyElection extends MultiNodeSpec(MultiNodeConfig) with ST
         //preGamePhase
         enterBarrier("pre-game-phase")
 
-        client ! RevealingCardsPhaseLog(null)
-        probeClient.expectMessageType[RevealingCardsPhaseLog]
+        client ! IntialPhaseCompleted(null)
+        probeClient.expectMessageType[IntialPhaseCompleted]
 
         enterBarrier("all-the-logs-sent")
 

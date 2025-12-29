@@ -64,8 +64,8 @@ object Client:
 
   case class NewHostElected(replyTo: ActorRef[ClientInternalCommand]) extends ClientInternalCommand
 
-  // todo: inserito da angelo per far passare la prima fase fino che non è definito come farla
-  case class RevealingCardsPhaseForOtherClients(log: TurnLog) extends ClientInternalCommand
+  // todo: decidere se rimuovere e usare lo stesso sia da coordinator che da altri client
+  case class InitialGamePhaseLog(log: TurnLog) extends ClientInternalCommand
 
   case class AllTheLogs(logs: List[TurnLog]) extends ClientInternalCommand
 
@@ -87,9 +87,6 @@ object Client:
 private case class Client(userId: String, var name: String, viewActorRef: ActorRef[IViewMessage], connectionHandler: ActorRef[ConnectionHandler.InternalCommand]):
 
   import controller.Client.*
-
-  // todo: aggiunto da angelo ma si può rimuovere quando la revealing first phase sarà definita
-  private var howManyHaveWatchedCards = 0
 
   private case class ListingResponse(listing: Receptionist.Listing) extends Message
 
@@ -526,12 +523,12 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
     }
 
     withShared({
-      case (ctx, RevealingCardsPhaseLog(log)) =>
-        logInfo(ctx, s"Received ${RevealingCardsPhaseLog(log)}")
+      case (ctx, IntialPhaseCompleted(log)) =>
+        logInfo(ctx, s"Received ${IntialPhaseCompleted(log)}")
         hostCheckIfReady(ctx, log)
 
-      case (ctx, RevealingCardsPhaseForOtherClients(log)) =>
-        logInfo(ctx, s"Received ${RevealingCardsPhaseForOtherClients(log)}")
+      case (ctx, InitialGamePhaseLog(log)) =>
+        logInfo(ctx, s"Received ${InitialGamePhaseLog(log)}")
         hostCheckIfReady(ctx, log)
     })
   }
@@ -539,9 +536,9 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
   private def preGamePhaseJoined(gameCoordinator: ActorRef[GameCoordinatorMessage], playersStatus: List[PlayerStatus], hostRef: ActorRef[ClientInternalCommand]): Behavior[Message] = {
 
     withShared({
-      case (ctx, RevealingCardsPhaseLog(log)) =>
-        logInfo(ctx, s"Received ${RevealingCardsPhaseLog(log)}")
-        hostRef ! RevealingCardsPhaseForOtherClients(log)
+      case (ctx, IntialPhaseCompleted(log)) =>
+        logInfo(ctx, s"Received ${IntialPhaseCompleted(log)}")
+        hostRef ! InitialGamePhaseLog(log)
         Behaviors.same
 
       case (ctx, AllTheLogs(logs)) =>
@@ -567,8 +564,6 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
     start
   }
 
-  //todo - retrieve who am i, so the rank, by id from the game players?
-  //todo - change the hostRef with a boolean if not needed
   private def inGameBehavior(gameCoordinator: ActorRef[GameCoordinatorMessage], playersStatus: List[PlayerStatus], hostRef: ActorRef[ClientInternalCommand]): Behavior[Message] = {
 
     //    lazy val otherPlayers = playersStatus.filterNot(_.playerID.equals(this.userId))
