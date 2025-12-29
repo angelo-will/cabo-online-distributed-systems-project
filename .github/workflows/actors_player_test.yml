@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - develop
+      - feature/**
     paths:
       - 'cabo-client/**'
       - 'cabo-commons/**'
