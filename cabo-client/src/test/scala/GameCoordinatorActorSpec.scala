@@ -7,7 +7,7 @@ import messages.GameCoordinatorMessage.GameCoordinatorMessage
 import messages.{ClientMessages, GameViewMessages, IViewMessage}
 import model.Game.{GameInConstruction, GameInProgress}
 import model.Suit.*
-import model.{Card, CardStack, DuringGameTurnLog, Game, GameParameters, PlayerInLobby, Power, TurnEvent}
+import model.{Card, CardStack, PlayCycleTurnLog, Game, GameParameters, PlayerInLobby, Power, TurnEvent}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
@@ -167,7 +167,7 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
         endTurnByTime()
         skipViewProbeMessage()
         skipClientProbeMessage()
-        gameCoordinatorActor ! GCMessage.NewTurn(game, new DuringGameTurnLog("", 0))
+        gameCoordinatorActor ! GCMessage.NewTurn(game, new PlayCycleTurnLog("", 0))
         viewProbe.expectMessageType[GameViewMessages.LastTurnPlayed]
       }
     }
@@ -178,7 +178,7 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
         endTurnByTime()
         skipViewProbeMessage()
         skipClientProbeMessage()
-        gameCoordinatorActor ! GCMessage.NewTurn(game, new DuringGameTurnLog("", 0))
+        gameCoordinatorActor ! GCMessage.NewTurn(game, new PlayCycleTurnLog("", 0))
         clientProbe.expectMessageType[ClientMessages.TurnUpdated]
       }
     }
@@ -272,7 +272,7 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
         viewProbe.expectMessageType[GameViewMessages.LastTurnPlayed]
         viewProbe.expectMessageType[GameViewMessages.StartTurnPlayer]
         val game = ended.game.copy(currentRound = ended.game.currentRound + 1)
-        gameCoordinatorActor ! GCMessage.NewTurn(game, new DuringGameTurnLog("", 0))
+        gameCoordinatorActor ! GCMessage.NewTurn(game, new PlayCycleTurnLog("", 0))
         clientProbe.expectMessageType[ClientMessages.TurnUpdated]
         viewProbe.expectMessageType[GameViewMessages.LastTurnPlayed]
         viewProbe.expectMessageType[GameViewMessages.GameEndedByCabo]
@@ -291,7 +291,7 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
         val newRound = ended.game.currentRound + 1
         val emptyDeck = CardStack.buildEmptyDeck
         val game = ended.game.copy(deckStack = emptyDeck, currentRound = ended.game.currentRound + 1)
-        gameCoordinatorActor ! GCMessage.NewTurn(game, new DuringGameTurnLog("", 0))
+        gameCoordinatorActor ! GCMessage.NewTurn(game, new PlayCycleTurnLog("", 0))
         clientProbe.expectMessageType[ClientMessages.TurnUpdated]
         viewProbe.expectMessageType[GameViewMessages.LastTurnPlayed]
         viewProbe.expectMessageType[GameViewMessages.GameEndedByEmptyDeck]
@@ -308,7 +308,7 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
         viewProbe.expectMessageType[GameViewMessages.LastTurnPlayed]
         viewProbe.expectMessageType[GameViewMessages.StartTurnPlayer]
         val game = ended.game.copy(currentRound = 100)
-        gameCoordinatorActor ! GCMessage.NewTurn(game, new DuringGameTurnLog("", 0))
+        gameCoordinatorActor ! GCMessage.NewTurn(game, new PlayCycleTurnLog("", 0))
         clientProbe.expectMessageType[ClientMessages.TurnUpdated]
         viewProbe.expectMessageType[GameViewMessages.LastTurnPlayed]
         viewProbe.expectMessageType[GameViewMessages.GameEndedByTurnsLimit]

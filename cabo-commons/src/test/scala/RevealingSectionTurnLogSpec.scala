@@ -4,7 +4,7 @@ import org.scalatest.BeforeAndAfterEach
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
-class InitialPhaseTurnLogSpec extends AnyWordSpec
+class RevealingSectionTurnLogSpec extends AnyWordSpec
   with Matchers
   with BeforeAndAfterEach:
 
@@ -12,13 +12,13 @@ class InitialPhaseTurnLogSpec extends AnyWordSpec
   import model.Rank.*
   import model.Suit.*
 
-  var initialPhaseLog: InitialPhaseTurnLog = _
+  var initialPhaseLog: RevealingSectionTurnLog = _
   val genericCard01 = new Card(Ten(), Spades())
   val genericCard02 = new Card(Queen(), Hearts())
 
   override def beforeEach(): Unit =
     super.beforeEach()
-    initialPhaseLog = new InitialPhaseTurnLog("player01")
+    initialPhaseLog = new RevealingSectionTurnLog("player01")
 
   "An InitialPhaseTurnLog" must {
     "not have events registered" when {
