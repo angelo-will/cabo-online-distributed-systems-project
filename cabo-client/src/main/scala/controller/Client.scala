@@ -5,7 +5,7 @@ import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.cluster.ClusterEvent.MemberExited
 import messages.ClientMessages.*
-import messages.GameCoordinatorMessage.{GameCoordinatorMessage, NewTurn}
+import messages.GameCoordinatorMessage.{GameCoordinatorMessage, NewTurn, WhoIsPlayingRequest}
 import messages.{GameCoordinatorMessage, GameViewMessages, IViewMessage, PreGameViewMessages}
 import model.Game.{GameInConstruction, GameInProgress}
 import model.{GameParameters, PlayerInLobby, PlayerPlaying, TurnLog}
@@ -570,25 +570,19 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
     def otherPlayersOnline = playersStatus.filterNot(p => !p.isOnline || p.playerInfo.userID.equals(this.userId))
 
     // used by the host to check if who has the next turn is online, if not, it will skip the turn
-    def checkNextTurn(gameCoordinator: ActorRef[GameCoordinatorMessage], gameInProgress: GameInProgress, ctx: ActorContext[Message]): Unit = {
-
-      logInfo(ctx,s"Checking who has turn after ${gameInProgress.currentRound} in game: ${gameInProgress.code}")
-
-      val playerNumber = playersStatus.length
-
-      playersStatus.find(_.rank == gameInProgress.currentRound + 1 % playerNumber) match {
+    def checkPlayerForTheTurn(id: String, ctx: ActorContext[Message]): Unit = {
+      playersStatus.find(_.playerInfo.userID equals id) match {
         case Some(value) =>
           if (!value.isOnline) {
+            logInfo(ctx, s"Turn for offline player: ${value.playerInfo.userID}, skipping turn")
             gameCoordinator ! GameCoordinatorMessage.GetEmptyTurn(value.playerInfo.userID)
-            logInfo(ctx, s"Next turn is for offline player: ${value.playerInfo.userID}, skipping turn")
           } else {
             logInfo(ctx, s"Next turn is for player: ${value.playerInfo.userID} and it is online")
           }
         case None =>
           //should not happen
-          logError(ctx,s"Could not find next player for turn: ${gameInProgress.currentRound + 1}")
+          logError(ctx, s"Could not find player for $id")
       }
-
     }
 
     def inElectionBehavior(myRank: Int): Behavior[Message] = {
@@ -619,6 +613,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
             case (ctx, ElectionWon()) =>
               logInfo(ctx, s"I won the election, becoming the new host")
               otherPlayersOnline.foreach(_.playerInfo.address ! NewHostElected(ctx.self))
+              gameCoordinator ! WhoIsPlayingRequest()
               buffer.unstashAll(inGameBehavior(gameCoordinator, playersStatus, ctx.self))
 
             case (ctx, NewHostElected(replyTo)) =>
@@ -650,7 +645,8 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
         otherPlayersOnline.map(_.playerInfo.address).foreach(_ ! GameInProgressUpdate(ctx.self, game, log))
         awaitSynchronization(ctx, otherPlayersOnline.map(_.playerInfo.userID), () => {
           logInfo(ctx,s"All players synchronized after my turn, ${this.userId}, waiting for my turn again: ${game.code}")
-          if ctx.self equals hostRef then checkNextTurn(gameCoordinator, game, ctx)
+//          if ctx.self equals hostRef then checkNextTurn(gameCoordinator, game, ctx)
+          if ctx.self equals hostRef then gameCoordinator ! WhoIsPlayingRequest()
           inGameBehavior(gameCoordinator, playersStatus, hostRef)
         }, failures => {
           //todo - what to do if not all the players have synchronized?
@@ -658,7 +654,8 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
           otherPlayersOnline.filter(p => failures.contains(p.playerInfo.userID)).map(_.playerInfo.address).foreach(_ ! GameInProgressUpdate(ctx.self, game, log))
           awaitSynchronization(ctx, failures, () => {
             logInfo(ctx,s"All players synchronized after my turn, ${this.userId}, waiting for my turn again: ${game.code}")
-            if ctx.self equals hostRef then checkNextTurn(gameCoordinator, game, ctx)
+            //          if ctx.self equals hostRef then checkNextTurn(gameCoordinator, game, ctx)
+            if ctx.self equals hostRef then gameCoordinator ! WhoIsPlayingRequest()
             inGameBehavior(gameCoordinator, playersStatus, hostRef)
           }, _ => {
             //If failed to synchronize
@@ -714,7 +711,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
             else {
               logInfo(ctx,s"Player: ${playerInLobby.userID} is unreachable")
 
-              //todo - inform view
+              //todo - inform view when all disconnected
               viewActorRef ! GameViewMessages.OpponentDisconnected(playerInLobby)
 
               val onlineUpdate = playersStatus.map { ps =>
@@ -732,11 +729,9 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
                 //start election
                 val myRank = playersStatus.find(_.playerInfo.userID == userId).map(_.rank).getOrElse(-1)
                 onlineUpdate.filter(p => !p.playerInfo.userID.equals(this.userId) && p.isOnline && p.rank < myRank).foreach(_.playerInfo.address ! ElectionStarted(myRank, ctx.self))
-                Behaviors.withTimers(timer => {
-                  timer.startSingleTimer(ElectionWon(), 5.seconds)
-                  inElectionBehavior(myRank)
-                })
+                inElectionBehavior(myRank)
               } else
+                if ctx.self equals hostRef then gameCoordinator ! WhoIsPlayingRequest()
                 inGameBehavior(gameCoordinator, onlineUpdate, hostRef)
             }
 
@@ -761,6 +756,11 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
       case (ctx, NewHostElected(replyTo)) =>
         logInfo(ctx, "New host elected: " + replyTo)
         inGameBehavior(gameCoordinator, playersStatus, replyTo)
+
+      case (ctx, WhoIsPlaying(currentPlayerID)) =>
+        logInfo(ctx, s"Who is playing request received, current player is: $currentPlayerID")
+        checkPlayerForTheTurn(currentPlayerID, ctx)
+        Behaviors.same
 
         // messages for test purpose
       case (ctx, RemoveCheckPlayerStatus()) =>
