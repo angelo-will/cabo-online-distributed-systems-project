@@ -2,7 +2,7 @@ package messages
 
 import akka.actor.typed.ActorRef
 import model.Game.{GameInConstruction, GameInProgress}
-import model.{GameParameters, TurnLog}
+import model.{GameParameters, PlayerInLobby, TurnLog}
 import utils.Message
 
 object ClientMessages {
@@ -92,5 +92,7 @@ object ClientMessages {
   case class IntialPhaseCompleted(turnLog: TurnLog) extends ClientCommand
 
   case class GameEnded() extends ClientCommand
+  
+  case class WhoIsPlaying(playerID: String) extends ClientCommand
 
 }

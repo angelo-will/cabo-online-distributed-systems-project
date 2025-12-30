@@ -49,6 +49,8 @@ object GameCoordinatorMessage:
   
   case class TurnTimeEnded() extends GameCoordinatorSyncMessage
 
+  case class WhoIsPlayingRequest() extends GameCoordinatorSyncMessage
+
   // FOR TESTING
 
   case class SendGameStatus(toWhoSend: ActorRef[Message]) extends GameCoordinatorSyncMessage
