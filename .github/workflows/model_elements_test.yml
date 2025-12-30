@@ -1,4 +1,4 @@
-name: Model Elements Test.yml
+name: Model Elements Test
 on:
   push:
     branches:
