@@ -249,6 +249,7 @@ private class GameViewActor private(
     handleExitSelected(context)(actualState)
       .orElse(handleOpponentDisconnected(context)(actualState))
       .orElse(handleOpponentImpossibleToReach(context)(actualState))
+      .orElse(handleAllOpponentsDisconnected(context)(actualState))
       .orElse(handleEndTurnByTimeEnded(context)(actualState))
       .orElse(handleUnexpectedMessage(actualState))
   }
@@ -434,6 +435,13 @@ private class GameViewActor private(
       log(actualState, s"Handling OpponentImpossibleToReach with message: ${OpponentImpossibleToReach(player)}")
       context.ui.opponentImpossibleToReach(player)
       Behaviors.same
+  }
+  
+  private def handleAllOpponentsDisconnected(context: GameContext)(actualState:String): PartialFunction[IGameViewMessage, Behavior[IGameViewMessage]] = {
+    case AllOpponentsDisconnected() =>
+      log(actualState, s"Handling AllOpponentsDisconnected with message: ${AllOpponentsDisconnected()}")
+      context.ui.allOpponentsDisconnected()
+      waitingCloseGameFrame(context)
   }
 
   // HANDLERS connections problem - END
