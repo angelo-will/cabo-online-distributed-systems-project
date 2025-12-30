@@ -99,6 +99,9 @@ object GameViewMessages {
   case class OpponentImpossibleToReach(player: PlayerInLobby) extends IGameViewMessage
 
   case class OpponentDisconnected(player: PlayerInLobby) extends IGameViewMessage
+
+  // TODO: aggiunto dopo relazione, mettere in pari il report
+  case class AllOpponentsDisconnected() extends IGameViewMessage
   
   case class GameDeleted() extends IGameViewMessage
 

@@ -4,7 +4,7 @@ import model.Game.GameInProgress as GProg
 import model.TurnEvent.CaboCalled
 import model.{Card, EndGameReason, PlayerInLobby, PlayerPlaying, Power, TurnLog}
 import view.gamephase.components.*
-import view.gamephase.dialogs.DisplayEndingResultsDialog
+import view.gamephase.dialogs.{DisplayEndingResultsDialog, AllOpponentsDisconnectedDialog}
 import view.gamephase.dialogs.DisplayEndingResultsDialog.*
 import view.gamephase.traits.{IGameView, IGameViewUserCommandListener}
 
@@ -318,6 +318,12 @@ class GamePanel(viewListener: IGameViewUserCommandListener, gameInProgress: GPro
       Dialog.Message.Warning
     )
     println("Lost connection!")
+  }
+  
+  override def allOpponentsDisconnected(): Unit = Swing.onEDT {
+    println("All opponents disconnected!")
+    val x = AllOpponentsDisconnectedDialog(()=>{this.viewListener.exit()})
+    x.open()
   }
 
   private def initializeLayout(): Unit = {
