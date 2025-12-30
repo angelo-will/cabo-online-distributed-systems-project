@@ -319,11 +319,28 @@ class GamePanel(viewListener: IGameViewUserCommandListener, gameInProgress: GPro
     )
     println("Lost connection!")
   }
-  
+
   override def allOpponentsDisconnected(): Unit = Swing.onEDT {
     println("All opponents disconnected!")
-    val x = AllOpponentsDisconnectedDialog(()=>{this.viewListener.exit()})
+    val x = AllOpponentsDisconnectedDialog(() => {
+      this.viewListener.exit()
+    })
     x.open()
+  }
+
+  // IGameStateView Implementation
+
+  override def deleteGame(): Unit = Swing.onEDT {
+    val title = "Game deleted"
+    val message = s"The game was deleted, you'll return to initial state."
+
+    Dialog.showMessage(
+      null,
+      message,
+      title,
+      Dialog.Message.Warning
+    )
+    this.viewListener.exit()    
   }
 
   private def initializeLayout(): Unit = {

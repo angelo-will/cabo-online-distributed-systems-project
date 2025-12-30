@@ -275,7 +275,7 @@ private class GameViewActor private(
 
   private def handleGameDeleted(context: GameContext)(actualState: String): PartialFunction[IGameViewMessage, Behavior[IGameViewMessage]] = {
     case GameDeleted() =>
-      //todo: aggiungere modifiche alla view da fare
+      context.ui.deleteGame()
       Behaviors.same
   }
   // HANDLERS revealing section - END ---
