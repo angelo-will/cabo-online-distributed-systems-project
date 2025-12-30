@@ -711,30 +711,35 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
             else {
               logInfo(ctx,s"Player: ${playerInLobby.userID} is unreachable")
 
-              //todo - inform view when all disconnected
-              viewActorRef ! GameViewMessages.OpponentDisconnected(playerInLobby)
-
               val onlineUpdate = playersStatus.map { ps =>
                 if ps.playerInfo.userID == playerInLobby.userID then
-                  ps.copy(isOnline = false)
+                ps.copy(isOnline = false)
                 else
-                  ps
+                ps
               }
 
-              // inform connection handler to check the status for only those who are online
-              connectionHandler ! ConnectionHandler.UpdateList(onlineUpdate.filter(_.isOnline).map(_.playerInfo))
+              if onlineUpdate.count(_.isOnline) < 2 then {
+                logInfo(ctx, s"Less than 2 players online, aborting the game")
+                viewActorRef ! GameViewMessages.AllOpponentsDisconnected()
+                Behaviors.same
+              } else {
+                viewActorRef ! GameViewMessages.OpponentDisconnected(playerInLobby)
 
-              if p.playerInfo.address equals hostRef then {
-                logInfo(ctx, s"Player: ${playerInLobby.userID} was the host, starting election")
-                //start election
-                val myRank = playersStatus.find(_.playerInfo.userID == userId).map(_.rank).getOrElse(-1)
-                onlineUpdate.filter(p => !p.playerInfo.userID.equals(this.userId) && p.isOnline && p.rank < myRank).foreach(_.playerInfo.address ! ElectionStarted(myRank, ctx.self))
-                inElectionBehavior(myRank)
-              } else
-                if ctx.self equals hostRef then gameCoordinator ! WhoIsPlayingRequest()
-                inGameBehavior(gameCoordinator, onlineUpdate, hostRef)
+                // inform connection handler to check the status for only those who are online
+                connectionHandler ! ConnectionHandler.UpdateList(onlineUpdate.filter(_.isOnline).map(_.playerInfo))
+  
+                if p.playerInfo.address equals hostRef then {
+                  logInfo(ctx, s"Player: ${playerInLobby.userID} was the host, starting election")
+                  //start election
+                  val myRank = playersStatus.find(_.playerInfo.userID == userId).map(_.rank).getOrElse(-1)
+                  onlineUpdate.filter(p => !p.playerInfo.userID.equals(this.userId) && p.isOnline && p.rank < myRank).foreach(_.playerInfo.address ! ElectionStarted(myRank, ctx.self))
+                  inElectionBehavior(myRank)
+                } else {
+                  if ctx.self equals hostRef then gameCoordinator ! WhoIsPlayingRequest()
+                  inGameBehavior(gameCoordinator, onlineUpdate, hostRef)
+                }
+              }
             }
-
         }
 
       // ELECTION HOST LOGIC MESSAGES - START
