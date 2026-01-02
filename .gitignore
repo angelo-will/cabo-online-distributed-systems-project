@@ -46,5 +46,10 @@ build/
 ### Scala ###
 .bsp/
 
-### Personal notes ###
+### Personal ###
 /nottrack/**
+*ClientSubstitute.scala
+*SimulationTest.scala
+
+# Application jar
+/*.jar

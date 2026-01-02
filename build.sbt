@@ -5,8 +5,6 @@ ThisBuild / scalaVersion := "3.3.3"
 //ThisBuild / resolvers += "Akka library repository".at("https://repo.akka.io/maven")
 
 val akkaVersion = "2.8.8"
-//val akkaVersion = "2.6.19"
-val x = "to trigger new buil"
 
 lazy val deps = Seq(
   "com.typesafe.akka" %% "akka-actor-typed" % akkaVersion, // For standard log configuration
@@ -22,6 +20,14 @@ lazy val deps = Seq(
 lazy val clientDeps = deps ++ Seq(
   "org.scala-lang.modules" %% "scala-swing" % "3.0.0",
   "com.thesamet.scalapb" %% "scalapb-runtime" % "0.11.17"
+)
+
+lazy val commonAssemblySettings = Seq(
+  assembly / assemblyMergeStrategy := {
+    case PathList("META-INF", xs @ _*) => MergeStrategy.discard
+    case "reference.conf"              => MergeStrategy.concat
+    case x                             => MergeStrategy.first
+  }
 )
 
 lazy val root = (project in file("."))
@@ -43,16 +49,66 @@ lazy val commons = (project in file("cabo-commons"))
 lazy val server = (project in file("cabo-server"))
   .settings(
     name := "project-cabo-server",
-    libraryDependencies ++= deps
+    commonAssemblySettings,
+    libraryDependencies ++= deps,
+    assembly / assemblyJarName := "server.jar",
+    assembly / mainClass := Some("ServerApp")
   )
   .dependsOn(commons)
-
 
 lazy val client = (project in file("cabo-client"))
   .settings(
     name := "project-cabo-client",
-    libraryDependencies ++= clientDeps
+    commonAssemblySettings,
+    libraryDependencies ++= clientDeps,
+    assembly / assemblyJarName := "client.jar",
+    assembly / mainClass := Some("ClientApp")
   )
   .enablePlugins(MultiJvmPlugin)
   .configs(MultiJvm)
   .dependsOn(commons)
+  .dependsOn(commons)
+
+lazy val seed = (project in file("cabo-seed"))
+  .settings(
+    name := "project-cabo-seed",
+    commonAssemblySettings,
+    libraryDependencies ++= deps,
+    assembly / assemblyJarName := "seed.jar",
+    assembly / mainClass := Some("SeedApp")
+  )
+  .dependsOn(commons)
+
+//lazy val client = (project in file("cabo-client"))
+//  .settings(
+//    name := "project-cabo-client",
+//    libraryDependencies ++= clientDeps
+//  )
+//  .enablePlugins(MultiJvmPlugin)
+//  .configs(MultiJvm)
+//  .dependsOn(commons)
+
+// --- TASK TO CREATE JAR E PUT IN ROOT ---
+lazy val install = taskKey[Unit]("generate jars")
+
+install := {
+  // 1. Esegue assembly su tutti e 3 i progetti
+  val clientJar = (client / assembly).value
+  val serverJar = (server / assembly).value
+  val seedJar  = (seed / assembly).value
+
+  // 2. Definisce la destinazione (root del progetto)
+  val dest = baseDirectory.value
+
+  // 3. Copia i file
+  IO.copyFile(clientJar, dest / "client.jar")
+  IO.copyFile(serverJar, dest / "server.jar")
+  IO.copyFile(seedJar,  dest / "seed.jar")
+
+  println("\n-------------------------------------------------------")
+  println(" SUCCESS! I file sono pronti nella cartella principale:")
+  println(s" 1. ${(dest / "seed.jar").getPath}")
+  println(s" 2. ${(dest / "server.jar").getPath}")
+  println(s" 3. ${(dest / "client.jar").getPath}")
+  println("-------------------------------------------------------\n")
+}

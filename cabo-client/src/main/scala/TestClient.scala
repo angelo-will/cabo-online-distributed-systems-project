@@ -1,13 +1,14 @@
 import akka.actor.typed.{ActorRef, ActorSystem}
 import akka.actor.typed.scaladsl.Behaviors
+import akka.CaboAkkaUtils._
 import com.typesafe.config.ConfigFactory
 import controller.Client
 import messages.ClientMessages
-import utils.{Message, startup}
+import utils.Message
 
 import scala.io.StdIn.readLine
 
-@main def deploySeeds(): Unit = utils.seeds.foreach(port => startup(port = port)(Behaviors.empty))
+@main def deploySeeds(): Unit = seeds.foreach(port => startup(port = port)(Behaviors.empty))
 
 @main def deployHost(): Unit = {
 //  val system = startup(2553)(deployActor(Client("Host", "CoolHost"))("host-client"))

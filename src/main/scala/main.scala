@@ -1,8 +1,8 @@
 import akka.actor.typed.ActorSystem
 import akka.actor.typed.scaladsl.Behaviors
+import akka.CaboAkkaUtils._
 import com.typesafe.config.ConfigFactory
 import controller.Client
-import utils.{startup, startupWithRole, deployActor}
 
 @main def main(): Unit =
   println("Hello world!")
@@ -20,7 +20,7 @@ import utils.{startup, startupWithRole, deployActor}
   //  system ! ClientMessages.CreateNewGame(makePublic = false, maxTimeRound = 10, maxNumRound = 5, maxPlayers = 4)
 }
 
-@main def deploySeeds(): Unit = utils.seeds.foreach(port => startup(port = port)(Behaviors.empty))
+@main def deploySeeds(): Unit = seeds.foreach(port => startup(port = port)(Behaviors.empty))
 
 @main def deployServer(): Unit = startupWithRole(role="server", port = 2560)(Server())
 

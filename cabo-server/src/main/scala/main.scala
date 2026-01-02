@@ -1,12 +1,10 @@
-
 import akka.actor.typed.javadsl.Behaviors
-import com.typesafe.config.ConfigFactory
-import utils.{deployActor, startup, startupWithRole}
+import akka.CaboAkkaUtils._
 
 object Main extends App:
 
   // Start also the seed nodes as access point for the cluster
-  utils.seeds.foreach(port => startup(port)(Behaviors.empty))
+  seeds.foreach(port => startup(port)(Behaviors.empty))
 
   startupWithRole(role="server", port = 2553)(deployActor(Server())("lobbyServer"))
 
