@@ -5,8 +5,8 @@ import akka.actor.typed.{ActorRef, Behavior}
 import akka.cluster.ClusterEvent.MemberEvent
 import akka.cluster.typed.{Cluster, Subscribe}
 import controller.Client.PlayerUnreachable
+import messages.Message
 import model.PlayerInLobby
-import utils.Message
 
 import scala.reflect.ClassTag
 

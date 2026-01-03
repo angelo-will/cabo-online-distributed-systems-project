@@ -3,7 +3,8 @@ import akka.cluster.ddata.{ORSet, ORSetKey, SelfUniqueAddress}
 import akka.cluster.ddata.typed.scaladsl.{DistributedData, Replicator}
 import akka.cluster.ddata.typed.scaladsl.Replicator.{Get, Update}
 import akka.cluster.ddata.Replicator.Changed
-import utils.ServerMessages
+import messages.ServerMessages
+import model.Game.GameInConstruction
 
 
 object Server:
@@ -12,11 +13,9 @@ object Server:
   import akka.actor.typed.ActorRef
   import akka.actor.typed.Behavior
   import akka.actor.typed.scaladsl.Behaviors
+  import messages.Message
 
-  import model.*
-  import model.Game.GameInConstruction
-  import utils.ServerMessages.*
-  import utils.Message
+  import ServerMessages.*
 
   private sealed trait InternalCommand extends Message
 

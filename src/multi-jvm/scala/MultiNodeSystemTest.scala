@@ -10,15 +10,14 @@ import akka.remote.testkit.{MultiNodeConfig, MultiNodeSpec, MultiNodeSpecCallbac
 import akka.testkit.ImplicitSender
 import com.typesafe.config.{Config, ConfigFactory, ConfigRenderOptions}
 import controller.Client
-import messages.ClientMessages
+import messages.{ClientMessages, Message, ServerMessages}
 import org.scalatest.concurrent.Eventually.eventually
 import org.scalatest.concurrent.Futures.{interval, timeout}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import messages.ClientMessages.CreateNewGame
-import utils.ServerMessages.{RegisterGame, ServerKey}
-import utils.{Message, ServerMessages}
+import messages.ServerMessages.{RegisterGame, ServerKey}
 
 import scala.concurrent.duration.DurationInt
 import scala.language.implicitConversions

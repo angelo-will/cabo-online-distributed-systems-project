@@ -3,8 +3,7 @@ import akka.actor.typed.scaladsl.Behaviors
 import akka.CaboAkkaUtils._
 import com.typesafe.config.ConfigFactory
 import controller.Client
-import messages.ClientMessages
-import utils.Message
+import messages.{ClientMessages, Message}
 
 import scala.io.StdIn.readLine
 

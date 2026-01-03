@@ -1,12 +1,11 @@
 import akka.actor.testkit.typed.scaladsl.{ScalaTestWithActorTestKit, TestProbe}
 import akka.actor.typed.ActorRef
-import messages.{ClientMessages, GameCoordinatorMessage, GameViewMessages, IGameViewMessage}
+import messages.{ClientMessages, GameCoordinatorMessage, GameViewMessages, IGameViewMessage, Message}
 import model.Game.GameInProgress
 import model.{Card, CardStack, PlayCycleTurnLog, Game, GameParameters, GameStatus, Hand, IGameParameters, PlayerPlaying, Power, TurnEvent, TurnLog, TurnPhase}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.BeforeAndAfterEach
-import utils.Message
 import view.gamephase
 import view.gamephase.actors
 import view.gamephase.actors.GameViewActor

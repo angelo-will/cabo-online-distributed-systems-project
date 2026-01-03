@@ -3,7 +3,6 @@ package messages
 import akka.actor.typed.ActorRef
 import model.Game.{GameInConstruction, GameInProgress}
 import model.{GameParameters, PlayerInLobby, TurnLog}
-import utils.Message
 
 object ClientMessages {
 

@@ -2,7 +2,6 @@ package messages
 
 import akka.actor.typed.ActorRef
 import model.{Card, Game, TurnLog}
-import utils.Message
 
 object GameCoordinatorMessage:
 

@@ -1,7 +1,7 @@
 package model
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
+import messages.CborSerializable
 import model.GameStatus.{Finished, InProgress, WaitingForPlayers}
-import utils.CborSerializable
 
 object Game:
   // 0-index

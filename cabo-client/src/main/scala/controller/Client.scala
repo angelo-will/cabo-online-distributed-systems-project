@@ -6,11 +6,10 @@ import akka.actor.typed.{ActorRef, Behavior}
 import akka.cluster.ClusterEvent.MemberExited
 import messages.ClientMessages.*
 import messages.GameCoordinatorMessage.{GameCoordinatorMessage, NewTurn}
-import messages.{GameCoordinatorMessage, GameViewMessages, IViewMessage, PreGameViewMessages}
+import messages.{GameCoordinatorMessage, GameViewMessages, IViewMessage, Message, PreGameViewMessages, ServerMessages}
 import model.Game.{GameInConstruction, GameInProgress}
 import model.{GameParameters, PlayerInLobby, PlayerPlaying, TurnLog}
-import utils.ServerMessages.{AbortGame, ServerKey}
-import utils.{Message, ServerMessages}
+import messages.ServerMessages.{AbortGame, ServerKey}
 
 import java.util.UUID
 import scala.concurrent.duration.DurationInt

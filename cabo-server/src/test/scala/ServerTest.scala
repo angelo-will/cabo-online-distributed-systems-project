@@ -1,6 +1,7 @@
 import akka.actor.testkit.typed.scaladsl.{ScalaTestWithActorTestKit, TestProbe}
 import akka.actor.typed.ActorRef
 import akka.cluster.typed.{Cluster, Join}
+import messages.{Message, ServerMessages}
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.matchers.should.Matchers
@@ -8,8 +9,7 @@ import org.scalatest.matchers.should.Matchers
 import scala.concurrent.duration.*
 import model.Game.GameInConstruction
 import model.{GameParameters, PlayerInLobby}
-import utils.{Message, ServerMessages}
-import utils.ServerMessages.*
+import ServerMessages.*
 
 class ServerTest extends ScalaTestWithActorTestKit
   with AnyWordSpecLike

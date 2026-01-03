@@ -1,4 +1,4 @@
-package utils
+package messages
 
 import akka.actor.typed.receptionist.ServiceKey
 

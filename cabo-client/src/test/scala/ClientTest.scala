@@ -16,7 +16,7 @@ import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import messages.ClientMessages.*
 import messages.GameCoordinatorMessage.GameCoordinatorMessage
-import utils.Message
+import messages.Message
 import messages.PreGameViewMessages.*
 
 class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(

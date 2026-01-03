@@ -2,13 +2,12 @@ package view.gamephase.actors
 
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
-import messages.{ClientMessages, GameCoordinatorMessage, IGameViewMessage, IPreGameViewMessage}
+import messages.{ClientMessages, GameCoordinatorMessage, IGameViewMessage, IPreGameViewMessage, Message}
 import model.{EndGameReason, Game, Power}
 import messages.ClientMessages.ClientCommand
 import messages.GameViewMessages.*
 import messages.ViewUserCommandMessages.*
 import messages.{IGameViewMessage, IPreGameViewMessage, GameCoordinatorMessage as GCMsg}
-import utils.Message
 import view.gamephase.GameMainFrame
 import view.gamephase.traits.IGameView
 

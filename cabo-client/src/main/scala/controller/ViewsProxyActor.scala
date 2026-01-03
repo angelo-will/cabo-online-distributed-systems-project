@@ -3,8 +3,7 @@ package controller
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import messages.ClientMessages.ClientCommand
-import messages.{GameViewMessages, IGameViewMessage, IPreGameViewMessage, IViewMessage, PreGameViewMessages}
-import utils.Message
+import messages.{GameViewMessages, IGameViewMessage, IPreGameViewMessage, IViewMessage, Message, PreGameViewMessages}
 import view.pregamephase.actors.PreGameViewActor
 import view.gamephase.actors.GameViewActor
 

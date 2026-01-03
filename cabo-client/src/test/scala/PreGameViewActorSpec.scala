@@ -1,12 +1,11 @@
 import akka.actor.testkit.typed.scaladsl.{ScalaTestWithActorTestKit, TestProbe}
 import akka.actor.typed.ActorRef
-import messages.{ClientMessages, PreGameViewMessages}
+import messages.{ClientMessages, Message, PreGameViewMessages}
 import model.{Game, GameParameters, PlayerInLobby}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.matchers.must.Matchers.mustBe
-import utils.Message
 import view.pregamephase.ViewApplication
 import view.pregamephase.actors.PreGameViewActor.ViewCreated
 import view.pregamephase.actors.{PreGameViewActor, PreGameViewListener}

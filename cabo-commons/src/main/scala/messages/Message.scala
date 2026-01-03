@@ -1,3 +1,3 @@
-package utils
+package messages
 
 trait Message extends CborSerializable

@@ -2,7 +2,7 @@ import akka.actor.testkit.typed.scaladsl.{ScalaTestWithActorTestKit, TestProbe}
 import akka.actor.typed.ActorRef
 import controller.GameCoordinatorActor
 import messages.ClientMessages.ClientCommand
-import messages.GameCoordinatorMessage as GCMessage
+import messages.{Message, GameCoordinatorMessage as GCMessage}
 import messages.GameCoordinatorMessage.GameCoordinatorMessage
 import messages.{ClientMessages, GameViewMessages, IViewMessage}
 import model.Game.{GameInConstruction, GameInProgress}
@@ -11,7 +11,6 @@ import model.{Card, CardStack, PlayCycleTurnLog, Game, GameParameters, PlayerInL
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
-import utils.Message
 
 import scala.annotation.tailrec
 
