@@ -15,7 +15,7 @@ import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import messages.ClientMessages.*
-import messages.GameCoordinatorMessage.IGameCoordinatorMessage
+import messages.IGameCoordinatorMessage
 import messages.Message
 import messages.PreGameViewMessages.*
 

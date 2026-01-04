@@ -3,7 +3,7 @@ import akka.actor.typed.ActorRef
 import controller.GameCoordinatorActor
 import messages.ClientMessages.ClientCommand
 import messages.{Message, GameCoordinatorMessage as GCMessage}
-import messages.GameCoordinatorMessage.IGameCoordinatorMessage
+import messages.IGameCoordinatorMessage
 import messages.{ClientMessages, GameViewMessages, IViewMessage}
 import model.Game.{GameInConstruction, GameInProgress}
 import model.Suit.*
