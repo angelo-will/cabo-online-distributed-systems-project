@@ -22,7 +22,7 @@ class JoinGameWithLinkPanel(navigator: ScreenNavigator, viewListener: IJoinGameW
 
   private val gameInsertLinkLabel = new Label("Insert game code")
   // TODO: in base a come si sarà scelto di fare (actorRef, adress, ecc.) modificare
-  private val gameCodeField = new TextField("Link partita") {
+  private val gameCodeField = new TextField("Game code") {
     columns = 20
     maximumSize = new Dimension(300, preferredSize.height)
   }
