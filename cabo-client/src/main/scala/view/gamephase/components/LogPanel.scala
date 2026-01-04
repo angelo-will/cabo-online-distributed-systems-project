@@ -12,12 +12,12 @@ class LogPanel extends ScrollPane {
     lineWrap = true
     wordWrap = true
     font = new AwtFont("Arial", AwtFont.PLAIN, 12)
-    text = "Cards seen in initial phase:\n"
+    text = "Cards seen in revealing section by opponents:\n"
   }
   contents = logTextArea
   verticalScrollBarPolicy = ScrollPane.BarPolicy.Always
   horizontalScrollBarPolicy = ScrollPane.BarPolicy.Never
-  peer.setBorder(BorderFactory.createLineBorder(Color.MAGENTA, 3))
+  //  peer.setBorder(BorderFactory.createLineBorder(Color.MAGENTA, 3))
 
   def updateRevealingPhaseLog(log: TurnLog): Unit = {
     logTextArea.text += TurnLogsWriter.initialPhaseTurnLog(log)

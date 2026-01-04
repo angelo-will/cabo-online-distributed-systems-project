@@ -9,7 +9,7 @@ import scala.swing.*
 class GameInfoPanel(game: GameInProgress) extends BoxPanel(Orientation.Vertical) {
 
   val stringForCaboNotCalled = "Nobody has called Cabo."
-  peer.setBorder(BorderFactory.createLineBorder(Color.RED, 3))
+  //  peer.setBorder(BorderFactory.createLineBorder(Color.RED, 3))
   //    border = Swing.EmptyBorder(10, 10, 10, 10)
   private val gameCodeLabel = new Label(s"Game Code: ${game.code}") {
     font = new AwtFont("Arial", AwtFont.BOLD, 16)

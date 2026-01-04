@@ -12,31 +12,31 @@ class RevealingSectionTurnLogSpec extends AnyWordSpec
   import model.Rank.*
   import model.Suit.*
 
-  var initialPhaseLog: RevealingSectionTurnLog = _
+  var revealingSectionTurnLog: RevealingSectionTurnLog = _
   val genericCard01 = new Card(Ten(), Spades())
   val genericCard02 = new Card(Queen(), Hearts())
 
   override def beforeEach(): Unit =
     super.beforeEach()
-    initialPhaseLog = new RevealingSectionTurnLog("player01")
+    revealingSectionTurnLog = new RevealingSectionTurnLog("player01")
 
-  "An InitialPhaseTurnLog" must {
+  "A RevealingSectionTurnLog" must {
     "not have events registered" when {
       "just created" in {
-        this.initialPhaseLog.events mustBe empty
+        this.revealingSectionTurnLog.events mustBe empty
       }
     }
     "allow see one card" when {
       "just crated" in {
-        this.initialPhaseLog.addEvent(SeeSelfCard(0))
-        this.initialPhaseLog.events must contain only SeeSelfCard(0)
+        this.revealingSectionTurnLog.addEvent(SeeSelfCard(0))
+        this.revealingSectionTurnLog.events must contain only SeeSelfCard(0)
       }
     }
     "allow see a second card" when {
       "after see the first" in {
-        this.initialPhaseLog.addEvent(SeeSelfCard(0))
-        this.initialPhaseLog.addEvent(SeeSelfCard(2))
-        this.initialPhaseLog.events must contain inOrder(
+        this.revealingSectionTurnLog.addEvent(SeeSelfCard(0))
+        this.revealingSectionTurnLog.addEvent(SeeSelfCard(2))
+        this.revealingSectionTurnLog.events must contain inOrder(
           SeeSelfCard(0),
           SeeSelfCard(2)
         )
@@ -44,16 +44,16 @@ class RevealingSectionTurnLogSpec extends AnyWordSpec
     }
     "not allow other events" when {
       "after see two cards" in {
-        this.initialPhaseLog.addEvent(SeeSelfCard(0))
-        this.initialPhaseLog.addEvent(SeeSelfCard(2))
-        an[InvalidTurnEventException] must be thrownBy this.initialPhaseLog.addEvent(SeeSelfCard(0))
+        this.revealingSectionTurnLog.addEvent(SeeSelfCard(0))
+        this.revealingSectionTurnLog.addEvent(SeeSelfCard(2))
+        an[InvalidTurnEventException] must be thrownBy this.revealingSectionTurnLog.addEvent(SeeSelfCard(0))
       }
       "try add events different from SeeSelfCard" in {
-        an[InvalidTurnEventException] must be thrownBy this.initialPhaseLog.addEvent(DrawCardFromDeck(genericCard01))
-        an[InvalidTurnEventException] must be thrownBy this.initialPhaseLog.addEvent(DrawCardFromDiscardStack(genericCard02))
-        an[InvalidTurnEventException] must be thrownBy this.initialPhaseLog.addEvent(SeeAdversaryCard("player2", 0))
-        an[InvalidTurnEventException] must be thrownBy this.initialPhaseLog.addEvent(ReplaceOwnCardWithAdversaryCard(0, "player2", 0))
-        an[InvalidTurnEventException] must be thrownBy this.initialPhaseLog.addEvent(OwnCardDiscarded(genericCard01,0))
+        an[InvalidTurnEventException] must be thrownBy this.revealingSectionTurnLog.addEvent(DrawCardFromDeck(genericCard01))
+        an[InvalidTurnEventException] must be thrownBy this.revealingSectionTurnLog.addEvent(DrawCardFromDiscardStack(genericCard02))
+        an[InvalidTurnEventException] must be thrownBy this.revealingSectionTurnLog.addEvent(SeeAdversaryCard("player2", 0))
+        an[InvalidTurnEventException] must be thrownBy this.revealingSectionTurnLog.addEvent(ReplaceOwnCardWithAdversaryCard(0, "player2", 0))
+        an[InvalidTurnEventException] must be thrownBy this.revealingSectionTurnLog.addEvent(OwnCardDiscarded(genericCard01,0))
       }
     }
   }  
