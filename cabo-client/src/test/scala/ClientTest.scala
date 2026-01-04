@@ -15,7 +15,7 @@ import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import messages.ClientMessages.*
-import messages.GameCoordinatorMessage.GameCoordinatorMessage
+import messages.GameCoordinatorMessage.IGameCoordinatorMessage
 import messages.Message
 import messages.PreGameViewMessages.*
 
@@ -174,7 +174,7 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(
 
     val (hostId, _) = retrieveClientIdAndName(clientHost, probeClientHost)
 
-    val coordinatorStub: () => Behavior[GameCoordinatorMessage] = () => Behaviors.receiveMessage {
+    val coordinatorStub: () => Behavior[IGameCoordinatorMessage] = () => Behaviors.receiveMessage {
       m =>
         coordinatorProbe.ref ! m
         Behaviors.same

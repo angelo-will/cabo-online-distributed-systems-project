@@ -69,7 +69,7 @@ class GameViewActorSpec extends ScalaTestWithActorTestKit
         probeAsClient.receiveMessages(1)
         Thread.sleep(2000) // wait for the view to update
         duringGameViewActor ! GameViewMessages.StartGame(game, probeAsGameCoordinator.ref)
-        val card = probeAsGameCoordinator.expectMessageType[GameCoordinatorMessage.ShowYourNthCard](FiniteDuration(5, SECONDS))
+        val card = probeAsGameCoordinator.expectMessageType[GameCoordinatorMessage.ShowOwnNthCard](FiniteDuration(5, SECONDS))
       }
     }
     "show own card after receiving CardSeen message from GameCoordinator" when {
@@ -78,7 +78,7 @@ class GameViewActorSpec extends ScalaTestWithActorTestKit
         probeAsClient.receiveMessages(1)
         val player = game.players.filter(_.userID.equals(userID)).head
         duringGameViewActor ! GameViewMessages.StartGame(game, probeAsGameCoordinator.ref)
-        val showYourNCardRequest = probeAsGameCoordinator.expectMessageType[GameCoordinatorMessage.ShowYourNthCard](FiniteDuration(5, SECONDS))
+        val showYourNCardRequest = probeAsGameCoordinator.expectMessageType[GameCoordinatorMessage.ShowOwnNthCard](FiniteDuration(5, SECONDS))
         val cardRequested = player.hand.cards(showYourNCardRequest.index)
         duringGameViewActor ! GameViewMessages.CardSeen(cardRequested)
 
@@ -181,7 +181,7 @@ class GameViewActorSpec extends ScalaTestWithActorTestKit
         Thread.sleep(1000)
         duringGameViewActor ! GameViewMessages.StartTurnPlayer(userID)
         val (cardDrawn, newDeck) = drawFromDeckExpectation(duringGameViewActor.ref)
-        val msg = probeAsGameCoordinator.expectMessageType[GameCoordinatorMessage.DiscardYourNthCard](FiniteDuration(5, SECONDS))
+        val msg = probeAsGameCoordinator.expectMessageType[GameCoordinatorMessage.DiscardOwnNthCard](FiniteDuration(5, SECONDS))
         val oldCard = game.getPlayerWithID(userID).hand.cards(msg.index)
         game = game.replaceNthCardOfPlayerWithID(userID, cardDrawn, msg.index)
         duringGameViewActor ! GameViewMessages.NewTopCardDiscardStack(oldCard)
@@ -212,10 +212,10 @@ class GameViewActorSpec extends ScalaTestWithActorTestKit
         Thread.sleep(1000)
         duringGameViewActor ! GameViewMessages.StartTurnPlayer(userID)
         val (cardDrawn, newDeck) = drawFromDeckExpectation(duringGameViewActor.ref)
-        val cardIndex = probeAsGameCoordinator.expectMessageType[GameCoordinatorMessage.ShowYourNthCard](FiniteDuration(5, SECONDS)).index
+        val cardIndex = probeAsGameCoordinator.expectMessageType[GameCoordinatorMessage.ShowOwnNthCard](FiniteDuration(5, SECONDS)).index
         duringGameViewActor ! GameViewMessages.CardSeen(game.getCardOfPlayerWithID(userID, cardIndex))
         probeAsGameCoordinator.receiveMessages(1, FiniteDuration(10, SECONDS)).head match
-          case GameCoordinatorMessage.DiscardYourNthCard(index) =>
+          case GameCoordinatorMessage.DiscardOwnNthCard(index) =>
             val oldCard = game.getCardOfPlayerWithID(userID, index)
             game = game.replaceNthCardOfPlayerWithID(userID, cardDrawn, index)
             duringGameViewActor ! GameViewMessages.NewTopCardDiscardStack(oldCard)
@@ -237,7 +237,7 @@ class GameViewActorSpec extends ScalaTestWithActorTestKit
         duringGameViewActor ! GameViewMessages.StartTurnPlayer(userID)
         val (cardDrawn, newDeck) = drawFromDeckExpectation(duringGameViewActor.ref)
         val msg = probeAsGameCoordinator.expectMessageType[GameCoordinatorMessage.ShowAdversaryNthCard](FiniteDuration(5, SECONDS))
-        val card = game.getCardOfPlayerWithID(msg.playerID, msg.cardIndex)
+        val card = game.getCardOfPlayerWithID(msg.adversaryID, msg.cardIndex)
         duringGameViewActor ! GameViewMessages.CardSeen(card)
         createCheckFrame().open()
       }
@@ -272,10 +272,10 @@ class GameViewActorSpec extends ScalaTestWithActorTestKit
   private def revealingFirstTwoCardsPhase(duringGameViewActor: ActorRef[IGameViewMessage], game: GameInProgress): Unit = {
     val player = game.players.filter(_.userID.equals(userID)).head
     //    duringGameViewActor ! DuringGameViewMessages.StartGame(game, probeAsGameCoordinator.ref)
-    val showYourFirstNthCard = probeAsGameCoordinator.expectMessageType[GameCoordinatorMessage.ShowYourNthCard](FiniteDuration(5, SECONDS))
+    val showYourFirstNthCard = probeAsGameCoordinator.expectMessageType[GameCoordinatorMessage.ShowOwnNthCard](FiniteDuration(5, SECONDS))
     val firstCardRequested = player.hand.cards(showYourFirstNthCard.index)
     duringGameViewActor ! GameViewMessages.CardSeen(firstCardRequested)
-    val showYourSecondNthCard = probeAsGameCoordinator.expectMessageType[GameCoordinatorMessage.ShowYourNthCard](FiniteDuration(5, SECONDS))
+    val showYourSecondNthCard = probeAsGameCoordinator.expectMessageType[GameCoordinatorMessage.ShowOwnNthCard](FiniteDuration(5, SECONDS))
     val secondCardRequested = player.hand.cards(showYourSecondNthCard.index)
     duringGameViewActor ! GameViewMessages.CardSeen(secondCardRequested)
   }
