@@ -47,7 +47,7 @@ build/
 .bsp/
 
 ### Personal ###
-/nottrack/**
+**/nottrack/**
 *ClientSubstitute.scala
 *SimulationTest.scala
 
