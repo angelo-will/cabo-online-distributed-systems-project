@@ -5,7 +5,7 @@ import view.pregamephase.ScreenNavigator
 
 import java.awt.{Color, Font}
 import javax.swing.SwingUtilities
-import scala.swing.{Alignment, BorderPanel, BoxPanel, Button, Dialog, Label, Orientation, ScrollPane, Swing}
+import scala.swing._
 import scala.swing.event.ButtonClicked
 
 trait IListGamesListener:
@@ -19,15 +19,15 @@ class GameListPanel(navigator: ScreenNavigator, listener: IListGamesListener) ex
 
   border = Swing.EmptyBorder(30, 30, 30, 30)
 
-  private val titleLabel = new Label("Unisciti a una delle seguenti partite") {
+  private val titleLabel = new Label("Join one games") {
     font = new Font("Arial", java.awt.Font.BOLD, 20)
     horizontalAlignment = Alignment.Center
   }
 
   private val gamesContainer = new GameListContainer()
 
-  private val backButton = new Button("Indietro")
-  private val refreshGamesButton = new Button("Aggiorna")
+  private val backButton = new Button("Back")
+  private val refreshGamesButton = new Button("Refresh")
 
   contents += titleLabel
   contents += Swing.VStrut(20)
@@ -46,18 +46,16 @@ class GameListPanel(navigator: ScreenNavigator, listener: IListGamesListener) ex
   reactions += {
     case ButtonClicked(b) =>
       if b == backButton then
-        println("GameListPanel: Cliccato 'Indietro'.")
         listener.returnToStart()
         navigator.goToPreviousPanel()
       else if b == refreshGamesButton then
-        println("GameListPanel: Cliccato 'Aggiorna'.")
         listener.updateGamesList()
   }
 
   private class GameListContainer extends ScrollPane {
     private val listContainer = new BoxPanel(Orientation.Vertical) {
       border = Swing.EmptyBorder(10, 10, 10, 10)
-      contents += new Label("Caricamento partite in corso...")
+      contents += new Label("Loading games...")
     }
 
     contents = listContainer
@@ -87,7 +85,7 @@ class GameListPanel(navigator: ScreenNavigator, listener: IListGamesListener) ex
     background = Color.WHITE
 
 
-    private val playerCountLabel = new Label(s"${game.players.size}/${game.gameParameters.maxPlayers} Giocatori") {
+    private val playerCountLabel = new Label(s"${game.players.size}/${game.gameParameters.maxPlayers} Players") {
       font = new Font("SansSerif", java.awt.Font.BOLD, 14)
     }
 
@@ -119,7 +117,6 @@ class GameListPanel(navigator: ScreenNavigator, listener: IListGamesListener) ex
           showInfoDialog()
         else if b == joinButton then
           if showYesNoJoinDialog() == Dialog.Result.Yes then
-            println("Yes pressed to enter in the game")
             listener.joinGame(game)
     }
 
@@ -135,14 +132,14 @@ class GameListPanel(navigator: ScreenNavigator, listener: IListGamesListener) ex
            |Players: ${game.players.map(_.name).mkString(", ")}
          """.stripMargin
 
-      Dialog.showMessage(this, details, "Dettagli Partita: " + game.code, Dialog.Message.Info)
+      Dialog.showMessage(this, details, "Game info: " + game.code, Dialog.Message.Info)
     }
 
     private def showYesNoJoinDialog() =
       Dialog.showConfirmation(
         this,
-        s"Vuoi davvero unirti alla partita '${game.code}'?",
-        "Conferma Unione Partita",
+        s"Do you want join the game '${game.code}'?",
+        "Join game confirmation",
         Dialog.Options.YesNo,
         Dialog.Message.Question
       )

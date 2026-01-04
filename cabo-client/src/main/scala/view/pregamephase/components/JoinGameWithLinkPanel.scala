@@ -4,7 +4,7 @@ import view.pregamephase.IPreGameViewListener
 import view.pregamephase.ScreenNavigator
 
 import java.awt.Font
-import scala.swing.{Alignment, BoxPanel, Button, Dimension, Label, Orientation, Swing, TextField}
+import scala.swing._
 import scala.swing.event.ButtonClicked
 
 trait IJoinGameWithLinkListener:
@@ -13,14 +13,14 @@ trait IJoinGameWithLinkListener:
   def returnToStart(): Unit
 
 class JoinGameWithLinkPanel(navigator: ScreenNavigator, viewListener: IJoinGameWithLinkListener) extends BoxPanel(Orientation.Vertical):
-  border = Swing.EmptyBorder(30, 30, 30, 30) // Margine interno
+  border = Swing.EmptyBorder(30, 30, 30, 30)
 
-  private val titleLabel = new Label("Unisciti a una partita mediante link") {
+  private val titleLabel = new Label("Join a game with game code") {
     font = new Font("Arial", java.awt.Font.BOLD, 20)
     horizontalAlignment = Alignment.Center
   }
 
-  private val gameInsertLinkLabel = new Label("Inserire link partita")
+  private val gameInsertLinkLabel = new Label("Insert game code")
   // TODO: in base a come si sarà scelto di fare (actorRef, adress, ecc.) modificare
   private val gameCodeField = new TextField("Link partita") {
     columns = 20
@@ -29,7 +29,7 @@ class JoinGameWithLinkPanel(navigator: ScreenNavigator, viewListener: IJoinGameW
 
   private val pasteLinkButton = new Button("Paste game code")
   private val joinButton = new Button("Join")
-  private val backButton = new Button("Go Back")
+  private val backButton = new Button("Back")
 
   contents += titleLabel
   contents += Swing.VStrut(20)
@@ -46,11 +46,9 @@ class JoinGameWithLinkPanel(navigator: ScreenNavigator, viewListener: IJoinGameW
   reactions += {
     case ButtonClicked(b) =>
       if b == joinButton then
-        println(s"Premuto bottone unisciti alla partita con codice: ${gameCodeField.text}")
         // TODO: delete remove this than -AAA- sostituire con il metodo corretto
         viewListener.joinWithAddress(gameCodeField.text)
       else if b == backButton then
-        println("JoinGamePanel: Cliccato 'Indietro'. Chiedo al navigatore di mostrare 'welcomeScreen'.")
         viewListener.returnToStart()
         navigator.goToPreviousPanel()
       else if b == pasteLinkButton then

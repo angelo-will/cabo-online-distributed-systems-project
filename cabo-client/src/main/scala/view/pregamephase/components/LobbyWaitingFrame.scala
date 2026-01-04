@@ -3,14 +3,12 @@ package view.pregamephase.components
 import model.Game.GameInConstruction
 import model.{Game, PlayerInLobby}
 
-import java.awt.{Font, GridBagConstraints, Insets, Toolkit}
+import java.awt.{Font, GridBagConstraints, Toolkit}
 import java.awt.GridBagConstraints.*
 import java.awt.datatransfer.StringSelection
 import javax.swing.SwingUtilities
-import scala.swing.Dialog as result
 import scala.swing.GridBagPanel.Fill
 import scala.swing.event.ButtonClicked
-//import scala.swing.{Alignment, BoxPanel, Button, Dialog, Dimension, Label, MainFrame, Orientation, ScrollPane, Swing}
 import scala.swing._
 
 trait IWaitingToStartListener:
@@ -19,7 +17,6 @@ trait IWaitingToStartListener:
   def exitFromTheGame(): Unit
 
 class LobbyWaitingFrame(
-                    //                    navigator: ScreenNavigator,
                     listener: IWaitingToStartListener,
                     private var game: GameInConstruction,
                     isHost: Boolean
@@ -58,44 +55,26 @@ class LobbyWaitingFrame(
 
   listenTo(startGameButton, exitButton, copyGameCodeButton)
 
-//  peer.addWindowListener(new java.awt.event.WindowAdapter() {
-//    override def windowClosing(e: java.awt.event.WindowEvent): Unit =
-//      println("Window closing, exiting from the game.")
-//      listener.exitFromTheGame()
-//      dispose()
-//  })
-
   reactions += {
     case ButtonClicked(`startGameButton`) =>
-      println("Start Game button clicked.")
       listener.startGame()
       this.dispose()
     case ButtonClicked(`exitButton`) =>
-      println("Exit button clicked.")
       onExitDuringWaitingLobbyPolicy()
-    //      this.dispose()
     case ButtonClicked(`copyGameCodeButton`) =>
       val clipboard = Toolkit.getDefaultToolkit.getSystemClipboard
       val selection = new StringSelection(game.code)
       clipboard.setContents(selection, selection)
-      println(s"Game code '${game.code}' copied to clipboard.")
   }
 
   contents = new GridBagPanel {
     border = Swing.EmptyBorder(30, 30, 30, 30)
 
-    // Definisci le componenti
     private val waitingMessage = new Label("Waiting host to start the game.") {
       font = new Font("Arial", java.awt.Font.BOLD, 22)
       horizontalAlignment = Alignment.Center
     }
-    //    private val gameProperties = new TextField("<html>" +
-    //      "<p>Game Properties</p>" +
-    //      "<br> Game Code:" + game.code +
-    //      "<br> Max players per game: " + game.gameParameters.maxPlayers +
-    //      "<br> Max time per round: " + game.gameParameters.maxTimeRound +
-    //      "<br> Max rounds per game: " + game.gameParameters.roundLimitation +
-    //      "</html>")
+
     private val propertiesText: String =
       "Game Properties\n\n" +
         "Game Code: " + game.code + "\n" +
@@ -115,7 +94,6 @@ class LobbyWaitingFrame(
       horizontalAlignment = Alignment.Center
     }
 
-    // Definisci i vincoli per la griglia
     val c = new Constraints
     private var row: Int = 0
     private var column: Int = 0
@@ -126,8 +104,7 @@ class LobbyWaitingFrame(
       row += 1
       resetColumn()
 
-    c.fill = GridBagPanel.Fill.Horizontal // I componenti si espanderanno per riempire la loro cella
-    // c.insets = new Insets(10, 0, 10, 0) // Padding verticale
+    c.fill = GridBagPanel.Fill.Horizontal
 
     c.gridy = row
     c.gridx = column
@@ -140,7 +117,7 @@ class LobbyWaitingFrame(
     c.gridy = row
     c.gridx = column
     c.gridwidth = GridBagConstraints.REMAINDER
-    c.weighty = 0.0 // Non si espande verticalmente
+    c.weighty = 0.0
     layout(gameProperties) = c
 
     nextRow()
@@ -153,38 +130,32 @@ class LobbyWaitingFrame(
 
     nextRow()
 
-    // introPlayersListLabel (seconda riga)
-    c.gridy = row // Riga 1
-    c.gridx = 0 // Colonna 0
+    c.gridy = row
+    c.gridx = 0
     c.gridwidth = GridBagConstraints.REMAINDER
-    c.weighty = 0.0 // Non si espande verticalmente
+    c.weighty = 0.0
     layout(introPlayersListLabel) = c
 
     nextRow()
 
-    // playersListContainer (terza riga)
-    c.gridy = row // Riga 2
+    c.gridy = row
     c.gridx = 0
     c.gridwidth = GridBagConstraints.REMAINDER
-    c.weighty = 1.0 // Si espande per assorbir
+    c.weighty = 1.0
     c.fill = GridBagPanel.Fill.Both
-    // e lo spazio
     layout(playersListContainer) = c
 
     nextRow()
 
-    // Reimposta i vincoli per i pulsanti
-    c.gridwidth = 2 // I pulsanti occuperanno solo una colonna
-    c.weighty = 0.0 // Non si espandono verticalmente
-    c.fill = GridBagPanel.Fill.Horizontal // Non si allungano per riempire lo spazio
-    c.anchor = GridBagPanel.Anchor.Center // Allineali al centro della loro cella
+    c.gridwidth = 2
+    c.weighty = 0.0
+    c.fill = GridBagPanel.Fill.Horizontal
+    c.anchor = GridBagPanel.Anchor.Center
 
-    // exitButton
     c.gridx = 0
     c.gridy = row
     layout(exitButton) = c
 
-    // startGameButton
     c.gridx = 1
     c.gridy = row
     layout(startGameButton) = c
@@ -211,15 +182,15 @@ class LobbyWaitingFrame(
     })
   }
 
-  def onExitDuringWaitingLobbyPolicy(): Unit = {
+  private def onExitDuringWaitingLobbyPolicy(): Unit = {
     val message = s"Are you sure you want to close lobby?"
-    + s"${if isHost then "Every participant will be expelled." else ""}"
+    + s"${if isHost then " Every participant will be expelled." else ""}"
     val title = "Confirm Closing"
 
     val options = List("Yes, Close", "No, Stay")
 
     val result: Dialog.Result.Value = Dialog.showConfirmation(
-      parent = this, // La finestra corrente è il genitore
+      parent = this,
       message = message,
       title = title,
       optionType = Dialog.Options.YesNo,
@@ -236,18 +207,15 @@ class LobbyWaitingFrame(
   }
 
 
-  def hostCancelledTheGame(f: () => Unit): Unit = {
-    //    Swing.onEDT{
-    //      this.dispose()
-    //    }
+  def hostCancelledTheGame(onClose: () => Unit): Unit = {
     Swing.onEDT {
       Dialog.showMessage(
         parent = this,
-        message = "La partita è stata chiusa dall'Host. Verrai riportato al Menu Principale.",
-        title = "Partita Chiusa",
+        message = "Game was closed by the host. You'll bring back to main menu.",
+        title = "Game Closed",
         messageType = Dialog.Message.Warning
       )
-      f()
+      onClose()
     }
   }
 
