@@ -2,13 +2,14 @@ package view.gamephase.actors
 
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
-import messages.{ClientMessages, GameCoordinatorMessage, IGameViewMessage, IPreGameViewMessage}
+
 import model.{EndGameReason, Game, Power}
+import messages._
+import messages.GameCoordinatorMessage as GCMsg
 import messages.ClientMessages.ClientCommand
 import messages.GameViewMessages.*
 import messages.ViewUserCommandMessages.*
-import messages.{IGameViewMessage, IPreGameViewMessage, GameCoordinatorMessage as GCMsg}
-import utils.Message
+
 import view.gamephase.GameMainFrame
 import view.gamephase.traits.IGameView
 
@@ -32,7 +33,7 @@ private class GameViewActor private(
                                    ) {
 
   private case class GameContext(
-                                  coordinator: ActorRef[GameCoordinatorMessage.IGameCoordinatorMessage],
+                                  coordinator: ActorRef[IGameCoordinatorMessage],
                                   frame: GameMainFrame,
                                   ui: IGameView
                                 )
@@ -262,7 +263,7 @@ private class GameViewActor private(
     case OwnCardSelected(index) =>
       log(actualState, s"DuringGameViewActor of player ${userID}, my ref is ${ctx.self}")
       log(actualState, s"DuringGameViewActor HANDLER handleWatchYourCards received OwnCardSelected with index: $index")
-      context.coordinator ! GCMsg.ShowYourNthCard(index)
+      context.coordinator ! GCMsg.ShowOwnNthCard(index)
       waitCardSelected(context, behaviorAfterWatched)
   }
 
@@ -275,7 +276,7 @@ private class GameViewActor private(
 
   private def handleGameDeleted(context: GameContext)(actualState: String): PartialFunction[IGameViewMessage, Behavior[IGameViewMessage]] = {
     case GameDeleted() =>
-      //todo: aggiungere modifiche alla view da fare
+      context.ui.deleteGame()
       Behaviors.same
   }
   // HANDLERS revealing section - END ---
@@ -342,7 +343,7 @@ private class GameViewActor private(
 
     case OwnCardSelected(index) =>
       log(actualState, s"Received OwnCardSelected with index: $index")
-      context.coordinator ! GCMsg.DiscardYourNthCard(index)
+      context.coordinator ! GCMsg.DiscardOwnNthCard(index)
       context.ui.afterDiscarded()
       myTurnAfterDiscard(context)
   }

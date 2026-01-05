@@ -1,7 +1,7 @@
 package model
 
-import utils.CborSerializable
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
+import messages.CborSerializable
 
 object TurnPhase:
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")

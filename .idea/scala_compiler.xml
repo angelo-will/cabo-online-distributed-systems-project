@@ -2,6 +2,6 @@
 <project version="4">
   <component name="ScalaCompilerConfiguration">
     <option name="separateProdTestSources" value="true" />
-    <profile name="sbt 1" modules="project-cabo-online,project-cabo-online-v01,project-cabo-online-v01.main,project-cabo-online-v01.test,project-cabo-online.main,project-cabo-online.project-cabo-client,project-cabo-online.project-cabo-client.main,project-cabo-online.project-cabo-client.test,project-cabo-online.project-cabo-commons,project-cabo-online.project-cabo-commons.main,project-cabo-online.project-cabo-commons.test,project-cabo-online.project-cabo-server,project-cabo-online.project-cabo-server.main,project-cabo-online.project-cabo-server.test,project-cabo-online.test" />
+    <profile name="sbt 1" modules="project-cabo-online,project-cabo-online-v01,project-cabo-online-v01.main,project-cabo-online-v01.test,project-cabo-online.main,project-cabo-online.project-cabo-client,project-cabo-online.project-cabo-client.main,project-cabo-online.project-cabo-client.test,project-cabo-online.project-cabo-commons,project-cabo-online.project-cabo-commons.main,project-cabo-online.project-cabo-commons.test,project-cabo-online.project-cabo-seed,project-cabo-online.project-cabo-seed.main,project-cabo-online.project-cabo-seed.test,project-cabo-online.project-cabo-server,project-cabo-online.project-cabo-server.main,project-cabo-online.project-cabo-server.test,project-cabo-online.test" />
   </component>
 </project>

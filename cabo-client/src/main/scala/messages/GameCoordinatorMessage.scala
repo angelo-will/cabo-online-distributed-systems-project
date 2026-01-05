@@ -2,57 +2,97 @@ package messages
 
 import akka.actor.typed.ActorRef
 import model.{Card, Game, TurnLog}
-import utils.Message
 
 object GameCoordinatorMessage:
-
-  trait IGameCoordinatorMessage extends Message
-
-  trait GameCoordinatorPlayerCommand extends IGameCoordinatorMessage
-  // Messages - commands handled by the coordinator
-
-  trait GameCoordinatorSyncMessage extends IGameCoordinatorMessage
-
   /**
    * Represents a command to draw a card from the deck.
    */
-  case class DrawCardFromDeck() extends GameCoordinatorPlayerCommand
+  case class DrawCardFromDeck() extends IGameCoordinatorPlayerCommand
 
   /**
    * Represents a command to draw a card from the discard stack.
    */
-  case class DrawCardFromDiscardStack() extends GameCoordinatorPlayerCommand
+  case class DrawCardFromDiscardStack() extends IGameCoordinatorPlayerCommand
 
-  case class DiscardCardDrawn() extends GameCoordinatorPlayerCommand
+  /**
+   * Represents a command to discard the drawn card.
+   */
+  case class DiscardCardDrawn() extends IGameCoordinatorPlayerCommand
 
-  case class DiscardYourNthCard(index: Int) extends GameCoordinatorPlayerCommand
+  /**
+   * Represents a command to discard the index-nth card from the player's hand and keep the drawn card.
+   * @param index
+   */
+  case class DiscardOwnNthCard(index: Int) extends IGameCoordinatorPlayerCommand
 
-  case class ShowYourNthCard(index: Int) extends GameCoordinatorPlayerCommand
+  /**
+   * Represents a command to show the index-nth card from the player's own hand.
+   * @param index
+   */
+  case class ShowOwnNthCard(index: Int) extends IGameCoordinatorPlayerCommand
 
-  case class ShowAdversaryNthCard(playerID: String, cardIndex: Int) extends GameCoordinatorPlayerCommand
+  /**
+   * Represents a command to show the index-nth card from an adversary's hand.
+   * @param adversaryID
+   * @param cardIndex
+   */
+  case class ShowAdversaryNthCard(adversaryID: String, cardIndex: Int) extends IGameCoordinatorPlayerCommand
 
-  case class ReplaceOwnNthCardWithAdversaryNthOne(ownCardIndex: Int, adversaryID: String, adversaryCardIndex: Int) extends GameCoordinatorPlayerCommand
+  /**
+   * Represents a command to replace the player's own index-nth card with an adversary's index-nth card.
+   * @param ownCardIndex
+   * @param adversaryID
+   * @param adversaryCardIndex
+   */
+  case class ReplaceOwnNthCardWithAdversaryNthOne(ownCardIndex: Int, adversaryID: String, adversaryCardIndex: Int) extends IGameCoordinatorPlayerCommand
 
-  case class EndTurn() extends GameCoordinatorPlayerCommand
+  /**
+   * Represents a command to end the player's turn.
+   */
+  case class EndTurn() extends IGameCoordinatorPlayerCommand
 
-  case class CallCabo() extends GameCoordinatorPlayerCommand
+  /**
+   * Represents a command to call "Cabo", trigger turn's end.
+   */
+  case class CallCabo() extends IGameCoordinatorPlayerCommand
 
   // SYNC MESSAGES
 
-  case class StartGame() extends GameCoordinatorSyncMessage
+  /**
+   * Notify to start the revealing section of the game.
+   */
+  case class StartRevealingSection() extends IGameCoordinatorSyncMessage
 
-  case class StartPlayCycle() extends GameCoordinatorSyncMessage
-
-  case class NewTurn(game: Game.GameInProgress, turnLog: TurnLog) extends GameCoordinatorSyncMessage
-
-  case class GetEmptyTurn(userID: String) extends GameCoordinatorSyncMessage
+  /**
+   * Notify to start the play cycle of the game.
+   */
+  case class StartPlayCycle() extends IGameCoordinatorSyncMessage
   
-  case class TurnTimeEnded() extends GameCoordinatorSyncMessage
+  /**
+   * Notify that the last turn has been played, providing the updated game state and the turn log.
+   * @param game
+   * @param turnLog
+   */
+  case class LastTurnPlayed(game: Game.GameInProgress, turnLog: TurnLog) extends IGameCoordinatorSyncMessage
 
-  case class WhoIsPlayingRequest() extends GameCoordinatorSyncMessage
+  /**
+   * Request an empty turn (no actions) for player with userID
+   * @param userID
+   */
+  case class GetEmptyTurn(userID: String) extends IGameCoordinatorSyncMessage
+  
+  /**
+   * Notify that the turn time has ended for the current player.
+   */
+  case class TurnTimeEnded() extends IGameCoordinatorSyncMessage
+
+  /**
+   * Request to know who is playing the turn currently
+   */
+  case class WhoIsPlayingRequest() extends IGameCoordinatorSyncMessage
 
   // FOR TESTING
 
-  case class SendGameStatus(toWhoSend: ActorRef[Message]) extends GameCoordinatorSyncMessage
+  case class SendGameStatus(toWhoSend: ActorRef[Message]) extends IGameCoordinatorSyncMessage
 
-  case class GameInformation(game: Game.GameInProgress) extends GameCoordinatorSyncMessage
+  case class GameInformation(game: Game.GameInProgress) extends IGameCoordinatorSyncMessage

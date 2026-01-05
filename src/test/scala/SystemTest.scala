@@ -10,8 +10,8 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import messages.ClientMessages.{CreateNewGame, StartTheGame}
-import utils.Message
-import utils.ServerMessages.{GamesList, GetGames, RegisterGame, ServerKey, StartGame}
+import messages.Message
+import messages.ServerMessages.{GamesList, GetGames, RegisterGame, ServerKey, StartGame}
 import messages.PreGameViewMessages.*
 
 import scala.concurrent.duration.DurationInt

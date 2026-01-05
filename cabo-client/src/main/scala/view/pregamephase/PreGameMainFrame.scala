@@ -1,8 +1,8 @@
 package view.pregamephase
 
 import akka.actor.typed.{ActorRef, ActorSystem}
+import messages.Message
 import model.{Game, GameParameters, PlayerInLobby}
-import utils.Message
 import view.*
 import view.pregamephase.components.{CreateGamePanel, GameListPanel, JoinGameWithLinkPanel, WelcomePanel}
 import view.pregamephase.components.*

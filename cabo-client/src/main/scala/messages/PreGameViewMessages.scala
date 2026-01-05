@@ -4,7 +4,6 @@ import akka.actor.typed.ActorRef
 import model.Game.GameInConstruction
 import model.PlayerInLobby
 import ClientMessages.ClientCommand
-import GameCoordinatorMessage.IGameCoordinatorMessage
 
 object PreGameViewMessages {
   
@@ -67,8 +66,8 @@ object PreGameViewMessages {
 
   /**
    * Message sent to the view by the client when all the players a ready to play
-   * @param gameCoordinator
+   * @param gameCoordinatorRef
    */
-  case class ReadyToPlay(gameCoordinator: ActorRef[IGameCoordinatorMessage]) extends IPreGameViewMessage
+  case class ReadyToPlay(gameCoordinatorRef: ActorRef[IGameCoordinatorMessage]) extends IPreGameViewMessage
 
 }

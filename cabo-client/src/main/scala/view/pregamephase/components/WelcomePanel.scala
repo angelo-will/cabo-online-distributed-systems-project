@@ -1,7 +1,7 @@
 package view.pregamephase.components
 
 import java.awt.{Dimension, Font}
-import scala.swing.{Alignment, BoxPanel, Button, Color, Label, Orientation, Swing}
+import scala.swing._
 import scala.swing.event.ButtonClicked
 
 trait IShowPanels:
@@ -15,17 +15,17 @@ trait IChangeNameBehavior:
   def changeName(newName: String): Unit
 
 class WelcomePanel(showPanels: IShowPanels, playerName: String, changeNameBehavior: IChangeNameBehavior) extends BoxPanel(Orientation.Vertical):
-  border = Swing.EmptyBorder(30, 30, 30, 30) // Margine interno
+  border = Swing.EmptyBorder(30, 30, 30, 30)
 
-  private val welcomeMessage = new Label("Benvenuto in Cabo Online!") {
+  private val welcomeMessage = new Label("Welcome in Cabo Online!") {
     font = new Font("Arial", java.awt.Font.BOLD, 22)
     horizontalAlignment = Alignment.Center
   }
-  private val chooseActionsLabel = new Label("Scegli come giocare:") {
+  private val chooseActionsLabel = new Label("What do you want to do?") {
     font = new Font("Arial", java.awt.Font.BOLD, 16)
     horizontalAlignment = Alignment.Center
   }
-  private val actualPlayerNameLabel = new Label("Nome giocatore:") {
+  private val actualPlayerNameLabel = new Label("Player name:") {
     font = new Font("Arial", java.awt.Font.ITALIC, 12)
     horizontalAlignment = Alignment.Center
   }
@@ -41,13 +41,13 @@ class WelcomePanel(showPanels: IShowPanels, playerName: String, changeNameBehavi
     foreground = new Color(255, 0, 0)
   }
 
-  private val changeNameButton = new Button("Cambia nome")
-  private val createGameButton = new Button("Crea nuova partita")
-  private val askToServerGameButton = new Button("Unisciti ad una partita")
-  private val joinAGameWithLinkButton = new Button("Unisciti mediante link")
+  private val changeNameButton = new Button("Set name")
+  private val createGameButton = new Button("Create new game")
+  private val askToServerGameButton = new Button("View joinable game")
+  private val joinAGameWithLinkButton = new Button("Join a game with game code")
 
   contents += welcomeMessage
-  contents += Swing.VStrut(20) // Spazio verticale
+  contents += Swing.VStrut(20)
   contents += actualPlayerNameLabel
   contents += actualPlayerName
   contents += changeNameTextField
@@ -68,24 +68,20 @@ class WelcomePanel(showPanels: IShowPanels, playerName: String, changeNameBehavi
   reactions += {
     case ButtonClicked(b) =>
       if b == createGameButton then
-        println("WelcomePanel: Cliccato 'Crea nuova partita'. Chiedo al navigatore di mostrare 'createGameScreen'.")
         showPanels.showCreateGame()
       else if b == askToServerGameButton then
-        println("WelcomePanel: Cliccato 'Unisciti ad una partita'.")
         showPanels.showListGamesFromServer()
       else if b == joinAGameWithLinkButton then
-        println("WelcomePanel: Cliccato 'Unisciti mediante link'.")
         showPanels.showJoinGameWithLink()
       else if b == changeNameButton then
-        println("WelcomePanel: Cliccato 'Cambia nome'.")
         if newNameIsValid(changeNameTextField.text) then
           errorLabel.text = ""
           actualPlayerName.text = changeNameTextField.text
           changeNameBehavior.changeName(actualPlayerName.text)
         else
-          errorLabel.text = "<html>Nome non valido." +
-            "<br>Deve essere lungo 5-12 caratteri," +
-            "<br>contenere solo lettere, numeri e underscore.</html>"
+          errorLabel.text = "<html>Name inserted is not valid." +
+            "<br>It must have 5-12 characters:" +
+            "<br>alphanumeric and underscore.</html>"
 
   }
 

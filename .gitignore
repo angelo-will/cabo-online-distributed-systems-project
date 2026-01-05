@@ -46,5 +46,14 @@ build/
 ### Scala ###
 .bsp/
 
-### Personal notes ###
-/nottrack/**
+### Personal ###
+**/nottrack/**
+*ClientSubstitute.scala
+*SimulationTest.scala
+
+*GameViewActorSpec.scala
+cabo-client/src/test/scala/PreGameViewActorSpec.scala
+cabo-client/src/test/scala/PreGameViewListenerSpec.scala
+
+# Application jar
+/*.jar

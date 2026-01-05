@@ -2,22 +2,20 @@ package controller
 
 import akka.actor.typed.Behavior
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
-import messages.{IGameViewMessage, ClientMessages as CLMsg, GameCoordinatorMessage as GCMsg, GameViewMessages as DGVMsg}
+import akka.actor.typed.ActorRef
+import messages.ClientMessages.ClientCommand as CCommand
+import messages.{IGameCoordinatorMessage, IGameViewMessage,
+  ClientMessages as CLMsg,
+  GameCoordinatorMessage as GCMsg,
+  GameViewMessages as DGVMsg}
 import model.*
 import model.Game.{GameInConstruction, GameInProgress}
 import utils.AppLogger
-import messages.ClientMessages.ClientCommand as CCommand
-import messages.GameCoordinatorMessage.IGameCoordinatorMessage
 
 import scala.concurrent.duration.*
 
 object GameCoordinatorActor:
 
-  import akka.actor.typed.ActorRef
-
-  import model.CardStack
-  import model.GameStatus
-  import model.Game
 
   private abstract class EndingGame
 
@@ -116,7 +114,7 @@ object GameCoordinatorActor:
 
   private def waitingStart(gameData: GameData): Behavior[IGameCoordinatorMessage] = {
     Behaviors.receivePartial {
-      case (ctx, GCMsg.StartGame()) =>
+      case (ctx, GCMsg.StartRevealingSection()) =>
         ctx.log.info("GameLogic Actor started")
         ctx.log.info(s"Game has started with this data:\n${gameData.game}")
         gameData.viewReference ! DGVMsg.StartGame(gameData.game, ctx.self)
@@ -267,7 +265,7 @@ object GameCoordinatorActor:
   }
 
   private def handleNewTurnOrEmptyTurn(gameData: GameData): PartialFunction[(ActorContext[IGameCoordinatorMessage], IGameCoordinatorMessage), Behavior[IGameCoordinatorMessage]] = {
-    case (ctx, GCMsg.NewTurn(game, turnLog)) =>
+    case (ctx, GCMsg.LastTurnPlayed(game, turnLog)) =>
       ctx.log.info(s"${gameData.playerOwnUserID} - NewTurn received!")
       gameData.clientReference ! CLMsg.TurnUpdated()
       updateNewTurn(game, turnLog, gameData)
@@ -339,7 +337,7 @@ object GameCoordinatorActor:
                                        gameData: GameData,
                                        cardInHand: Card
                                      ): PartialFunction[(ActorContext[IGameCoordinatorMessage], IGameCoordinatorMessage), Behavior[IGameCoordinatorMessage]] = {
-    case (ctx, GCMsg.DiscardYourNthCard(index)) =>
+    case (ctx, GCMsg.DiscardOwnNthCard(index)) =>
       val oldHand = gameData.getOurHand
       ctx.log.info(s"handleDiscardOwnNthCard - I discard the card with index $index")
       ctx.log.info(s"handleDiscardOwnNthCard - The card is ${oldHand.cards(index)}")
@@ -382,7 +380,7 @@ object GameCoordinatorActor:
                                     gameData: GameData,
                                     nextBehaviors: GameData => Behavior[IGameCoordinatorMessage]
                                   ): PartialFunction[(ActorContext[IGameCoordinatorMessage], IGameCoordinatorMessage), Behavior[IGameCoordinatorMessage]] = {
-    case (ctx, GCMsg.ShowYourNthCard(index)) =>
+    case (ctx, GCMsg.ShowOwnNthCard(index)) =>
       log.log("GCActor - handleShowOwnNthCard - received ShowYourNthCard")
       ctx.log.info(s"I show the card with index $index")
       gameData.turnLog.addEvent(TurnEvent.SeeSelfCard(index))

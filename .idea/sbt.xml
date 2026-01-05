@@ -10,6 +10,7 @@
             <option value="$PROJECT_DIR$" />
             <option value="$PROJECT_DIR$/cabo-client" />
             <option value="$PROJECT_DIR$/cabo-commons" />
+            <option value="$PROJECT_DIR$/cabo-seed" />
             <option value="$PROJECT_DIR$/cabo-server" />
             <option value="$PROJECT_DIR$/project" />
           </set>

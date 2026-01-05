@@ -5,12 +5,11 @@ import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.cluster.ClusterEvent.MemberExited
 import messages.ClientMessages.*
-import messages.GameCoordinatorMessage.{IGameCoordinatorMessage, NewTurn, WhoIsPlayingRequest}
-import messages.{GameCoordinatorMessage, GameViewMessages, IViewMessage, PreGameViewMessages}
+import messages.GameCoordinatorMessage
+import messages.{IGameCoordinatorMessage, GameViewMessages, IViewMessage, Message, PreGameViewMessages, ServerMessages}
 import model.Game.{GameInConstruction, GameInProgress}
 import model.{GameParameters, PlayerInLobby, PlayerPlaying, TurnLog}
-import utils.ServerMessages.{AbortGame, ServerKey}
-import utils.{Message, ServerMessages}
+import messages.ServerMessages.{AbortGame, ServerKey}
 
 import java.util.UUID
 import scala.concurrent.duration.DurationInt
@@ -364,7 +363,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
         game.players.filter(!_.address.equals(ctx.self)).foreach(_.address ! GameHasStarted(hostRef, gameInProgress))
         awaitSynchronization(ctx, game.players.filter(!_.address.equals(ctx.self)).map(_.userID), () => {
           logInfo(ctx, s"All players synchronized, starting the game: ${gameInProgress.code}")
-          gameCoordinator ! GameCoordinatorMessage.StartGame()
+          gameCoordinator ! GameCoordinatorMessage.StartRevealingSection()
           preGamePhaseHost(gameCoordinator, createPlayersStatus(game.players, gameInProgress.players), hostRef)
         }, _ => {
           //If failed to synchronize
@@ -477,7 +476,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
         viewActorRef ! PreGameViewMessages.GameStarted()
         viewActorRef ! ViewsProxyActor.SwitchToGameView()
         val gameCoordinator = ctx.spawn(GameCoordinatorActor(ctx.self, viewActorRef, userId, gameInProgress), "GameCoordinatorActor")
-        gameCoordinator ! GameCoordinatorMessage.StartGame()
+        gameCoordinator ! GameCoordinatorMessage.StartRevealingSection()
         connectionHandler ! ConnectionHandler.UpdateList(game.players)
         preGamePhaseJoined(gameCoordinator, createPlayersStatus(game.players, gameInProgress.players), hostRef)
     })
@@ -665,7 +664,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
 
       case (ctx, GameInProgressUpdate(replyTo, game, log)) =>
         logInfo(ctx, s"Game info update")
-        gameCoordinator ! NewTurn(game, log)
+        gameCoordinator ! GameCoordinatorMessage.LastTurnPlayed(game, log)
         //todo - take in consideration if the coordinator doesn't update
         Behaviors.withStash(50) { buffer =>
           withShared({
@@ -709,9 +708,9 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
 
               val onlineUpdate = playersStatus.map { ps =>
                 if ps.playerInfo.userID == playerInLobby.userID then
-                ps.copy(isOnline = false)
+                  ps.copy(isOnline = false)
                 else
-                ps
+                  ps
               }
 
               if onlineUpdate.count(_.isOnline) < 2 then {
@@ -723,7 +722,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
 
                 // inform connection handler to check the status for only those who are online
                 connectionHandler ! ConnectionHandler.UpdateList(onlineUpdate.filter(_.isOnline).map(_.playerInfo))
-  
+
                 if p.playerInfo.address equals hostRef then {
                   logInfo(ctx, s"Player: ${playerInLobby.userID} was the host, starting election")
                   //start election

@@ -18,7 +18,7 @@ class GamePanel(viewListener: IGameViewUserCommandListener, gameInProgress: GPro
   extends GridBagPanel
     with IGameView {
 
-  // --- COSTANTI DI LAYOUT ---
+  // --- LAYOUT ---
   private object LayoutConstants {
     val GAME_INFO_ROW = 1
     val GAME_INFO_COL = 3
@@ -60,7 +60,7 @@ class GamePanel(viewListener: IGameViewUserCommandListener, gameInProgress: GPro
   private var caboHasCalled = false
   private val c = new Constraints
 
-  peer.setBorder(BorderFactory.createLineBorder(Color.CYAN, 3))
+  //  peer.setBorder(BorderFactory.createLineBorder(Color.CYAN, 3))
 
 
   // Adversaries and main player
@@ -85,7 +85,7 @@ class GamePanel(viewListener: IGameViewUserCommandListener, gameInProgress: GPro
     viewListener.drawFromDiscard
   )
 
-  private val drawnCardButton = new Button("Nascosta") {
+  private val drawnCardButton = new Button("Empty") {
     font = new AwtFont("Arial", AwtFont.PLAIN, 24)
     border = Swing.EmptyBorder(5, 5, 5, 5)
     enabled = false
@@ -116,7 +116,7 @@ class GamePanel(viewListener: IGameViewUserCommandListener, gameInProgress: GPro
     preferredSize = new Dimension(this.preferredSize.width, 100)
     verticalScrollBarPolicy = ScrollPane.BarPolicy.Always
     horizontalScrollBarPolicy = ScrollPane.BarPolicy.Never
-    peer.setBorder(BorderFactory.createLineBorder(Color.MAGENTA, 3))
+    //    peer.setBorder(BorderFactory.createLineBorder(Color.MAGENTA, 3))
   }
 
   private val timerPanel = new TimerPanel(
@@ -319,27 +319,44 @@ class GamePanel(viewListener: IGameViewUserCommandListener, gameInProgress: GPro
     )
     println("Lost connection!")
   }
-  
+
   override def allOpponentsDisconnected(): Unit = Swing.onEDT {
     println("All opponents disconnected!")
-    val x = AllOpponentsDisconnectedDialog(()=>{this.viewListener.exit()})
+    val x = AllOpponentsDisconnectedDialog(() => {
+      this.viewListener.exit()
+    })
     x.open()
+  }
+
+  // IGameStateView Implementation
+
+  override def deleteGame(): Unit = Swing.onEDT {
+    val title = "Game deleted"
+    val message = s"The game was deleted, you'll return to initial state."
+
+    Dialog.showMessage(
+      null,
+      message,
+      title,
+      Dialog.Message.Warning
+    )
+    this.viewListener.exit()
   }
 
   private def initializeLayout(): Unit = {
     resetConstraintsValues()
 
-    val spacePanel = new Panel {
-      preferredSize = new Dimension(1, 1)
-      // peer.setBorder(BorderFactory.createLineBorder(Color.GREEN, 3)) // Debug
-    }
-    c.gridx = 0
-    c.gridy = 0
-    c.gridwidth = 9
-    c.weightx = 1.0
-    c.fill = Fill.Horizontal
-    layout(spacePanel) = c
-    resetConstraintsValues()
+//    val spacePanel = new Panel {
+//      preferredSize = new Dimension(1, 1)
+//      // peer.setBorder(BorderFactory.createLineBorder(Color.GREEN, 3)) // Debug
+//    }
+//    c.gridx = 0
+//    c.gridy = 0
+//    c.gridwidth = 9
+//    c.weightx = 1.0
+//    c.fill = Fill.Horizontal
+//    layout(spacePanel) = c
+//    resetConstraintsValues()
 
     var currentRow = ADVERSARIES_START_ROW
     adversariesPanelMap.values.foreach { panel =>
@@ -484,21 +501,21 @@ class GamePanel(viewListener: IGameViewUserCommandListener, gameInProgress: GPro
   // Paint grid
   override def paintComponent(g: Graphics2D): Unit = {
     super.paintComponent(g)
-    peer.getLayout match {
-      case gbl: GridBagLayout =>
-        val widths = gbl.getLayoutDimensions()(0)
-        val heights = gbl.getLayoutDimensions()(1)
-        var x = 0
-        g.setColor(Color.LIGHT_GRAY)
-        for (w <- widths) {
-          g.drawLine(x, 0, x, size.height)
-          x += w
-        }
-        var y = 0
-        for (h <- heights) {
-          g.drawLine(0, y, size.width, y)
-          y += h
-        }
-    }
+//    peer.getLayout match {
+//      case gbl: GridBagLayout =>
+//        val widths = gbl.getLayoutDimensions()(0)
+//        val heights = gbl.getLayoutDimensions()(1)
+//        var x = 0
+//        g.setColor(Color.LIGHT_GRAY)
+//        for (w <- widths) {
+//          g.drawLine(x, 0, x, size.height)
+//          x += w
+//        }
+//        var y = 0
+//        for (h <- heights) {
+//          g.drawLine(0, y, size.width, y)
+//          y += h
+//        }
+//    }
   }
 }

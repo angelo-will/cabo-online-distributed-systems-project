@@ -3,7 +3,7 @@ package view.pregamephase.components
 import view.pregamephase.ScreenNavigator
 
 import java.awt.Font
-import scala.swing.{Alignment, BoxPanel, Button, ButtonGroup, ComboBox, Dialog, Dimension, Label, MainFrame, Orientation, Panel, RadioButton, Swing, TextField}
+import scala.swing._
 import scala.swing.event.{ButtonClicked, EditDone}
 import scala.util.Try
 
@@ -19,16 +19,14 @@ class CreateGamePanel(navigator: ScreenNavigator, viewListener: ICreateGameListe
   private val MAX_PLAYER_PER_GAME = 5
   private val DECK_SIZE = 52
 
-  private val titleLabel = new Label("Crea Nuova Partita") {
+  private val titleLabel = new Label("Create new game") {
     font = new Font("Arial", java.awt.Font.BOLD, 20)
     horizontalAlignment = Alignment.Center
   }
 
-  private val gameNameField = new TextField("Nome della partita")
-
-  private val visibilityLabel = new Label("Visibilità:")
-  private val visibilityPublicRadioButton = new RadioButton("Pubblica")
-  private val visibilityPrivateRadioButton = new RadioButton("Privata")
+  private val visibilityLabel = new Label("Visibility:")
+  private val visibilityPublicRadioButton = new RadioButton("Public")
+  private val visibilityPrivateRadioButton = new RadioButton("Private")
   private val visibilityGroup = new ButtonGroup(visibilityPublicRadioButton, visibilityPrivateRadioButton)
   visibilityPrivateRadioButton.selected = true
 
@@ -36,18 +34,18 @@ class CreateGamePanel(navigator: ScreenNavigator, viewListener: ICreateGameListe
   private val numPlayersSelected = new ComboBox(numPlayerPossibilities){
     maximumSize = new Dimension(100, preferredSize.height)
   }
-  private val maxPlayersLabel = new Label("Numero massimo di giocatori: " + numPlayersSelected.selection.item)
+  private val maxPlayersLabel = new Label("Maximum players: " + numPlayersSelected.selection.item)
 
   private var currentValidTurnDuration: Int = 60
-  private val durationLabel = new Label("Durata massima di un turno (secondi): ")
+  private val durationLabel = new Label("Each turn max time (seconds): ")
   private val durationField = new TextField(currentValidTurnDuration.toString) {
     columns = 5
     maximumSize = new Dimension(100, preferredSize.height)
     horizontalAlignment = Alignment.Center
   }
 
-  private val createGameButton = new Button("Crea Partita")
-  private val backButton = new Button("Indietro")
+  private val createGameButton = new Button("Create Game")
+  private val backButton = new Button("Back")
 
   contents += titleLabel
   contents += Swing.VStrut(20)
@@ -76,7 +74,6 @@ class CreateGamePanel(navigator: ScreenNavigator, viewListener: ICreateGameListe
   reactions += {
     case ButtonClicked(b) =>
       if b == createGameButton then
-        println(s"Premuto bottone creazione partita")
         viewListener.createGame(
           visibilityPublicRadioButton.selected,
           currentValidTurnDuration,
@@ -85,10 +82,8 @@ class CreateGamePanel(navigator: ScreenNavigator, viewListener: ICreateGameListe
           numPlayersSelected.selection.item
         )
       else if b == backButton then
-        println("CreateGamePanel: Cliccato 'Indietro'. Chiedo al navigatore di mostrare 'welcomeScreen'.")
-        navigator.goToPreviousPanel() // Torna alla schermata precedente
+        navigator.goToPreviousPanel()
     case EditDone(`durationField`) =>
-      println(s"Text field value changed: ${durationField.text}")
       validateAndSetDuration()
   }
 
@@ -98,12 +93,11 @@ class CreateGamePanel(navigator: ScreenNavigator, viewListener: ICreateGameListe
       val newDuration = inputText.toInt
       if newDuration >= MIN_TIME_TURN_DURATION && newDuration <= MAX_TIME_TURN_DURATION then
         currentValidTurnDuration = newDuration
-        println(s"Durata del turno impostata a: $currentValidTurnDuration secondi")
       else
         Dialog.showMessage(
           parent = this,
-          message = s"Errore: Il valore deve essere compreso tra $MIN_TIME_TURN_DURATION e $MAX_TIME_TURN_DURATION secondi. Hai inserito: $newDuration",
-          title = "Errore di Input",
+          message = s"Error: Values must be between $MIN_TIME_TURN_DURATION and $MAX_TIME_TURN_DURATION seconds.",
+          title = "Parameters not valid",
           messageType = Dialog.Message.Error
         )
         durationField.text = currentValidTurnDuration.toString
@@ -117,8 +111,8 @@ class CreateGamePanel(navigator: ScreenNavigator, viewListener: ICreateGameListe
       case scala.util.Failure(_) =>
         Dialog.showMessage(
           parent = this,
-          message = s"Errore: Inserire un numero intero valido. Hai inserito: '$s'",
-          title = "Errore di Formato",
+          message = s"Error: Insert valid integer, you have selected: '$s'",
+          title = "Parameters not valid",
           messageType = Dialog.Message.Error
         )
         false

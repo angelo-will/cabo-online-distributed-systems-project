@@ -2,8 +2,8 @@ import akka.actor.testkit.typed.scaladsl.{ScalaTestWithActorTestKit, TestProbe}
 import akka.actor.typed.ActorRef
 import controller.GameCoordinatorActor
 import messages.ClientMessages.ClientCommand
-import messages.GameCoordinatorMessage as GCMessage
-import messages.GameCoordinatorMessage.IGameCoordinatorMessage
+import messages.{Message, GameCoordinatorMessage as GCMessage}
+import messages.IGameCoordinatorMessage
 import messages.{ClientMessages, GameViewMessages, IViewMessage}
 import model.Game.{GameInConstruction, GameInProgress}
 import model.Suit.*
@@ -11,7 +11,6 @@ import model.{Card, CardStack, PlayCycleTurnLog, Game, GameParameters, PlayerInL
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
-import utils.Message
 
 import scala.annotation.tailrec
 
@@ -48,7 +47,7 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
     "send data to view" when {
       "game is started" in {
         skipGeneration()
-        gameCoordinatorActor ! GCMessage.StartGame()
+        gameCoordinatorActor ! GCMessage.StartRevealingSection()
         viewProbe.expectMessageType[GameViewMessages.StartGame]
       }
     }
@@ -167,7 +166,7 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
         endTurnByTime()
         skipViewProbeMessage()
         skipClientProbeMessage()
-        gameCoordinatorActor ! GCMessage.NewTurn(game, new PlayCycleTurnLog("", 0))
+        gameCoordinatorActor ! GCMessage.LastTurnPlayed(game, new PlayCycleTurnLog("", 0))
         viewProbe.expectMessageType[GameViewMessages.LastTurnPlayed]
       }
     }
@@ -178,7 +177,7 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
         endTurnByTime()
         skipViewProbeMessage()
         skipClientProbeMessage()
-        gameCoordinatorActor ! GCMessage.NewTurn(game, new PlayCycleTurnLog("", 0))
+        gameCoordinatorActor ! GCMessage.LastTurnPlayed(game, new PlayCycleTurnLog("", 0))
         clientProbe.expectMessageType[ClientMessages.TurnUpdated]
       }
     }
@@ -272,7 +271,7 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
         viewProbe.expectMessageType[GameViewMessages.LastTurnPlayed]
         viewProbe.expectMessageType[GameViewMessages.StartTurnPlayer]
         val game = ended.game.copy(currentRound = ended.game.currentRound + 1)
-        gameCoordinatorActor ! GCMessage.NewTurn(game, new PlayCycleTurnLog("", 0))
+        gameCoordinatorActor ! GCMessage.LastTurnPlayed(game, new PlayCycleTurnLog("", 0))
         clientProbe.expectMessageType[ClientMessages.TurnUpdated]
         viewProbe.expectMessageType[GameViewMessages.LastTurnPlayed]
         viewProbe.expectMessageType[GameViewMessages.GameEndedByCabo]
@@ -291,7 +290,7 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
         val newRound = ended.game.currentRound + 1
         val emptyDeck = CardStack.buildEmptyDeck
         val game = ended.game.copy(deckStack = emptyDeck, currentRound = ended.game.currentRound + 1)
-        gameCoordinatorActor ! GCMessage.NewTurn(game, new PlayCycleTurnLog("", 0))
+        gameCoordinatorActor ! GCMessage.LastTurnPlayed(game, new PlayCycleTurnLog("", 0))
         clientProbe.expectMessageType[ClientMessages.TurnUpdated]
         viewProbe.expectMessageType[GameViewMessages.LastTurnPlayed]
         viewProbe.expectMessageType[GameViewMessages.GameEndedByEmptyDeck]
@@ -308,7 +307,7 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
         viewProbe.expectMessageType[GameViewMessages.LastTurnPlayed]
         viewProbe.expectMessageType[GameViewMessages.StartTurnPlayer]
         val game = ended.game.copy(currentRound = 100)
-        gameCoordinatorActor ! GCMessage.NewTurn(game, new PlayCycleTurnLog("", 0))
+        gameCoordinatorActor ! GCMessage.LastTurnPlayed(game, new PlayCycleTurnLog("", 0))
         clientProbe.expectMessageType[ClientMessages.TurnUpdated]
         viewProbe.expectMessageType[GameViewMessages.LastTurnPlayed]
         viewProbe.expectMessageType[GameViewMessages.GameEndedByTurnsLimit]
@@ -353,7 +352,7 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
 
   private def jumpToRevealingSection() = {
     skipGeneration()
-    gameCoordinatorActor ! GCMessage.StartGame()
+    gameCoordinatorActor ! GCMessage.StartRevealingSection()
     viewProbe.expectMessageType[GameViewMessages.StartGame].game
   }
 
@@ -380,7 +379,7 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
     val turnEnded = clientProbe.expectMessageType[ClientMessages.TurnEnded]
     val x = newGameState.copy(currentRound = turnEnded.game.currentRound)
 
-    gameCoordinatorActor ! GCMessage.NewTurn(x, turnEnded.turnLog)
+    gameCoordinatorActor ! GCMessage.LastTurnPlayed(x, turnEnded.turnLog)
     clientProbe.expectMessageType[ClientMessages.TurnUpdated]
     viewProbe.expectMessageType[GameViewMessages.LastTurnPlayed]
     val startTurnMsg = viewProbe.expectMessageType[GameViewMessages.StartTurnPlayer]
@@ -404,10 +403,10 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
 
   private def discardCardDrawn(): Unit = gameCoordinatorActor ! GCMessage.DiscardCardDrawn()
 
-  private def discardNthCard(index: Int): Unit = gameCoordinatorActor ! GCMessage.DiscardYourNthCard(index)
+  private def discardNthCard(index: Int): Unit = gameCoordinatorActor ! GCMessage.DiscardOwnNthCard(index)
 
   private def showYourNthCard(i: Int) =
-    gameCoordinatorActor ! GCMessage.ShowYourNthCard(i)
+    gameCoordinatorActor ! GCMessage.ShowOwnNthCard(i)
     viewProbe.expectMessageType[GameViewMessages.CardSeen].card
 
   private def showAdversaryNthCard(playerID: String, cardIndex: Int) =

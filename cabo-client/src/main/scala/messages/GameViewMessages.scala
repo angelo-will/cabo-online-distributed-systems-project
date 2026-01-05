@@ -12,7 +12,7 @@ object GameViewMessages {
    * @param game               - the game in progress
    * @param gameCoordinatorRef - reference to the game coordinator actor
    */
-  case class StartGame(game: GameInProgress, gameCoordinatorRef: ActorRef[GameCoordinatorMessage.IGameCoordinatorMessage]) extends IGameViewMessage
+  case class StartGame(game: GameInProgress, gameCoordinatorRef: ActorRef[IGameCoordinatorMessage]) extends IGameViewMessage
 
   /**
    * Notify to actor a revealing section log of an adversary.
@@ -94,15 +94,28 @@ object GameViewMessages {
    */
   case class GameEndedByEmptyDeck(game: GameInProgress) extends IGameViewMessage
 
+  /**
+   * Notify to actor that its turn has ended because time limit reached.
+   */
   case class EndTurnByTimeEnded() extends IGameViewMessage
 
+  /**
+   * Notify to actor that an opponent is impossible to reach.
+   * @param player
+   */
   case class OpponentImpossibleToReach(player: PlayerInLobby) extends IGameViewMessage
 
+  /**
+   * Notify to actor that an opponent has disconnected.
+   * @param player
+   */
   case class OpponentDisconnected(player: PlayerInLobby) extends IGameViewMessage
 
   // TODO: aggiunto dopo relazione, mettere in pari il report
   case class AllOpponentsDisconnected() extends IGameViewMessage
   
+  /**
+   * Notify to actor that the game has been deleted.
+   */
   case class GameDeleted() extends IGameViewMessage
-
 }

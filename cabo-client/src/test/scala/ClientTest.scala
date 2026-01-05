@@ -1,17 +1,12 @@
 import akka.actor.testkit.typed.scaladsl.{ScalaTestWithActorTestKit, TestProbe}
+import akka.actor.typed.{ActorRef, Behavior}
 import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
 import akka.actor.typed.scaladsl.Behaviors
-import akka.actor.typed.{ActorRef, Behavior}
 import akka.cluster.typed.{Cluster, Join}
 import com.typesafe.config.ConfigFactory
 import controller.Client
 import controller.Client.*
 import controller.ViewsProxyActor.SwitchToGameView
-import messages.ClientMessages.*
-import messages.GameCoordinatorMessage.IGameCoordinatorMessage
-import messages.GameViewMessages.{CardSeen, RevealingCardsPhaseAdversaryLog, WaitAfterRevealingSection}
-import messages.PreGameViewMessages.*
-import messages.{ClientMessages, GameCoordinatorMessage, GameViewMessages}
 import model.Game.GameInProgress
 import model.GameStatus.InProgress
 import model.{GameParameters, GameStatus, PlayerInLobby, PlayerPlaying}
@@ -19,7 +14,10 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
-import utils.Message
+import messages.ClientMessages.*
+import messages.IGameCoordinatorMessage
+import messages.Message
+import messages.PreGameViewMessages.*
 
 class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(
   """
@@ -678,10 +676,6 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(
         case SynchronizationAck(id) if id.contains(joinerId) => // ok
         case _ => fail("Host probe expected SynchronizationAck message")
       }
-
-//      coordinatorProbe.expectMessageType[WhoIsPlayingRequest](10.seconds)
-//
-//      probeClientHost.expectMessageType[WhoIsPlaying](10.seconds)
 
       gameInProgress = gameInProgress.copy(currentRound = 1)
 

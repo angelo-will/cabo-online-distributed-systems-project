@@ -1,7 +1,7 @@
 package model
 
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
-import utils.CborSerializable
+import messages.CborSerializable
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
 @JsonSubTypes(

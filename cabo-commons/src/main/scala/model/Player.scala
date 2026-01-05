@@ -1,7 +1,7 @@
 package model
 
 import akka.actor.typed.ActorRef
-import utils.Message
+import messages.Message
 
 trait WithHand:
   def hand: Hand
