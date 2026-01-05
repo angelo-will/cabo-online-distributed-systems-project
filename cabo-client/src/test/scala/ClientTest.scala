@@ -15,8 +15,9 @@ import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import messages.ClientMessages.*
-import messages.IGameCoordinatorMessage
-import messages.Message
+import messages.GameCoordinatorMessage.*
+import messages.GameViewMessages.*
+import messages.{GameCoordinatorMessage, GameViewMessages, IGameCoordinatorMessage, Message}
 import messages.PreGameViewMessages.*
 
 class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(
@@ -186,7 +187,7 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(
     clientHost ! TakeGetInProgressGame(game)
     probeClientHost.expectMessage(TakeGetInProgressGame(game))
 
-    coordinatorProbe.expectMessageType[GameCoordinatorMessage.StartGame]
+    coordinatorProbe.expectMessageType[StartRevealingSection]
 
     joiners.foreach { case (clientJoiner, probeClientJoiner, clientJoinerView) =>
 
@@ -236,7 +237,7 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(
       case _ => fail("Host probe expected SynchronizationAck message")
     }
 
-    coordinatorProbe.expectMessageType[GameCoordinatorMessage.StartPlayCycle]
+    coordinatorProbe.expectMessageType[StartPlayCycle]
 
   }
 
@@ -571,9 +572,9 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(
 
       // host
       // simulate request to show 2 cards
-      hostCoo ! GameCoordinatorMessage.ShowYourNthCard(0)
+      hostCoo ! GameCoordinatorMessage.ShowOwnNthCard(0)
       clientHostView.expectMessageType[CardSeen]
-      hostCoo ! GameCoordinatorMessage.ShowYourNthCard(0)
+      hostCoo ! GameCoordinatorMessage.ShowOwnNthCard(0)
       clientHostView.expectMessageType[CardSeen]
 
       // responses from the coordinator after showing cards
@@ -581,9 +582,9 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(
       clientHostView.expectMessageType[WaitAfterRevealingSection]
 
       //same for joiner
-      joinerCoo ! GameCoordinatorMessage.ShowYourNthCard(0)
+      joinerCoo ! GameCoordinatorMessage.ShowOwnNthCard(0)
       clientJoinerView.expectMessageType[CardSeen]
-      joinerCoo ! GameCoordinatorMessage.ShowYourNthCard(0)
+      joinerCoo ! GameCoordinatorMessage.ShowOwnNthCard(0)
       clientJoinerView.expectMessageType[CardSeen]
 
       probeClientJoiner.expectMessageType[IntialPhaseCompleted]

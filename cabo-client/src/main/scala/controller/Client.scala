@@ -6,7 +6,8 @@ import akka.actor.typed.{ActorRef, Behavior}
 import akka.cluster.ClusterEvent.MemberExited
 import messages.ClientMessages.*
 import messages.GameCoordinatorMessage
-import messages.{IGameCoordinatorMessage, GameViewMessages, IViewMessage, Message, PreGameViewMessages, ServerMessages}
+import messages.GameCoordinatorMessage.WhoIsPlayingRequest
+import messages.{GameViewMessages, IGameCoordinatorMessage, IViewMessage, Message, PreGameViewMessages, ServerMessages}
 import model.Game.{GameInConstruction, GameInProgress}
 import model.{GameParameters, PlayerInLobby, PlayerPlaying, TurnLog}
 import messages.ServerMessages.{AbortGame, ServerKey}
