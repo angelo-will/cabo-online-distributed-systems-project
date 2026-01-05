@@ -64,9 +64,6 @@ object Client:
 
   case class NewHostElected(replyTo: ActorRef[ClientInternalCommand]) extends ClientInternalCommand
 
-  // todo: decidere se rimuovere e usare lo stesso sia da coordinator che da altri client
-  case class InitialGamePhaseLog(log: TurnLog) extends ClientInternalCommand
-
   case class AllTheLogs(logs: List[TurnLog]) extends ClientInternalCommand
 
 //  case class PlayerStatus(playerID: String, address: ActorRef[ClientInternalCommand], rank: Int, isOnline: Boolean)
@@ -498,6 +495,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
       if phaseLogs.size == playersStatus.size then {
         logInfo(ctx, s"All players have sent their logs, informing other players")
         // informing view of the logs
+        //todo - change message name
         phaseLogs.foreach(viewActorRef ! GameViewMessages.RevealingCardsPhaseAdversaryLog(_))
         // sending all the logs to other players
         otherPlayersOnline.map(_.playerInfo.address).foreach(_ ! AllTheLogs(phaseLogs))
@@ -526,10 +524,6 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
       case (ctx, IntialPhaseCompleted(log)) =>
         logInfo(ctx, s"Received ${IntialPhaseCompleted(log)}")
         hostCheckIfReady(ctx, log)
-
-      case (ctx, InitialGamePhaseLog(log)) =>
-        logInfo(ctx, s"Received ${InitialGamePhaseLog(log)}")
-        hostCheckIfReady(ctx, log)
     })
   }
 
@@ -538,7 +532,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
     withShared({
       case (ctx, IntialPhaseCompleted(log)) =>
         logInfo(ctx, s"Received ${IntialPhaseCompleted(log)}")
-        hostRef ! InitialGamePhaseLog(log)
+        hostRef ! IntialPhaseCompleted(log)
         Behaviors.same
 
       case (ctx, AllTheLogs(logs)) =>
@@ -678,6 +672,8 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
             case (ctx, TurnUpdated()) =>
               logInfo(ctx, s"GameCoordinator updated the turn")
               replyTo ! SynchronizationAck(userId)
+              // the host checks if the next player is online
+              if ctx.self equals hostRef then gameCoordinator ! WhoIsPlayingRequest()
               buffer.unstashAll(inGameBehavior(gameCoordinator, playersStatus, hostRef))
 
             case (ctx, other) =>

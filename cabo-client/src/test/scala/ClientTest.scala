@@ -188,6 +188,7 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(
     clientHost ! TakeGetInProgressGame(game)
     probeClientHost.expectMessage(TakeGetInProgressGame(game))
 
+    coordinatorProbe.expectMessageType[GameCoordinatorMessage.StartGame]
 
     joiners.foreach { case (clientJoiner, probeClientJoiner, clientJoinerView) =>
 
@@ -224,7 +225,7 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(
 
     // host receives the log of the other clients
     probeClientHost.receiveMessages(joiners.size).foreach {
-      case InitialGamePhaseLog(_) => // ok
+      case IntialPhaseCompleted(_) => // ok
       case _ => fail("Host probe expected logs message")
     }
 
@@ -236,6 +237,8 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(
       case SynchronizationAck(id) => // ok
       case _ => fail("Host probe expected SynchronizationAck message")
     }
+
+    coordinatorProbe.expectMessageType[GameCoordinatorMessage.StartPlayCycle]
 
   }
 
@@ -535,6 +538,111 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(
       testKit.stop(clientJoiner)
     }
 
+    "should be able to play with a true coordinator" in {
+      val (clientHost, probeClientHost, clientHostView) = createClientAndProbeWithView(hostId, hostName)
+
+      val (clientJoiner, probeClientJoiner, clientJoinerView) = createClientAndProbeWithView(joinerId, joinerName)
+
+      hostCreateGame(clientHost, probeClientHost, maxTimeRound = 1, clientHostView = clientHostView)
+
+      joinHostGame(clientHost, probeClientHost, clientJoiner, probeClientJoiner, clientHostView, clientJoinerView)
+
+      clientHost ! StartTheGame()
+      probeClientHost.expectMessage(StartTheGame())
+
+      clientHostView.expectMessageType[SwitchToGameView]
+
+      probeClientHost.expectMessageType[StartGameBehavior]
+
+      probeClientHost.expectMessageType[TakeGetInProgressGame]
+
+      probeClientJoiner.expectMessageType[GameHasStarted]
+
+      // ack from joiner to enter prePreGame
+      probeClientHost.expectMessageType[SynchronizationAck]
+      clientJoinerView.expectMessageType[GameStarted]
+      clientJoinerView.expectMessageType[SwitchToGameView]
+
+      val j = clientJoinerView.expectMessageType[GameViewMessages.StartGame]
+      val joinerCoo = j.gameCoordinatorRef
+
+      val m = clientHostView.expectMessageType[GameViewMessages.StartGame]
+      val hostCoo = m.gameCoordinatorRef
+
+      //PREPHASE___________________________________________________________
+
+      // host
+      // simulate request to show 2 cards
+      hostCoo ! GameCoordinatorMessage.ShowYourNthCard(0)
+      clientHostView.expectMessageType[CardSeen]
+      hostCoo ! GameCoordinatorMessage.ShowYourNthCard(0)
+      clientHostView.expectMessageType[CardSeen]
+
+      // responses from the coordinator after showing cards
+      probeClientHost.expectMessageType[IntialPhaseCompleted]
+      clientHostView.expectMessageType[WaitAfterRevealingSection]
+
+      //same for joiner
+      joinerCoo ! GameCoordinatorMessage.ShowYourNthCard(0)
+      clientJoinerView.expectMessageType[CardSeen]
+      joinerCoo ! GameCoordinatorMessage.ShowYourNthCard(0)
+      clientJoinerView.expectMessageType[CardSeen]
+
+      probeClientJoiner.expectMessageType[IntialPhaseCompleted]
+      clientJoinerView.expectMessageType[WaitAfterRevealingSection]
+
+      //host receives the log of the other clients
+      probeClientHost.expectMessageType[IntialPhaseCompleted]
+
+      //host has seen all the logs
+      clientHostView.expectMessageType[RevealingCardsPhaseAdversaryLog]
+      clientHostView.expectMessageType[RevealingCardsPhaseAdversaryLog]
+
+      //host respond with all the logs and joiner receives them
+      probeClientJoiner.expectMessageType[AllTheLogs]
+      clientJoinerView.expectMessageType[RevealingCardsPhaseAdversaryLog]
+      clientJoinerView.expectMessageType[RevealingCardsPhaseAdversaryLog]
+
+      //joiner ack the reception of all the logs
+      probeClientHost.expectMessageType[SynchronizationAck]
+
+      //host and join send StartPlayCycle to coordinator
+
+      //END PREPHASE_______________________________________________________
+
+      //simulate first turn played by host
+      clientHostView.expectMessageType[GameViewMessages.StartTurnPlayer]
+      clientHostView.expectMessageType[GameViewMessages.EndTurnByTimeEnded](30.seconds)
+      probeClientHost.expectMessageType[TurnEnded](30.seconds)
+      probeClientJoiner.expectMessageType[GameInProgressUpdate]
+      probeClientJoiner.expectMessageType[TurnUpdated]
+      probeClientHost.expectMessageType[SynchronizationAck]
+
+      //host receive who is the next player
+      var m_id = probeClientHost.expectMessageType[WhoIsPlaying](10.seconds)
+      assert(
+        m_id.playerID.contains(joinerId),
+        s"Expected WhoIsPlaying containing joinerId '$joinerId', but got '${m_id.playerID}'"
+      )
+
+      //simulate first turn played by joiner
+      probeClientJoiner.expectMessageType[TurnEnded](30.seconds)
+      probeClientHost.expectMessageType[GameInProgressUpdate]
+      probeClientHost.expectMessageType[TurnUpdated]
+
+      //host receives who is the next player
+      m_id = probeClientHost.expectMessageType[WhoIsPlaying](10.seconds)
+      assert(
+        m_id.playerID.contains(hostId),
+        s"Expected WhoIsPlaying containing hostId '$hostId', but got '${m_id.playerID}'"
+      )
+
+      probeClientJoiner.expectMessageType[SynchronizationAck]
+
+      testKit.stop(clientHost)
+      testKit.stop(clientJoiner)
+    }
+
     "should be able to pass round around" in {
 
       val (clientHost, probeClientHost, clientHostView) = createClientAndProbeWithView(hostId, hostName)
@@ -570,6 +678,10 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(
         case SynchronizationAck(id) if id.contains(joinerId) => // ok
         case _ => fail("Host probe expected SynchronizationAck message")
       }
+
+//      coordinatorProbe.expectMessageType[WhoIsPlayingRequest](10.seconds)
+//
+//      probeClientHost.expectMessageType[WhoIsPlaying](10.seconds)
 
       gameInProgress = gameInProgress.copy(currentRound = 1)
 

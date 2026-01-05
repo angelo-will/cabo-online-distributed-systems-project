@@ -156,8 +156,8 @@ abstract class EventuallyElection extends MultiNodeSpec(MultiNodeConfig) with ST
         probeHost.expectMessageType[IntialPhaseCompleted]
 
         //receive log of other clients
-        probeHost.expectMessageType[InitialGamePhaseLog]
-        probeHost.expectMessageType[InitialGamePhaseLog]
+        probeHost.expectMessageType[IntialPhaseCompleted]
+        probeHost.expectMessageType[IntialPhaseCompleted]
 
         enterBarrier("all-the-logs-sent")
 
