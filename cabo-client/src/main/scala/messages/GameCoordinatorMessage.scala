@@ -6,12 +6,12 @@ import utils.Message
 
 object GameCoordinatorMessage:
 
-  trait GameCoordinatorMessage extends Message
+  trait IGameCoordinatorMessage extends Message
 
-  trait GameCoordinatorPlayerCommand extends GameCoordinatorMessage
+  trait GameCoordinatorPlayerCommand extends IGameCoordinatorMessage
   // Messages - commands handled by the coordinator
 
-  trait GameCoordinatorSyncMessage extends GameCoordinatorMessage
+  trait GameCoordinatorSyncMessage extends IGameCoordinatorMessage
 
   /**
    * Represents a command to draw a card from the deck.

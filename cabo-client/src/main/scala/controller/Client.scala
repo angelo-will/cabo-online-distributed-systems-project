@@ -5,7 +5,7 @@ import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.cluster.ClusterEvent.MemberExited
 import messages.ClientMessages.*
-import messages.GameCoordinatorMessage.{GameCoordinatorMessage, NewTurn, WhoIsPlayingRequest}
+import messages.GameCoordinatorMessage.{IGameCoordinatorMessage, NewTurn, WhoIsPlayingRequest}
 import messages.{GameCoordinatorMessage, GameViewMessages, IViewMessage, PreGameViewMessages}
 import model.Game.{GameInConstruction, GameInProgress}
 import model.{GameParameters, PlayerInLobby, PlayerPlaying, TurnLog}
@@ -36,7 +36,7 @@ object Client:
 
   case class GameCancelled() extends ClientInternalCommand
 
-  case class GameHasStarted(hostRef: ActorRef[ClientInternalCommand], gameInProgress: GameInProgress) extends ClientInternalCommand
+  case class GameHasStarted(hostRef: ActorRef[ClientCommand], gameInProgress: GameInProgress) extends ClientInternalCommand
 
   case class PlayerUnreachable(playerInLobby: PlayerInLobby) extends ClientInternalCommand
 
@@ -50,7 +50,7 @@ object Client:
 
   // messages added for test purpose
 
-  case class StartGameBehavior(thisBehavior: () => Behavior[GameCoordinatorMessage], hostRef: ActorRef[ClientInternalCommand]) extends ClientInternalCommand
+  case class StartGameBehavior(thisBehavior: () => Behavior[IGameCoordinatorMessage], hostRef: ActorRef[ClientCommand]) extends ClientInternalCommand
 
   case class RemoveCheckPlayerStatus() extends ClientInternalCommand
 
@@ -360,7 +360,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
     })
   }
 
-  private def hostWaitGameFromCoordinator(hostRef: ActorRef[ClientInternalCommand], game: GameInConstruction, gameCoordinator: ActorRef[GameCoordinatorMessage]): Behavior[Message] = {
+  private def hostWaitGameFromCoordinator(hostRef: ActorRef[ClientCommand], game: GameInConstruction, gameCoordinator: ActorRef[IGameCoordinatorMessage]): Behavior[Message] = {
     Behaviors.receivePartial {
       case (ctx, TakeGetInProgressGame(gameInProgress)) =>
         logInfo(ctx, s"Game in progress received: ${gameInProgress.code}")
@@ -486,7 +486,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
     })
   }
 
-  private def preGamePhaseHost(gameCoordinator: ActorRef[GameCoordinatorMessage], playersStatus: List[PlayerStatus], hostRef: ActorRef[ClientInternalCommand]): Behavior[Message] = {
+  private def preGamePhaseHost(gameCoordinator: ActorRef[IGameCoordinatorMessage], playersStatus: List[PlayerStatus], hostRef: ActorRef[ClientInternalCommand]): Behavior[Message] = {
 
     def otherPlayersOnline = playersStatus.filterNot(p => !p.isOnline || p.playerInfo.userID.equals(this.userId))
 
@@ -533,7 +533,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
     })
   }
 
-  private def preGamePhaseJoined(gameCoordinator: ActorRef[GameCoordinatorMessage], playersStatus: List[PlayerStatus], hostRef: ActorRef[ClientInternalCommand]): Behavior[Message] = {
+  private def preGamePhaseJoined(gameCoordinator: ActorRef[IGameCoordinatorMessage], playersStatus: List[PlayerStatus], hostRef: ActorRef[ClientCommand]): Behavior[Message] = {
 
     withShared({
       case (ctx, IntialPhaseCompleted(log)) =>
@@ -564,7 +564,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
     start
   }
 
-  private def inGameBehavior(gameCoordinator: ActorRef[GameCoordinatorMessage], playersStatus: List[PlayerStatus], hostRef: ActorRef[ClientInternalCommand]): Behavior[Message] = {
+  private def inGameBehavior(gameCoordinator: ActorRef[IGameCoordinatorMessage], playersStatus: List[PlayerStatus], hostRef: ActorRef[ClientInternalCommand]): Behavior[Message] = {
 
     //    lazy val otherPlayers = playersStatus.filterNot(_.playerID.equals(this.userId))
     def otherPlayersOnline = playersStatus.filterNot(p => !p.isOnline || p.playerInfo.userID.equals(this.userId))

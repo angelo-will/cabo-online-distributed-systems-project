@@ -32,7 +32,7 @@ private class GameViewActor private(
                                    ) {
 
   private case class GameContext(
-                                  coordinator: ActorRef[GameCoordinatorMessage.GameCoordinatorMessage],
+                                  coordinator: ActorRef[GameCoordinatorMessage.IGameCoordinatorMessage],
                                   frame: GameMainFrame,
                                   ui: IGameView
                                 )

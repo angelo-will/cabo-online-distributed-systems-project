@@ -3,7 +3,7 @@ import akka.actor.typed.ActorRef
 import controller.GameCoordinatorActor
 import messages.ClientMessages.ClientCommand
 import messages.GameCoordinatorMessage as GCMessage
-import messages.GameCoordinatorMessage.GameCoordinatorMessage
+import messages.GameCoordinatorMessage.IGameCoordinatorMessage
 import messages.{ClientMessages, GameViewMessages, IViewMessage}
 import model.Game.{GameInConstruction, GameInProgress}
 import model.Suit.*
@@ -26,7 +26,7 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
   private val userID = "GoodPlayer01"
   private val opponent01 = "Adversary01"
   private val opponent02 = "Adversary02"
-  private var gameCoordinatorActor: ActorRef[GameCoordinatorMessage] = _
+  private var gameCoordinatorActor: ActorRef[IGameCoordinatorMessage] = _
   private var viewProbe: TestProbe[IViewMessage] = _
   private var clientProbe: TestProbe[ClientCommand] = _
   private var statusProbe: TestProbe[Message] = _

@@ -12,7 +12,7 @@ object GameViewMessages {
    * @param game               - the game in progress
    * @param gameCoordinatorRef - reference to the game coordinator actor
    */
-  case class StartGame(game: GameInProgress, gameCoordinatorRef: ActorRef[GameCoordinatorMessage.GameCoordinatorMessage]) extends IGameViewMessage
+  case class StartGame(game: GameInProgress, gameCoordinatorRef: ActorRef[GameCoordinatorMessage.IGameCoordinatorMessage]) extends IGameViewMessage
 
   /**
    * Notify to actor a revealing section log of an adversary.
