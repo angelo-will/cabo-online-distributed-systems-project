@@ -140,10 +140,11 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(
     clientJoinerView match {
       case null => // do nothing
       case vp =>
-        vp.receiveMessage() match {
-          case FailedToPublishToServer() => // trying to find games
-          case _ => fail("Joiner View expected message about server publishing")
-        }
+        val m = vp.expectMessageType[FailedToPublishToServer]
+//        vp.receiveMessage() match {
+//          case FailedToPublishToServer() => // trying to find games
+//          case _ => fail("Joiner View expected message about server publishing")
+//        }
     }
 
     clientJoinerView match {
