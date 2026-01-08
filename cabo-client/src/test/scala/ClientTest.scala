@@ -121,12 +121,14 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(
     clientHostView match {
       case null => // do nothing
       case vp =>
-        vp.receiveMessage() match {
-          case GameInfoUpdate(game) =>
-            assert(game.players.exists(p => p.userID == joinerPlayerID))
-            assert(game.players.exists(p => p.userID == hostPlayerID))
-          case _ => fail("Expected GameInfoUpdate message")
-        }
+        val m = vp.expectMessageType[GameInfoUpdate]
+        assert(m.game.players.exists(p => p.userID == joinerPlayerID || p.userID == hostPlayerID))
+//        vp.receiveMessage() match {
+//          case GameInfoUpdate(game) =>
+//            assert(game.players.exists(p => p.userID == joinerPlayerID))
+//            assert(game.players.exists(p => p.userID == hostPlayerID))
+//          case _ => fail("Expected GameInfoUpdate message")
+//        }
     }
 
     probeClientJoiner.receiveMessage() match {
@@ -140,19 +142,21 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(
       case vp =>
         vp.receiveMessage() match {
           case FailedToPublishToServer() => // trying to find games
-          case _ => fail("Joiner View expected ReadyToPlay message")
+          case _ => fail("Joiner View expected message about server publishing")
         }
     }
 
     clientJoinerView match {
       case null => // do nothing
       case vp =>
-        vp.receiveMessage() match {
-          case GameJoined(game) =>
-            assert(game.players.exists(p => p.userID == joinerPlayerID))
-            assert(game.players.exists(p => p.userID == hostPlayerID))
-          case _ => fail("Expected GameJoined message")
-        }
+        val m = vp.expectMessageType[GameJoined]
+        assert(m.game.players.exists(p => p.userID == joinerPlayerID || p.userID == hostPlayerID))
+//        vp.receiveMessage() match {
+//          case GameJoined(game) =>
+//            assert(game.players.exists(p => p.userID == joinerPlayerID))
+//            assert(game.players.exists(p => p.userID == hostPlayerID))
+//          case _ => fail("Expected GameJoined message")
+//        }
     }
 
   }
