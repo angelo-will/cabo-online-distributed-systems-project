@@ -35,24 +35,24 @@ private object TurnLogsWriter:
       case TurnEvent.SeeSelfCard(index) => str += s"$index, "
       case _ =>
     }
-    str
+    str + "\n"
   }
 
   def simpleTurnLog(turnLog: TurnLog): String = {
-    var string = s"Player ${turnLog.playerName} in round ${turnLog.round} "
+    var string = s"Player ${turnLog.playerName} in round ${turnLog.round} has:\n"
     turnLog.events.foreach {
-      case TurnEvent.DrawCardFromDeck(card) => string += s"has drawn ${card} from deck, "
-      case TurnEvent.DrawCardFromDiscardStack(card) => string += s"has drawn ${card} from discard stack, "
-      case TurnEvent.SeeSelfCard(index) => string += s"has seen its card $index, "
-      case TurnEvent.SeeAdversaryCard(adversaryID, index) => string += s"has seen card $index of $adversaryID, "
+      case TurnEvent.DrawCardFromDeck(card) => string += s"- drawn $card from deck;\n"
+      case TurnEvent.DrawCardFromDiscardStack(card) => string += s"- drawn $card from discard stack;\n"
+      case TurnEvent.SeeSelfCard(index) => string += s"- seen its card $index;\n"
+      case TurnEvent.SeeAdversaryCard(adversaryID, index) => string += s"- seen card $index of $adversaryID;\n"
       case TurnEvent.ReplaceOwnCardWithAdversaryCard(itsCardIndex, adversaryID, adversaryCardIndex) =>
-        string += s"has changed its card $itsCardIndex with $adversaryID's $adversaryCardIndex one, "
-      case TurnEvent.OwnCardDiscarded(card, index) => string += s"has kept card drawn and discarded $index-th card.\nThat's $card"
-      case TurnEvent.CardDrawnDiscarded(card) => string += s"has discarded drawn card $card"
-      case TurnEvent.EndTurn() => "."
-      case TurnEvent.CaboCalled() => string += s",\nhas called CABO!"
-      case TurnEvent.JumpTurnForTimerEnded() => string += s"has ended its turn for timer ended."
-      case TurnEvent.JumpTurnForDisconnection() => string += s"has jumped its turn for disconnection."
+        string += s"- changed its card $itsCardIndex with $adversaryID's $adversaryCardIndex one;\n"
+      case TurnEvent.OwnCardDiscarded(card, index) => string += s"- kept card drawn and discarded $index-th card. That's $card;\n"
+      case TurnEvent.CardDrawnDiscarded(card) => string += s"- discarded drawn card $card;\n"
+      case TurnEvent.EndTurn() => ""
+      case TurnEvent.CaboCalled() => string += s"- has called CABO!"
+      case TurnEvent.JumpTurnForTimerEnded() => string += s"- ended its turn for timer ended."
+      case TurnEvent.JumpTurnForDisconnection() => string += s"- jumped its turn for disconnection."
     }
     string
   }

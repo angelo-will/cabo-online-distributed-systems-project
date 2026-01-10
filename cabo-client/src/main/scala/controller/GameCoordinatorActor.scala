@@ -4,10 +4,12 @@ import akka.actor.typed.Behavior
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.ActorRef
 import messages.ClientMessages.ClientCommand as CCommand
-import messages.{IGameCoordinatorMessage, IGameViewMessage,
+import messages.{
+  IGameCoordinatorMessage, IGameViewMessage,
   ClientMessages as CLMsg,
   GameCoordinatorMessage as GCMsg,
-  GameViewMessages as DGVMsg}
+  GameViewMessages as DGVMsg
+}
 import model.*
 import model.Game.{GameInConstruction, GameInProgress}
 import utils.AppLogger
@@ -84,6 +86,8 @@ object GameCoordinatorActor:
       case None => throw new IllegalArgumentException(s"User ID $userId not found in the game players")
     }
 
+    val myName = gameInProgress.getPlayerWithID(userId).name
+
     val gameData = GameData(
       clientReference = client,
       viewReference = viewToContact,
@@ -91,7 +95,7 @@ object GameCoordinatorActor:
       playerOwnUserID = userId,
       game = gameInProgress,
       temporaryGame = gameInProgress,
-      turnLog = new RevealingSectionTurnLog(userId),
+      turnLog = new RevealingSectionTurnLog(UserBase(userId, myName))
     )
 
     waitingStart(gameData)
@@ -149,9 +153,9 @@ object GameCoordinatorActor:
             val firstPlayer = gameData.game.players.find(_.rank == 1).get.userID
             gameData.viewReference ! DGVMsg.StartTurnPlayer(firstPlayer)
             if gameData.playerOwnUserID == firstPlayer then
-              myTurnBeforeDraw(gameData.copy(turnLog = new PlayCycleTurnLog(gameData.playerOwnUserID, 1)))
+              myTurnBeforeDraw(gameData.copy(turnLog = new PlayCycleTurnLog(gameData.turnLog.player, 1)))
             else
-              notMyTurn(gameData.copy(turnLog = new PlayCycleTurnLog(gameData.playerOwnUserID, 1)))
+              notMyTurn(gameData.copy(turnLog = new PlayCycleTurnLog(gameData.turnLog.player, 1)))
         })
     }
   }
@@ -273,7 +277,8 @@ object GameCoordinatorActor:
       ctx.log.info(s"GetEmptyTurn received")
       val actualTurn = gameData.game.currentRound
       val gameTurnUpdated = gameData.game.copy(currentRound = actualTurn)
-      val log = new PlayCycleTurnLog(userID, actualTurn)
+      val nameOfPlayer = gameData.game.getPlayerWithID(userID).name
+      val log = new PlayCycleTurnLog(UserBase(userID, nameOfPlayer), actualTurn)
       log.addEvent(TurnEvent.JumpTurnForDisconnection())
       gameData.clientReference ! CLMsg.TurnEnded(gameTurnUpdated, log)
       Behaviors.same
@@ -359,7 +364,7 @@ object GameCoordinatorActor:
     val newGameData = gameDataTempUpdated.copy(
       game = actualGame,
       temporaryGame = actualGame,
-      turnLog = new PlayCycleTurnLog(gameData.playerOwnUserID, actualTurn))
+      turnLog = new PlayCycleTurnLog(gameData.turnLog.player, actualTurn))
 
     val playerIDHaveToPlay = getPlayerIDWhoHasToPlay(actualGame)
     val isGameEnded = gameEnded(actualGame, playerIDHaveToPlay)
@@ -434,7 +439,7 @@ object GameCoordinatorActor:
                                  ): PartialFunction[(ActorContext[IGameCoordinatorMessage], IGameCoordinatorMessage), Behavior[IGameCoordinatorMessage]] = {
     case (ctx, GCMsg.TurnTimeEnded()) =>
       ctx.log.info(s"Turn time ended for player ${gameData.playerOwnUserID}, initializing game at before draw state")
-      val newTurnLogJumping = PlayCycleTurnLog(gameData.turnLog.playerName, gameData.turnLog.round)
+      val newTurnLogJumping = PlayCycleTurnLog(gameData.turnLog.player, gameData.turnLog.round)
       newTurnLogJumping.addEvent(TurnEvent.JumpTurnForTimerEnded())
       val newGameData = gameData.copy(temporaryGame = gameData.game, turnLog = newTurnLogJumping)
       gameData.viewReference ! DGVMsg.EndTurnByTimeEnded()

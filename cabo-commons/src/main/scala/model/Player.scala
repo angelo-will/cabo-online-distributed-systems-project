@@ -6,10 +6,7 @@ import messages.Message
 trait WithHand:
   def hand: Hand
 
-case class PlayerInLobby(userID: String, name: String, address: ActorRef[Message]) extends User:
-  override def userId: String = userID
-
-  override def nome: String = name
+case class PlayerInLobby(userID: String, name: String, address: ActorRef[Message]) extends User
 
 object PlayerPlaying:
 
@@ -70,15 +67,12 @@ object PlayerPlaying:
     players.map(p => if p.userID == userID then p.copy(hand = Hand(p.hand.cards.updated(index, card))) else p)
 
 
-case class PlayerPlaying(userID: String, name: String, rank: Int, hand: Hand) extends WithHand with User:
-  override def userId: String = userID
-
-  override def nome: String = name
+case class PlayerPlaying(override val userID: String, override val name: String, rank: Int, hand: Hand) extends WithHand with User:
 
   def replaceNthCard(index: Int, card: Card): PlayerPlaying =
     val newHand = Hand(hand.cards.updated(index, card))
     this.copy(hand = newHand)
-    
+
   def getCard(index: Int): Card = {
     this.hand.cards(index)
   }  

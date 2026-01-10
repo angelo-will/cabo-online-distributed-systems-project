@@ -55,7 +55,11 @@ object PhaseEvents:
     new JsonSubTypes.Type(value = classOf[PlayCycleTurnLog], name = "duringGameTurnLog"),
     new JsonSubTypes.Type(value = classOf[RevealingSectionTurnLog], name = "initialPhaseTurnLog")))
 trait TurnLog:
+  def playerID: String
+
   def playerName: String
+  
+  def player: User
 
   def addEvent(event: TurnEvent): Unit
 
@@ -68,11 +72,15 @@ trait TurnLog:
 class InvalidTurnEventException(event: TurnEvent.TurnEvent)
   extends IllegalArgumentException(s"Invalid event '$event' in turn phase.")
 
-class PlayCycleTurnLog(val ofUserID: String, val round: Int) extends TurnLog with Message:
+class PlayCycleTurnLog(val user: User, val round: Int) extends TurnLog with Message:
 
   private var phaseEvents: PhaseEvents = new PhaseEvents(AwaitDrawCard(), List())
 
-  override def playerName: String = ofUserID
+  override def playerID: String = user.userID
+
+  override def playerName: String = user.name
+
+  override def player: User = user
 
   override def events: List[TurnEvent] = phaseEvents.copy().events
 
@@ -138,14 +146,18 @@ class PlayCycleTurnLog(val ofUserID: String, val round: Int) extends TurnLog wit
     phaseEvents = new PhaseEvents(newPhase, phaseEvents.events :+ event)
 
   override def toString: String = {
-    s"DuringGameTurnLog\n\tuserID=$ofUserID,\n\tactual phase = ${phaseEvents.phase} \n\tevents = $events"
+    s"DuringGameTurnLog\n\tuserID=$user,\n\tactual phase = ${phaseEvents.phase} \n\tevents = $events"
   }
 
-class RevealingSectionTurnLog(val userID: String) extends TurnLog with Message:
+class RevealingSectionTurnLog(val user: User) extends TurnLog with Message:
 
   private var phaseEvents: PhaseEvents = new PhaseEvents(AwaitingFirstShow(), List())
 
-  override def playerName: String = userID
+  override def playerName: String = user.name
+
+  override def playerID: String = user.userID
+
+  override def player: User = user
 
   override def events: List[TurnEvent] = phaseEvents.events
 

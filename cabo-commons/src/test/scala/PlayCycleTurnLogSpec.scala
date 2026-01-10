@@ -20,7 +20,7 @@ class PlayCycleTurnLogSpec extends AnyWordSpec
 
   override def beforeEach(): Unit =
     super.beforeEach()
-    turnLog = new PlayCycleTurnLog("Player01", 1)
+    turnLog = new PlayCycleTurnLog(UserBase("Player01","Player01"), 1)
 
   override def afterEach(): Unit =
     super.afterEach()

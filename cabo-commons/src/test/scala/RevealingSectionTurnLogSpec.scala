@@ -18,7 +18,7 @@ class RevealingSectionTurnLogSpec extends AnyWordSpec
 
   override def beforeEach(): Unit =
     super.beforeEach()
-    revealingSectionTurnLog = new RevealingSectionTurnLog("player01")
+    revealingSectionTurnLog = new RevealingSectionTurnLog(UserBase("player01", "player01"))
 
   "A RevealingSectionTurnLog" must {
     "not have events registered" when {
