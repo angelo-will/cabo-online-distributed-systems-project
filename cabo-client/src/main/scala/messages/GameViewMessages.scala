@@ -111,7 +111,9 @@ object GameViewMessages {
    */
   case class OpponentDisconnected(player: PlayerInLobby) extends IGameViewMessage
 
-  // TODO: aggiunto dopo relazione, mettere in pari il report
+  /**
+   * Notify to actor that all opponents have disconnected.
+   */
   case class AllOpponentsDisconnected() extends IGameViewMessage
   
   /**
