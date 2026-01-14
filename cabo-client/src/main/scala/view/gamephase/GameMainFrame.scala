@@ -34,7 +34,6 @@ class GameMainFrame(val viewListener: IGameViewUserCommandListener) extends Main
       viewListener.exit()
       this.dispose()
   }
-  // TODO: aggiungere dialog "Sei sicuro di uscire?"
 
   private val containerPanel = new BoxPanel(Orientation.Vertical) {
     border = Swing.EmptyBorder(30, 30, 30, 30)
