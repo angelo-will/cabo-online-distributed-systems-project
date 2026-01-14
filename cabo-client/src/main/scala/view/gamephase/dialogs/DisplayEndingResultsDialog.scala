@@ -23,8 +23,7 @@ private class DisplayEndingResultsDialog(gameResult: GameInProgress)(ending: End
   }
 
   title = "Ending Results"
-  //todo: set modal to true before deployment
-  modal = false
+  modal = true
   private val results = gameResult.players.sortBy(pl => pl.hand.score)
   private val x = results.map(pl => {
     val hand = pl.hand.cards.map(card => s"$card").mkString(", ")

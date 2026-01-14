@@ -18,8 +18,7 @@ private case class AllOpponentsDisconnectedDialog(onClose: () => Unit) extends D
   }
 
   title = "You are the last player connected"
-  //todo: set modal to true before deployment
-  modal = false
+  modal = true
 
   contents = new BoxPanel(Orientation.Vertical) {
     border = Swing.EmptyBorder(20, 20, 20, 20)
