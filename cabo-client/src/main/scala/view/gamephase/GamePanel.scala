@@ -189,7 +189,7 @@ class GamePanel(viewListener: IGameViewUserCommandListener, gameInProgress: GPro
   override def enterRevealingSection(): Unit = Swing.onEDT {
     disableAll()
     playerPanel.enableCardsButton(true)
-    this.myActionsTArea.text = "Starting revealing section. Select two cards to see their values, try to remember its!"
+    this.myActionsTArea.text = "Starting revealing section. Select two cards of your to see their values, try to remember it!"
   }
 
   override def enterWaitingPhase(): Unit = Swing.onEDT {
@@ -346,18 +346,6 @@ class GamePanel(viewListener: IGameViewUserCommandListener, gameInProgress: GPro
   private def initializeLayout(): Unit = {
     resetConstraintsValues()
 
-//    val spacePanel = new Panel {
-//      preferredSize = new Dimension(1, 1)
-//      // peer.setBorder(BorderFactory.createLineBorder(Color.GREEN, 3)) // Debug
-//    }
-//    c.gridx = 0
-//    c.gridy = 0
-//    c.gridwidth = 9
-//    c.weightx = 1.0
-//    c.fill = Fill.Horizontal
-//    layout(spacePanel) = c
-//    resetConstraintsValues()
-
     var currentRow = ADVERSARIES_START_ROW
     adversariesPanelMap.values.foreach { panel =>
       addToLayout(panel, ADVERSARIES_COL, currentRow)
@@ -474,7 +462,7 @@ class GamePanel(viewListener: IGameViewUserCommandListener, gameInProgress: GPro
   def onExitDuringGamePolicy(): Unit = {
     val result = Dialog.showConfirmation(
       parent = this,
-      message = "Are you sure you want to exit the current game? Your progress might be lost.",
+      message = "Are you sure you want to exit the current game?",
       title = "Confirm Exit",
       optionType = Dialog.Options.YesNo
     )
@@ -486,12 +474,17 @@ class GamePanel(viewListener: IGameViewUserCommandListener, gameInProgress: GPro
 
   private def textInfoCardDrawnFromDeck(card: Card): String = {
     val powerText = card.power match {
-      case Power.SeeYourCard() => "\nThis card allows you to see one of your cards."
-      case Power.SeeYourOpponentCard() => "\nThis card allows you to see one card of an adversary."
-      case Power.ChangeOneOfYourCardWithOpponent() => "\nThis card allows you to swap one of your cards with an adversary's."
+      case Power.SeeYourCard() => "\n" +
+        "This card allows you to see one of your cards. Select it."
+      case Power.SeeYourOpponentCard() => "\n" +
+        "This card allows you to see one card of an adversary. Select one opponent's card"
+      case Power.ChangeOneOfYourCardWithOpponent() => "\n" +
+        "This card allows you to swap one of your cards with an adversary's. Select one of your and one of opponent."
       case Power.NoPower() => ""
     }
-    s"You have drawn the card: $card.$powerText"
+    s"You have drawn the card: $card.\n" +
+      s"Card score: ${card.score}." +
+      s"$powerText"
   }
 
   private def textInfoCardDrawnFromDiscards(card: Card): String = {
@@ -501,21 +494,21 @@ class GamePanel(viewListener: IGameViewUserCommandListener, gameInProgress: GPro
   // Paint grid
   override def paintComponent(g: Graphics2D): Unit = {
     super.paintComponent(g)
-//    peer.getLayout match {
-//      case gbl: GridBagLayout =>
-//        val widths = gbl.getLayoutDimensions()(0)
-//        val heights = gbl.getLayoutDimensions()(1)
-//        var x = 0
-//        g.setColor(Color.LIGHT_GRAY)
-//        for (w <- widths) {
-//          g.drawLine(x, 0, x, size.height)
-//          x += w
-//        }
-//        var y = 0
-//        for (h <- heights) {
-//          g.drawLine(0, y, size.width, y)
-//          y += h
-//        }
-//    }
+    //    peer.getLayout match {
+    //      case gbl: GridBagLayout =>
+    //        val widths = gbl.getLayoutDimensions()(0)
+    //        val heights = gbl.getLayoutDimensions()(1)
+    //        var x = 0
+    //        g.setColor(Color.LIGHT_GRAY)
+    //        for (w <- widths) {
+    //          g.drawLine(x, 0, x, size.height)
+    //          x += w
+    //        }
+    //        var y = 0
+    //        for (h <- heights) {
+    //          g.drawLine(0, y, size.width, y)
+    //          y += h
+    //        }
+    //    }
   }
 }
