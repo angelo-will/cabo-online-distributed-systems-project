@@ -123,11 +123,9 @@ class GameListPanel(navigator: ScreenNavigator, listener: IListGamesListener) ex
 
     private def showInfoDialog(): Unit = {
       val details =
-        // TODO: insert -AAA- insert max round
         s"""<html>
            |ID: ${game.code}
            |Max Time Per Turn: ${game.gameParameters.maxTimeRound} sec
-           |Max Round:
            |Lobby state: ${game.players.size}/${game.gameParameters.maxPlayers}
            |Players: ${game.players.map(_.name).mkString(", ")}
          """.stripMargin
