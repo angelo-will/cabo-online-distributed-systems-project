@@ -18,6 +18,10 @@ import scala.concurrent.duration.*
 
 object GameCoordinatorActor:
 
+  /**
+   * Seconds added to normal turn to make coordinator turn last longer than view. 
+   */
+  private val OFFSET_TURN_SECONDS = 5
 
   private abstract class EndingGame
 
@@ -41,7 +45,6 @@ object GameCoordinatorActor:
 
   private case class GameData(
                                clientReference: ActorRef[CCommand],
-                               // todo: change type in ViewCommand moving the messages of GameCoordinatorMessage in ViewMessages?
                                viewReference: ActorRef[IGameViewMessage],
                                playerOwnRank: Int,
                                playerOwnUserID: String,
@@ -72,30 +75,22 @@ object GameCoordinatorActor:
 
   def apply(client: ActorRef[CCommand], viewToContact: ActorRef[IGameViewMessage], userId: String, gameToStart: GameInConstruction): Behavior[IGameCoordinatorMessage] = {
     val game = generateGameInProgressFromInConstruction(gameToStart)
-    // todo: this one is used to test rounds limit
-    // val game = generateGameInProgressFromInConstruction(gameToStart.copy(gameParameters = GameParameters(roundLimitation = 3)))
     client ! CLMsg.TakeGetInProgressGame(game)
     apply(client, viewToContact, userId, game)
   }
 
   def apply(client: ActorRef[CCommand], viewToContact: ActorRef[IGameViewMessage], userId: String, gameInProgress: GameInProgress): Behavior[IGameCoordinatorMessage] = {
 
-    val playerRank = gameInProgress.players.find(_.userID == userId) match {
-      case Some(player) => player.rank
-      //todo - remove exception
-      case None => throw new IllegalArgumentException(s"User ID $userId not found in the game players")
-    }
-
-    val myName = gameInProgress.getPlayerWithID(userId).name
+    val playerMyself = gameInProgress.getPlayerWithID(userId)
 
     val gameData = GameData(
       clientReference = client,
       viewReference = viewToContact,
-      playerOwnRank = playerRank,
+      playerOwnRank = playerMyself.rank,
       playerOwnUserID = userId,
       game = gameInProgress,
       temporaryGame = gameInProgress,
-      turnLog = new RevealingSectionTurnLog(UserBase(userId, myName))
+      turnLog = new RevealingSectionTurnLog(UserBase(userId, playerMyself.name))
     )
 
     waitingStart(gameData)
@@ -164,9 +159,8 @@ object GameCoordinatorActor:
 
   private def myTurnBeforeDraw(gameData: GameData): Behavior[IGameCoordinatorMessage] = Behaviors.setup { ctx =>
     Behaviors.withTimers { timers =>
-      // todo: handle offset seconds, gamecoordinator's timer should be longer than view's timer
       ctx.log.info("Setting timer")
-      val timeForTurn = (gameData.game.gameParameters.maxTimeRound + 5).seconds
+      val timeForTurn = (gameData.game.gameParameters.maxTimeRound + OFFSET_TURN_SECONDS).seconds
       timers.startSingleTimer(GCMsg.TurnTimeEnded(), timeForTurn)
       Behaviors.receivePartial {
         handleDrawCardFromDeck(gameData)

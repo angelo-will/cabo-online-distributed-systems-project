@@ -77,7 +77,6 @@ class CreateGamePanel(navigator: ScreenNavigator, viewListener: ICreateGameListe
         viewListener.createGame(
           visibilityPublicRadioButton.selected,
           currentValidTurnDuration,
-          // TODO: remove this number
           DECK_SIZE - (numPlayersSelected.selection.item * 4),
           numPlayersSelected.selection.item
         )
