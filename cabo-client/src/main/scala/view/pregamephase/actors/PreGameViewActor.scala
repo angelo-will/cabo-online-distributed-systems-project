@@ -103,6 +103,11 @@ object PreGameViewActor {
           waitingFrame.open()
           waitingLobby(waitingFrame)
         }
+        case GameJoinedFailed(gameCode) => {
+          ctx.log.warn(s"Failed to join game: ${gameCode}. Showing error dialog.")
+          frame.userFailedToEnterInTheGame(gameCode)
+          Behaviors.same
+        }
         case RestartView() => {
           ctx.log.info("Restart requested while in IDLE. Reloading view.")
           frame.dispose()
@@ -130,9 +135,7 @@ object PreGameViewActor {
 
         case GameAborted() =>
           ctx.log.info("Game aborted. returning to Main Menu.")
-          //        frame.dispose()
           frame.hostCancelledTheGame(() => ctx.self ! RestartView())
-          //        startViewCreation()
           waitingRestart(frame)
 
         case GameStarted() =>
