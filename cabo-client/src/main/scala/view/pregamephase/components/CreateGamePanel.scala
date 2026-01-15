@@ -122,8 +122,7 @@ class CreateGamePanel(navigator: ScreenNavigator, viewListener: ICreateGameListe
 class WaitingCreationGameDialog extends Dialog {
   title = "Waiting creation"
   preferredSize = new Dimension(300, 150)
-  // TODO: modal should be true, for now is false to test multiple test frame and focus on it  
-  modal = false
+  modal = true
   resizable = false
   peer.setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE)
   val messageLabel = new Label("Creating the game...") {
