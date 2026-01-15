@@ -8,7 +8,7 @@ import scala.swing._
 import scala.swing.event.ButtonClicked
 
 trait IJoinGameWithLinkListener:
-  def joinWithAddress(address: String): Unit
+  def joinWithGameCode(gameCode: String): Unit
 
   def returnToStart(): Unit
 
@@ -20,8 +20,7 @@ class JoinGameWithLinkPanel(navigator: ScreenNavigator, viewListener: IJoinGameW
     horizontalAlignment = Alignment.Center
   }
 
-  private val gameInsertLinkLabel = new Label("Insert game code")
-  // TODO: in base a come si sarà scelto di fare (actorRef, adress, ecc.) modificare
+  private val gameInsertGameCodeLabel = new Label("Insert game code")
   private val gameCodeField = new TextField("Game code") {
     columns = 20
     maximumSize = new Dimension(300, preferredSize.height)
@@ -33,7 +32,7 @@ class JoinGameWithLinkPanel(navigator: ScreenNavigator, viewListener: IJoinGameW
 
   contents += titleLabel
   contents += Swing.VStrut(20)
-  contents += gameInsertLinkLabel
+  contents += gameInsertGameCodeLabel
   contents += gameCodeField
   contents += Swing.VStrut(10)
   contents += pasteLinkButton
@@ -46,8 +45,7 @@ class JoinGameWithLinkPanel(navigator: ScreenNavigator, viewListener: IJoinGameW
   reactions += {
     case ButtonClicked(b) =>
       if b == joinButton then
-        // TODO: delete remove this than -AAA- sostituire con il metodo corretto
-        viewListener.joinWithAddress(gameCodeField.text)
+        viewListener.joinWithGameCode(gameCodeField.text)
       else if b == backButton then
         viewListener.returnToStart()
         navigator.goToPreviousPanel()

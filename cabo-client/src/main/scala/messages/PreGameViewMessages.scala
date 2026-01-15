@@ -38,7 +38,7 @@ object PreGameViewMessages {
    * Answer to the previous message if failed to join the game
    * @param game
    */
-  case class GameJoinedFailed(game: GameInConstruction) extends IPreGameViewMessage
+  case class GameJoinedFailed(gameCode: String) extends IPreGameViewMessage
 
   /**
    * Message sent by the client to the view when the information about the game has changed, 

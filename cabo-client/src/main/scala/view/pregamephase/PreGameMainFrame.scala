@@ -79,9 +79,9 @@ class PreGameMainFrame(val viewListener: IPreGameViewListener, val playerName: S
   private val joinGameWithLinkPanel: JoinGameWithLinkPanel = new JoinGameWithLinkPanel(
     navigator = () => setPanel(welcomePanel),
     viewListener = new IJoinGameWithLinkListener {
-      override def joinWithAddress(address: String): Unit = {
+      override def joinWithGameCode(gameCode: String): Unit = {
         SwingUtilities.invokeLater(() => {
-          viewListener.joinWithAddress(address)
+          viewListener.joinWithAddress(gameCode)
           dialogsMap(DialogType.WaitingAccessToGameFromServer) = new WaitingAccessToGameDialog()
           dialogsMap(DialogType.WaitingAccessToGameFromServer).open()
         })
@@ -139,33 +139,17 @@ class PreGameMainFrame(val viewListener: IPreGameViewListener, val playerName: S
    * @param games List of games in wich user can enter.
    */
   def updateGameList(games: List[Game.GameInConstruction]): Unit =
-    SwingUtilities.invokeLater(() =>
-      askServerGamesPanel.updateGameList(games)
-    )
+    SwingUtilities.invokeLater(() => askServerGamesPanel.updateGameList(games))
 
-  def userIsEnteredInTheGame(game: Game.GameInConstruction): Unit =
-    SwingUtilities.invokeLater(() => {}
-      // createWaitingLobbyPanel(screenNavigator, viewListener, game.players, false)
-      // TODO: create frame/panel do display that
-      // throw new NotImplementedError("Game started functionality not implemented yet.")
-    )
-
-  def userFailedToEnterInTheGame(game: Game.GameInConstruction): Unit =
+  def userFailedToEnterInTheGame(gameCode: String): Unit =
     SwingUtilities.invokeLater(() =>
-      // TODO: AAA adjust it
       Dialog.showMessage(
         parent = this,
-        message = s"Error: Impossible to enter in the game with code ${game.code}.",
+        message = s"Error: Impossible to enter in the game with code ${gameCode}.",
         title = "Error entering game",
         messageType = Dialog.Message.Error
       )
     )
-
-  def updateGame(game: Game.GameInConstruction): Unit =
-    SwingUtilities.invokeLater(() => {
-      // TODO: implement after creation of lobby panel
-      throw new NotImplementedError("Game started functionality not implemented yet.")
-    })
 
   def gameStarted(): Unit =
     SwingUtilities.invokeLater(() => {

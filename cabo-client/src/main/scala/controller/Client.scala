@@ -395,7 +395,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
 
           case (ctx, YouCanNotJoinTheGame(game)) =>
             logInfo(ctx, "Could not join game")
-            viewActorRef ! PreGameViewMessages.GameJoinedFailed(game)
+            viewActorRef ! PreGameViewMessages.GameJoinedFailed(game.code)
             //Failed to join, waiting for other commands from the user
             joiningAGame
 
