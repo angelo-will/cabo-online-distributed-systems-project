@@ -81,7 +81,7 @@ class PreGameMainFrame(val viewListener: IPreGameViewListener, val playerName: S
     viewListener = new IJoinGameWithLinkListener {
       override def joinWithGameCode(gameCode: String): Unit = {
         SwingUtilities.invokeLater(() => {
-          viewListener.joinWithAddress(gameCode)
+          viewListener.joinWithGameCode(gameCode)
           dialogsMap(DialogType.WaitingAccessToGameFromServer) = new WaitingAccessToGameDialog()
           dialogsMap(DialogType.WaitingAccessToGameFromServer).open()
         })

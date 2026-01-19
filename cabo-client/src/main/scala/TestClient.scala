@@ -10,7 +10,7 @@ import scala.io.StdIn.readLine
 @main def deploySeeds(): Unit = seeds.foreach(port => startup(port = port)(Behaviors.empty))
 
 @main def deployHost(): Unit = {
-//  val system = startup(2553)(deployActor(Client("Host", "CoolHost"))("host-client"))
+  //  val system = startup(2553)(deployActor(Client("Host", "CoolHost"))("host-client"))
 
   val system = ActorSystem(Client("Host", "CoolHost"), "ClusterSystem", ConfigFactory
     .parseString(s"""akka.remote.artery.canonical.port=2553""")
@@ -32,7 +32,7 @@ import scala.io.StdIn.readLine
 
   system ! ClientMessages.JoinAGame()
 
-  system ! ClientMessages.JoinAddress("Hostgame")
+  system ! ClientMessages.JoinWithGameCode("Hostgame")
 
   println("Die user should be in the game\n")
 

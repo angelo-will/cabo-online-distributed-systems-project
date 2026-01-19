@@ -12,14 +12,16 @@ import controller.Client.*
 import messages.{ClientMessages, Message}
 import org.scalatest.concurrent.Eventually.eventually
 import org.scalatest.concurrent.Futures.{interval, timeout}
-import messages.ClientMessages.{JoinAddress, IntialPhaseCompleted, StartTheGame, TakeGetInProgressGame}
+import messages.ClientMessages.{JoinWithGameCode, IntialPhaseCompleted, StartTheGame, TakeGetInProgressGame}
 
 import scala.concurrent.Await
 import scala.concurrent.duration.DurationInt
 import scala.language.implicitConversions
 
 class EventuallyElectionMultiJvmNode1 extends EventuallyElection
+
 class EventuallyElectionMultiJvmNode2 extends EventuallyElection
+
 class EventuallyElectionMultiJvmNode3 extends EventuallyElection
 
 abstract class EventuallyElection extends MultiNodeSpec(MultiNodeConfig) with STMultiNodeSpec with ImplicitSender {
@@ -68,8 +70,8 @@ abstract class EventuallyElection extends MultiNodeSpec(MultiNodeConfig) with ST
         client ! ClientMessages.JoinAGame()
         probeClient.expectMessage(ClientMessages.JoinAGame())
 
-        client ! JoinAddress("host5game")
-        probeClient.expectMessage(ClientMessages.JoinAddress("host5game"))
+        client ! JoinWithGameCode("host5game")
+        probeClient.expectMessage(ClientMessages.JoinWithGameCode("host5game"))
 
         probeClient.expectMessageType[YouJoinedTheGame]
 
@@ -188,8 +190,8 @@ abstract class EventuallyElection extends MultiNodeSpec(MultiNodeConfig) with ST
         client ! ClientMessages.JoinAGame()
         probeClient.expectMessage(ClientMessages.JoinAGame())
 
-        client ! JoinAddress("host5game")
-        probeClient.expectMessage(ClientMessages.JoinAddress("host5game"))
+        client ! JoinWithGameCode("host5game")
+        probeClient.expectMessage(ClientMessages.JoinWithGameCode("host5game"))
 
         probeClient.expectMessageType[YouJoinedTheGame]
 

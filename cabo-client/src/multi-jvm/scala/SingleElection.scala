@@ -12,16 +12,18 @@ import controller.Client.*
 import messages.{ClientMessages, Message}
 import org.scalatest.concurrent.Eventually.eventually
 import org.scalatest.concurrent.Futures.{interval, timeout}
-import messages.ClientMessages.{JoinAddress, IntialPhaseCompleted, StartTheGame, TakeGetInProgressGame}
+import messages.ClientMessages.{JoinWithGameCode, IntialPhaseCompleted, StartTheGame, TakeGetInProgressGame}
 
 import scala.concurrent.duration.DurationInt
 import scala.language.implicitConversions
 
 class SingleElectionMultiJvmNode1 extends SingleElection
+
 class SingleElectionMultiJvmNode2 extends SingleElection
+
 class SingleElectionMultiJvmNode3 extends SingleElection
 
-abstract class SingleElection extends MultiNodeSpec(MultiNodeConfig) with STMultiNodeSpec with ImplicitSender{
+abstract class SingleElection extends MultiNodeSpec(MultiNodeConfig) with STMultiNodeSpec with ImplicitSender {
 
   import MultiNodeConfig.*
 
@@ -70,8 +72,8 @@ abstract class SingleElection extends MultiNodeSpec(MultiNodeConfig) with STMult
         client ! ClientMessages.JoinAGame()
         probeClient.expectMessage(ClientMessages.JoinAGame())
 
-        client ! JoinAddress("host3game")
-        probeClient.expectMessage(ClientMessages.JoinAddress("host3game"))
+        client ! JoinWithGameCode("host3game")
+        probeClient.expectMessage(ClientMessages.JoinWithGameCode("host3game"))
 
         probeClient.expectMessageType[YouJoinedTheGame]
 
@@ -194,8 +196,8 @@ abstract class SingleElection extends MultiNodeSpec(MultiNodeConfig) with STMult
         client ! ClientMessages.JoinAGame()
         probeClient.expectMessage(ClientMessages.JoinAGame())
 
-        client ! JoinAddress("host3game")
-        probeClient.expectMessage(ClientMessages.JoinAddress("host3game"))
+        client ! JoinWithGameCode("host3game")
+        probeClient.expectMessage(ClientMessages.JoinWithGameCode("host3game"))
 
         probeClient.expectMessageType[YouJoinedTheGame]
 

@@ -38,11 +38,11 @@ object ClientMessages {
   case class JoinGame(game: GameInConstruction) extends ClientCommand
 
   /**
-   * Message sent by the view to the client to join a game by its address
+   * Message sent by the view to the client to join a game with gameCode
    *
-   * @param address
+   * @param gameCode
    */
-  case class JoinAddress(address: String) extends ClientCommand
+  case class JoinWithGameCode(gameCode: String) extends ClientCommand
 
   /**
    * Message sent by the view to the client to return to the start configuration
@@ -91,7 +91,7 @@ object ClientMessages {
   case class IntialPhaseCompleted(turnLog: TurnLog) extends ClientCommand
 
   case class GameEnded() extends ClientCommand
-  
+
   case class WhoIsPlaying(playerID: String) extends ClientCommand
 
 }

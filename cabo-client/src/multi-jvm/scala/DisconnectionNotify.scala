@@ -13,13 +13,15 @@ import controller.Client.*
 import messages.{ClientMessages, Message}
 import org.scalatest.concurrent.Eventually.eventually
 import org.scalatest.concurrent.Futures.{interval, timeout}
-import messages.ClientMessages.JoinAddress
+import messages.ClientMessages.JoinWithGameCode
 
 import scala.concurrent.duration.DurationInt
 import scala.language.implicitConversions
 
 class DiscNotifySpecClientMultiJvmNode1 extends DisconnectionNotify
+
 class DiscNotifySpecClientMultiJvmNode2 extends DisconnectionNotify
+
 class DiscNotifySpecClientMultiJvmNode3 extends DisconnectionNotify
 
 abstract class DisconnectionNotify extends MultiNodeSpec(MultiNodeConfig) with STMultiNodeSpec with ImplicitSender {
@@ -77,7 +79,7 @@ abstract class DisconnectionNotify extends MultiNodeSpec(MultiNodeConfig) with S
 
         probeHost.expectMessageType[PlayerUnreachable]
 
-//        enterBarrier("player-disconnected")
+        //        enterBarrier("player-disconnected")
       }
 
       runOn(node2) {
@@ -97,8 +99,8 @@ abstract class DisconnectionNotify extends MultiNodeSpec(MultiNodeConfig) with S
         client ! ClientMessages.JoinAGame()
         probeClient.expectMessage(ClientMessages.JoinAGame())
 
-        client ! JoinAddress("host2game")
-        probeClient.expectMessage(ClientMessages.JoinAddress("host2game"))
+        client ! JoinWithGameCode("host2game")
+        probeClient.expectMessage(ClientMessages.JoinWithGameCode("host2game"))
 
         enterBarrier("join-message-sent")
 
@@ -106,14 +108,14 @@ abstract class DisconnectionNotify extends MultiNodeSpec(MultiNodeConfig) with S
 
         enterBarrier("player-joined")
 
-//        enterBarrier("player-disconnected")
+        //        enterBarrier("player-disconnected")
       }
 
       runOn(node3) {
         enterBarrier("host-game-created")
         enterBarrier("join-message-sent")
         enterBarrier("player-joined")
-//        enterBarrier("player-disconnected")
+        //        enterBarrier("player-disconnected")
       }
     }
     enterBarrier("test-completed")

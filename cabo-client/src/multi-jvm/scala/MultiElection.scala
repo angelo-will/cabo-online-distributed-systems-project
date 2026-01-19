@@ -12,17 +12,19 @@ import controller.Client.*
 import messages.{ClientMessages, Message}
 import org.scalatest.concurrent.Eventually.eventually
 import org.scalatest.concurrent.Futures.{interval, timeout}
-import messages.ClientMessages.{IntialPhaseCompleted, JoinAddress, StartTheGame, TakeGetInProgressGame}
+import messages.ClientMessages.{IntialPhaseCompleted, JoinWithGameCode, StartTheGame, TakeGetInProgressGame}
 
 import scala.concurrent.Await
 import scala.concurrent.duration.DurationInt
 import scala.language.implicitConversions
 
 class MultiElectionMultiJvmNode1 extends MultiElection
+
 class MultiElectionMultiJvmNode2 extends MultiElection
+
 class MultiElectionMultiJvmNode3 extends MultiElection
 
-abstract class MultiElection extends MultiNodeSpec(MultiNodeConfig) with STMultiNodeSpec with ImplicitSender{
+abstract class MultiElection extends MultiNodeSpec(MultiNodeConfig) with STMultiNodeSpec with ImplicitSender {
 
   import MultiNodeConfig.*
 
@@ -68,8 +70,8 @@ abstract class MultiElection extends MultiNodeSpec(MultiNodeConfig) with STMulti
         client ! ClientMessages.JoinAGame()
         probeClient.expectMessage(ClientMessages.JoinAGame())
 
-        client ! JoinAddress("host4game")
-        probeClient.expectMessage(ClientMessages.JoinAddress("host4game"))
+        client ! JoinWithGameCode("host4game")
+        probeClient.expectMessage(ClientMessages.JoinWithGameCode("host4game"))
 
         probeClient.expectMessageType[YouJoinedTheGame]
 
@@ -172,9 +174,9 @@ abstract class MultiElection extends MultiNodeSpec(MultiNodeConfig) with STMulti
         // theoretically not necessary but to keep the barriers aligned
         enterBarrier("removed-host-check")
 
-//        host ! LeaveTheGame()
-//
-//        enterBarrier("host4-removed")
+        //        host ! LeaveTheGame()
+        //
+        //        enterBarrier("host4-removed")
 
       }
 
@@ -198,8 +200,8 @@ abstract class MultiElection extends MultiNodeSpec(MultiNodeConfig) with STMulti
         client ! ClientMessages.JoinAGame()
         probeClient.expectMessage(ClientMessages.JoinAGame())
 
-        client ! JoinAddress("host4game")
-        probeClient.expectMessage(ClientMessages.JoinAddress("host4game"))
+        client ! JoinWithGameCode("host4game")
+        probeClient.expectMessage(ClientMessages.JoinWithGameCode("host4game"))
 
         probeClient.expectMessageType[YouJoinedTheGame]
 
@@ -220,7 +222,7 @@ abstract class MultiElection extends MultiNodeSpec(MultiNodeConfig) with STMulti
         probeClient.expectMessageType[AllTheLogs]
 
         enterBarrier("pre-game-phase-completed")
-        
+
         enterBarrier("removed-host-check")
 
         enterBarrier("host4-removed")

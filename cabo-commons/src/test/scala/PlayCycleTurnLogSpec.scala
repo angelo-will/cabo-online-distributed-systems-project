@@ -20,13 +20,13 @@ class PlayCycleTurnLogSpec extends AnyWordSpec
 
   override def beforeEach(): Unit =
     super.beforeEach()
-    turnLog = new PlayCycleTurnLog(UserBase("Player01","Player01"), 1)
+    turnLog = new PlayCycleTurnLog(UserBase("Player01", "Player01"), 1)
 
   override def afterEach(): Unit =
     super.afterEach()
     println(s"Final turn log events: ${turnLog}")
 
-  "A TurnLog" when {
+  "A PlayCycleTurnLog" when {
     "initially created" must {
       "be no events" in {
         turnLog.events mustBe empty

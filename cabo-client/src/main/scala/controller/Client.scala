@@ -66,7 +66,7 @@ object Client:
 
   case class AllTheLogs(logs: List[TurnLog]) extends ClientInternalCommand
 
-//  case class PlayerStatus(playerID: String, address: ActorRef[ClientInternalCommand], rank: Int, isOnline: Boolean)
+  //  case class PlayerStatus(playerID: String, address: ActorRef[ClientInternalCommand], rank: Int, isOnline: Boolean)
   case class PlayerStatus(playerInfo: PlayerInLobby, rank: Int, isOnline: Boolean)
 
   def apply(userId: String = "Player", name: String = "defaultCoolName", optionalViewActor: ActorRef[IViewMessage] = null): Behavior[Message] = Behaviors.setup { ctx =>
@@ -110,10 +110,10 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
         case ListingResponse(key.Listing(listing)) =>
           if (listing.nonEmpty) {
             val contact = listing.head
-            logInfo(ctx,s"Found required contact: $contact")
+            logInfo(ctx, s"Found required contact: $contact")
             whatToAskTo(contact)
           } else {
-            logError(ctx,s"Contact with key ${key.id} not found")
+            logError(ctx, s"Contact with key ${key.id} not found")
             ifFailure()
           }
           Behaviors.stopped
@@ -130,25 +130,25 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
         timers.startSingleTimer(FailedToSynchronize(), 5.seconds)
         Behaviors.receiveMessage {
           case FailedToSynchronize() =>
-            logError(ctx,s"Failed to synchronize all players in time: ${checkSync.filterNot(_._2).keys.mkString(", ")} did not respond")
+            logError(ctx, s"Failed to synchronize all players in time: ${checkSync.filterNot(_._2).keys.mkString(", ")} did not respond")
             timers.cancelAll()
             // call the failure behavior with the list of players who did not respond
             buffer.unstashAll(ifFailure(checkSync.filterNot(_._2).keys.toList))
           case SynchronizationAck(fromWho) =>
-            logInfo(ctx,s"Synchronization ack received from: $fromWho")
+            logInfo(ctx, s"Synchronization ack received from: $fromWho")
             checkSync = checkSync.updatedWith(fromWho)({ case None => None case Some(v) => Some(true) })
             if checkSync.forall(_._2) then {
-              logInfo(ctx,s"All players synchronized")
+              logInfo(ctx, s"All players synchronized")
               timers.cancelAll()
               buffer.unstashAll(nextBehavior())
             } else {
-              logInfo(ctx,s"Waiting for players to synchronize: ${checkSync.filterNot(_._2).keys.mkString(", ")}")
+              logInfo(ctx, s"Waiting for players to synchronize: ${checkSync.filterNot(_._2).keys.mkString(", ")}")
               // restart the timer so that the timeout is counted from the last received ack
               timers.startSingleTimer(FailedToSynchronize(), 5.seconds)
               Behaviors.same
             }
           case other =>
-            logInfo(ctx,s"Stashing message while waiting for synchronization: $other")
+            logInfo(ctx, s"Stashing message while waiting for synchronization: $other")
             buffer.stash(other)
             Behaviors.same
         }
@@ -158,7 +158,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
 
   private def sharedHandler: PartialFunction[(ActorContext[Message], Message), Behavior[Message]] = {
     case (ctx, GetPlayerInfo(replyTo)) =>
-      logInfo(ctx,s"Sending player info to $replyTo")
+      logInfo(ctx, s"Sending player info to $replyTo")
       replyTo ! PlayerInfo(userId, name)
       Behaviors.same
   }
@@ -202,7 +202,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
         hostBehavior(game)
 
       case (ctx, JoinAGame()) =>
-        logInfo(ctx,"Preparing to join a game")
+        logInfo(ctx, "Preparing to join a game")
         ctx.spawnAnonymous(contactInReceptionistAndAsk
           (ServerKey)
           (_ ! ServerMessages.GetGames(ctx.self))
@@ -210,7 +210,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
         joiningAGame
 
       case (ctx, ChangePlayerName(newName, replyTo)) =>
-        logInfo(ctx,s"Changing player name from $name to $newName")
+        logInfo(ctx, s"Changing player name from $name to $newName")
         this.name = newName
         replyTo ! PlayerInfo(userId, name)
         Behaviors.same
@@ -246,7 +246,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
 
       viewActorRef ! PreGameViewMessages.GameInfoUpdate(gameUpdated)
 
-      logInfo(ctx,s"Player: ${playerInLobby.userID} removed the game, now the players are: ${gameUpdated.players.map(_.userID).mkString(", ")}")
+      logInfo(ctx, s"Player: ${playerInLobby.userID} removed the game, now the players are: ${gameUpdated.players.map(_.userID).mkString(", ")}")
 
       hostBehavior(gameUpdated)
     }
@@ -255,22 +255,22 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
 
       case (ctx, ServerMessages.GameRegistered(game, server)) =>
         //The server has registered the game
-        logInfo(ctx,s"Game update: ${game.code} by server: $server")
+        logInfo(ctx, s"Game update: ${game.code} by server: $server")
         Behaviors.same
 
       case (ctx, ServerMessages.FailedToRegisterGame(game, server)) =>
         //The server has failed to register the game
-        logError(ctx,s"Failed to register game: ${game.code}")
+        logError(ctx, s"Failed to register game: ${game.code}")
         viewActorRef ! PreGameViewMessages.FailedToPublishToServer()
         //Go into lobby
         Behaviors.same
 
       case (ctx, IWantToPlay(newPlayer: PlayerInLobby, replyTo: ActorRef[Message])) =>
         //The player wants to play
-        logInfo(ctx,s"Player: ${newPlayer.userID} wants to play")
+        logInfo(ctx, s"Player: ${newPlayer.userID} wants to play")
         if (game.players.size < game.gameParameters.maxPlayers) {
           //The player can join the game
-          logInfo(ctx,s"Player: ${newPlayer.userID} can join the game: ${game.code}")
+          logInfo(ctx, s"Player: ${newPlayer.userID} can join the game: ${game.code}")
           // todo - move this after updating the other players so no need to send update to himself
           val gameUpdated = game.copy(players = game.players :+ newPlayer)
 
@@ -292,26 +292,26 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
           hostBehavior(gameUpdated)
         } else {
           //The player cannot join the game
-          logInfo(ctx,s"Player: $newPlayer cannot join the game: $game")
+          logInfo(ctx, s"Player: $newPlayer cannot join the game: $game")
           replyTo ! YouCanNotJoinTheGame(game)
           Behaviors.same
         }
 
       case (ctx, IWantToLeaveTheGame(player)) =>
         //A player wants to leave the game
-        logInfo(ctx,s"Player: ${player.userID} wants to leave the game: ${game.code}")
+        logInfo(ctx, s"Player: ${player.userID} wants to leave the game: ${game.code}")
         //todo - communicate to the view
         removePlayerFromGame(ctx, player)
 
       case (ctx, PlayerUnreachable(playerInLobby)) =>
         //A player is unreachable
-        logInfo(ctx,s"Player: ${playerInLobby.userID} is unreachable")
+        logInfo(ctx, s"Player: ${playerInLobby.userID} is unreachable")
         //todo - decide if we want to wait some time before removing the player
         removePlayerFromGame(ctx, playerInLobby)
 
       case (ctx, LeaveTheGame()) =>
         //The user wants to leave the game
-        logInfo(ctx,s"Leaving ${game.code}, aborting game")
+        logInfo(ctx, s"Leaving ${game.code}, aborting game")
         if game.gameParameters.isPublic then
           ctx.spawnAnonymous(contactInReceptionistAndAsk
             (ServerKey)
@@ -387,7 +387,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
         timers.startTimerAtFixedRate(FailedToContactHost(), 60.seconds)
         withShared({
           case (ctx, YouJoinedTheGame(game)) =>
-            logInfo(ctx,s"Joined game: $game")
+            logInfo(ctx, s"Joined game: $game")
             connectionHandler ! ConnectionHandler.UpdateList(List(game.players.head))
             viewActorRef ! PreGameViewMessages.GameJoined(game)
             //Joined a game
@@ -400,7 +400,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
             joiningAGame
 
           case (ctx, FailedToContactHost()) =>
-            logInfo(ctx,"Failed to contact host")
+            logInfo(ctx, "Failed to contact host")
             timers.cancelAll()
             //todo - ask the view if wants to retry
             joiningAGame
@@ -412,7 +412,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
 
       case (ctx, ServerMessages.GamesList(games)) =>
         if games.nonEmpty then {
-          logInfo(ctx,s"Games found: $games")
+          logInfo(ctx, s"Games found: $games")
           viewActorRef ! PreGameViewMessages.GameList(games.toList)
         } else {
           logInfo(ctx, "No games found")
@@ -420,18 +420,19 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
         }
         Behaviors.same
 
-      case (ctx, JoinAddress(address)) =>
+      case (ctx, JoinWithGameCode(gameCode)) =>
 
         ctx.spawnAnonymous(contactInReceptionistAndAsk
-          (akka.actor.typed.receptionist.ServiceKey[Message](address))
+          (akka.actor.typed.receptionist.ServiceKey[Message](gameCode))
           (_ ! IWantToPlay(PlayerInLobby(userId, name, ctx.self), ctx.self))
-          //todo - add a specific message to viewActorRef
-          (() => viewActorRef ! PreGameViewMessages.FailedToPublishToServer()))
+          (() => viewActorRef ! PreGameViewMessages.FailedToPublishToServer())
+          // |todo - add a specific message to viewActorRef
+        )
 
         responseForJoining()
 
       case (ctx, JoinGame(game)) =>
-        logInfo(ctx,s"Trying to join game: ${game.code}")
+        logInfo(ctx, s"Trying to join game: ${game.code}")
         game.players.head.address ! IWantToPlay(PlayerInLobby(userId, name, ctx.self), ctx.self)
         responseForJoining()
 
@@ -446,32 +447,32 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
     withShared({
 
       case (ctx, UpdateAboutGame(game)) =>
-        logInfo(ctx,s"Game info update: ${game.code}")
+        logInfo(ctx, s"Game info update: ${game.code}")
         viewActorRef ! PreGameViewMessages.GameInfoUpdate(game)
         gameJoined(game)
 
       case (ctx, LeaveTheGame()) =>
-        logInfo(ctx,s"Leaving game: ${game.code}")
+        logInfo(ctx, s"Leaving game: ${game.code}")
         game.players.head.address ! IWantToLeaveTheGame(PlayerInLobby(userId, name, ctx.self))
         // todo - decide if waiting for a response or not
         connectionHandler ! ConnectionHandler.UpdateList(List())
         start
 
       case (ctx, GameCancelled()) =>
-        logInfo(ctx,s"Game: ${game.code} has been aborted")
+        logInfo(ctx, s"Game: ${game.code} has been aborted")
         viewActorRef ! PreGameViewMessages.GameAborted()
         connectionHandler ! ConnectionHandler.UpdateList(List())
         start
 
       case (ctx, PlayerUnreachable(playerInLobby)) =>
         //todo - for now the same as above, but we could wait some time before assume the game is aborted
-        logInfo(ctx,s"Game: ${game.code} has been aborted")
+        logInfo(ctx, s"Game: ${game.code} has been aborted")
         viewActorRef ! PreGameViewMessages.GameAborted()
         connectionHandler ! ConnectionHandler.UpdateList(List())
         start
 
       case (ctx, GameHasStarted(hostRef, gameInProgress)) =>
-        logInfo(ctx,s"Game has started: ${game.code}")
+        logInfo(ctx, s"Game has started: ${game.code}")
         hostRef ! SynchronizationAck(userId)
 
         viewActorRef ! PreGameViewMessages.GameStarted()
@@ -547,7 +548,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
         logInfo(ctx, s"Game has been cancelled, returning to initial phase")
         viewActorRef ! GameViewMessages.GameDeleted()
         returnToStart(ctx, gameCoordinator)
-        
+
     }, "preGamePhase")
   }
 
@@ -591,7 +592,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
 
             case (ctx, ElectionStarted(candidateRank, replyTo)) =>
               //another player is starting an election
-              logInfo(ctx,s"Election started by another player: $replyTo")
+              logInfo(ctx, s"Election started by another player: $replyTo")
               if myRank < candidateRank then {
                 //i have lower rank, so i can not accept the election
                 logInfo(ctx, s"My rank ($myRank) is lower than sender rank ($candidateRank), refusing his election")
@@ -630,31 +631,31 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
 
       // send by the host when it cannot synchronize all the players at the start of the game
       case (ctx, GameCancelled()) =>
-        logInfo(ctx,s"Game has been cancelled, returning to initial phase")
+        logInfo(ctx, s"Game has been cancelled, returning to initial phase")
         viewActorRef ! GameViewMessages.GameDeleted()
         returnToStart(ctx, gameCoordinator)
 
       case (ctx, TurnEnded(game, log)) =>
-        logInfo(ctx,s"My turn ended: ${this.userId}")
+        logInfo(ctx, s"My turn ended: ${this.userId}")
         otherPlayersOnline.map(_.playerInfo.address).foreach(_ ! GameInProgressUpdate(ctx.self, game, log))
         awaitSynchronization(ctx, otherPlayersOnline.map(_.playerInfo.userID), () => {
-          logInfo(ctx,s"All players synchronized after my turn, ${this.userId}, waiting for my turn again: ${game.code}")
-//          if ctx.self equals hostRef then checkNextTurn(gameCoordinator, game, ctx)
+          logInfo(ctx, s"All players synchronized after my turn, ${this.userId}, waiting for my turn again: ${game.code}")
+          //          if ctx.self equals hostRef then checkNextTurn(gameCoordinator, game, ctx)
           if ctx.self equals hostRef then gameCoordinator ! WhoIsPlayingRequest()
           inGameBehavior(gameCoordinator, playersStatus, hostRef)
         }, failures => {
           //todo - what to do if not all the players have synchronized?
-          logError(ctx,s"Some Players failed to synchronise: ${failures.mkString(", ")}, retrying for them")
+          logError(ctx, s"Some Players failed to synchronise: ${failures.mkString(", ")}, retrying for them")
           otherPlayersOnline.filter(p => failures.contains(p.playerInfo.userID)).map(_.playerInfo.address).foreach(_ ! GameInProgressUpdate(ctx.self, game, log))
           awaitSynchronization(ctx, failures, () => {
-            logInfo(ctx,s"All players synchronized after my turn, ${this.userId}, waiting for my turn again: ${game.code}")
+            logInfo(ctx, s"All players synchronized after my turn, ${this.userId}, waiting for my turn again: ${game.code}")
             //          if ctx.self equals hostRef then checkNextTurn(gameCoordinator, game, ctx)
             if ctx.self equals hostRef then gameCoordinator ! WhoIsPlayingRequest()
             inGameBehavior(gameCoordinator, playersStatus, hostRef)
           }, _ => {
             //If failed to synchronize
             //Brutal policy, we abort the game
-            logError(ctx,s"Failed to synchronize all players after retrying, aborting the game: ${game.code}")
+            logError(ctx, s"Failed to synchronize all players after retrying, aborting the game: ${game.code}")
             ctx.stop(gameCoordinator)
             otherPlayersOnline.map(_.playerInfo.address).foreach(_ ! GameCancelled())
             viewActorRef ! GameViewMessages.GameDeleted()
@@ -690,7 +691,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
         returnToStart(ctx, gameCoordinator)
 
       case (ctx, GameEnded()) =>
-        logInfo(ctx,s"Game has ended, returning to initial phase")
+        logInfo(ctx, s"Game has ended, returning to initial phase")
         returnToStart(ctx, gameCoordinator)
 
       // GAME LOGIC LEVEL MESSAGES - END
@@ -705,7 +706,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
               logInfo(ctx, s"Received unreachable for already offline player: ${p.playerInfo.userID}")
               inGameBehavior(gameCoordinator, playersStatus, hostRef)
             else {
-              logInfo(ctx,s"Player: ${playerInLobby.userID} is unreachable")
+              logInfo(ctx, s"Player: ${playerInLobby.userID} is unreachable")
 
               val onlineUpdate = playersStatus.map { ps =>
                 if ps.playerInfo.userID == playerInLobby.userID then
@@ -763,7 +764,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
         checkPlayerForTheTurn(currentPlayerID, ctx)
         Behaviors.same
 
-        // messages for test purpose
+      // messages for test purpose
       case (ctx, RemoveCheckPlayerStatus()) =>
         logInfo(ctx, s"Removing player status checking, clearing player list")
         connectionHandler ! ConnectionHandler.UpdateList(List())

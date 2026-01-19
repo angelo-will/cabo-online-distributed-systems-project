@@ -12,7 +12,7 @@ trait IPreGameViewListener {
 
   def joinGame(game: GameInConstruction): Unit
 
-  def joinWithAddress(address: String): Unit
+  def joinWithGameCode(gameCode: String): Unit
 
   def returnToStart(): Unit
 

@@ -113,8 +113,8 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(
     clientJoiner ! JoinAGame()
     probeClientJoiner.expectMessage(JoinAGame())
 
-    clientJoiner ! JoinAddress(hostPlayerID + "game")
-    probeClientJoiner.expectMessage(JoinAddress(hostPlayerID + "game"))
+    clientJoiner ! JoinWithGameCode(hostPlayerID + "game")
+    probeClientJoiner.expectMessage(JoinWithGameCode(hostPlayerID + "game"))
 
     probeClientHost.expectMessage(IWantToPlay(PlayerInLobby(joinerPlayerID, joinerName, clientJoiner), clientJoiner))
 
@@ -123,12 +123,12 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(
       case vp =>
         val m = vp.expectMessageType[GameInfoUpdate]
         assert(m.game.players.exists(p => p.userID == joinerPlayerID || p.userID == hostPlayerID))
-//        vp.receiveMessage() match {
-//          case GameInfoUpdate(game) =>
-//            assert(game.players.exists(p => p.userID == joinerPlayerID))
-//            assert(game.players.exists(p => p.userID == hostPlayerID))
-//          case _ => fail("Expected GameInfoUpdate message")
-//        }
+      //        vp.receiveMessage() match {
+      //          case GameInfoUpdate(game) =>
+      //            assert(game.players.exists(p => p.userID == joinerPlayerID))
+      //            assert(game.players.exists(p => p.userID == hostPlayerID))
+      //          case _ => fail("Expected GameInfoUpdate message")
+      //        }
     }
 
     probeClientJoiner.receiveMessage() match {
@@ -141,10 +141,10 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(
       case null => // do nothing
       case vp =>
         val m = vp.expectMessageType[FailedToPublishToServer]
-//        vp.receiveMessage() match {
-//          case FailedToPublishToServer() => // trying to find games
-//          case _ => fail("Joiner View expected message about server publishing")
-//        }
+      //        vp.receiveMessage() match {
+      //          case FailedToPublishToServer() => // trying to find games
+      //          case _ => fail("Joiner View expected message about server publishing")
+      //        }
     }
 
     clientJoinerView match {
@@ -152,12 +152,12 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(
       case vp =>
         val m = vp.expectMessageType[GameJoined]
         assert(m.game.players.exists(p => p.userID == joinerPlayerID || p.userID == hostPlayerID))
-//        vp.receiveMessage() match {
-//          case GameJoined(game) =>
-//            assert(game.players.exists(p => p.userID == joinerPlayerID))
-//            assert(game.players.exists(p => p.userID == hostPlayerID))
-//          case _ => fail("Expected GameJoined message")
-//        }
+      //        vp.receiveMessage() match {
+      //          case GameJoined(game) =>
+      //            assert(game.players.exists(p => p.userID == joinerPlayerID))
+      //            assert(game.players.exists(p => p.userID == hostPlayerID))
+      //          case _ => fail("Expected GameJoined message")
+      //        }
     }
 
   }
@@ -282,8 +282,8 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(
 
       val (hostPlayerID, _) = retrieveClientIdAndName(clientHost, probeClientHost)
 
-      clientTooJoiner ! JoinAddress(hostPlayerID + "game")
-      probeClientTooJoiner.expectMessageType[JoinAddress]
+      clientTooJoiner ! JoinWithGameCode(hostPlayerID + "game")
+      probeClientTooJoiner.expectMessageType[JoinWithGameCode]
 
       probeClientTooJoiner.receiveMessage() match {
         case YouCanNotJoinTheGame(game) =>

@@ -19,9 +19,9 @@ case class PreGameViewListener(ref: ActorRef[ClientCommand]) extends IPreGameVie
   override def joinGame(game: Game.GameInConstruction): Unit =
     ref ! ClientMessages.JoinGame(game)
 
-  override def joinWithAddress(address: String): Unit =
+  override def joinWithGameCode(gameCode: String): Unit =
     ref ! ClientMessages.JoinAGame()
-    ref ! ClientMessages.JoinAddress(address)
+    ref ! ClientMessages.JoinWithGameCode(gameCode)
 
   override def returnToStart(): Unit =
     ref ! ClientMessages.ReturnToStart()
