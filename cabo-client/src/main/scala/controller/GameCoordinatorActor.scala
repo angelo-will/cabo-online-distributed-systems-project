@@ -190,9 +190,6 @@ object GameCoordinatorActor:
   }
 
   private def myTurnAfterDrawFromDiscard(gameData: GameData, cardInHand: Card): Behavior[IGameCoordinatorMessage] = Behaviors.receivePartial {
-    // TODO: siccome una volta che si è presa la carta dalla pila degli scarti bisogna usarla,
-    //       allo scadere del tempo una carta a caso verrà sostituita.
-    //       Implementare questa cosa.
     handleDiscardOwnNthCard(gameData, cardInHand)
       .orElse(handleTurnTimeEnded(gameData))
       .orElse(sharedHandlers(gameData))
