@@ -300,7 +300,6 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
       case (ctx, IWantToLeaveTheGame(player)) =>
         //A player wants to leave the game
         logInfo(ctx, s"Player: ${player.userID} wants to leave the game: ${game.code}")
-        //todo - communicate to the view
         removePlayerFromGame(ctx, player)
 
       case (ctx, PlayerUnreachable(playerInLobby)) =>
@@ -382,7 +381,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
 
   private def joiningAGame: Behavior[Message] = {
 
-    def responseForJoining(): Behavior[Message] = {
+    def responseForJoining(gameCode: String): Behavior[Message] = {
       Behaviors.withTimers { timers =>
         timers.startTimerAtFixedRate(FailedToContactHost(), 60.seconds)
         withShared({
@@ -395,14 +394,15 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
 
           case (ctx, YouCanNotJoinTheGame(game)) =>
             logInfo(ctx, "Could not join game")
-            viewActorRef ! PreGameViewMessages.GameJoinedFailed(game.code)
+            viewActorRef ! PreGameViewMessages.GameJoinedFailed(gameCode)
             //Failed to join, waiting for other commands from the user
             joiningAGame
 
           case (ctx, FailedToContactHost()) =>
             logInfo(ctx, "Failed to contact host")
+            viewActorRef ! PreGameViewMessages.GameJoinedFailed(gameCode)
+            //Failed to join, waiting for other commands from the user
             timers.cancelAll()
-            //todo - ask the view if wants to retry
             joiningAGame
         })
       }
@@ -425,16 +425,22 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
         ctx.spawnAnonymous(contactInReceptionistAndAsk
           (akka.actor.typed.receptionist.ServiceKey[Message](gameCode))
           (_ ! IWantToPlay(PlayerInLobby(userId, name, ctx.self), ctx.self))
-          (() => viewActorRef ! PreGameViewMessages.FailedToPublishToServer())
-          // |todo - add a specific message to viewActorRef
+          (() => viewActorRef ! PreGameViewMessages.GameJoinedFailed(gameCode))
         )
 
-        responseForJoining()
+        responseForJoining(gameCode)
 
       case (ctx, JoinGame(game)) =>
         logInfo(ctx, s"Trying to join game: ${game.code}")
         game.players.head.address ! IWantToPlay(PlayerInLobby(userId, name, ctx.self), ctx.self)
-        responseForJoining()
+        responseForJoining(game.code)
+
+      case (ctx, JoinAGame()) =>
+        ctx.spawnAnonymous(contactInReceptionistAndAsk
+          (ServerKey)
+          (_ ! ServerMessages.GetGames(ctx.self))
+          (() => viewActorRef ! PreGameViewMessages.FailedToPublishToServer()))
+        joiningAGame
 
       case (ctx, ReturnToStart()) =>
         logInfo(ctx, "[joiningAGame] - Returning to start")
