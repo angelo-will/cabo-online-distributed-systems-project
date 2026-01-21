@@ -542,6 +542,64 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(
       testKit.stop(clientJoiner)
     }
 
+    "should be able to pass round around" in {
+
+      val (clientHost, probeClientHost, clientHostView) = createClientAndProbeWithView(hostId, hostName)
+
+      val (clientJoiner, probeClientJoiner, clientJoinerView) = createClientAndProbeWithView(joinerId, joinerName)
+
+      hostCreateGame(clientHost, probeClientHost, clientHostView = clientHostView)
+
+      joinHostGame(clientHost, probeClientHost, clientJoiner, probeClientJoiner, clientHostView, clientJoinerView)
+
+      val (h_id, _) = retrieveClientIdAndName(clientHost, probeClientHost)
+      val (j_id, _) = retrieveClientIdAndName(clientJoiner, probeClientJoiner)
+
+      var gameInProgress = createStubGameInProgress(round = 0, List(
+        PlayerPlaying(h_id, hostName, 0, null),
+        PlayerPlaying(j_id, joinerName, 1, null)
+      ))
+
+      val coordinatorProbe = testKit.createTestProbe[Message]()
+
+      startGame(clientHost, probeClientHost, clientHostView, List((clientJoiner, probeClientJoiner, clientJoinerView)), coordinatorProbe, gameInProgress)
+
+      clientHost ! TurnEnded(gameInProgress, null)
+      probeClientHost.expectMessage(TurnEnded(gameInProgress, null))
+
+      probeClientJoiner.expectMessageType[GameInProgressUpdate]
+
+      // simulate gameCoordinator sending TurnUpdated
+      clientJoiner ! TurnUpdated()
+      probeClientJoiner.expectMessage(TurnUpdated())
+
+      probeClientHost.receiveMessage(10.seconds) match {
+        case SynchronizationAck(id) if id.contains(joinerId) => // ok
+        case _ => fail("Host probe expected SynchronizationAck message")
+      }
+
+      gameInProgress = gameInProgress.copy(currentRound = 1)
+
+      clientJoiner ! TurnEnded(gameInProgress, null)
+      probeClientJoiner.expectMessage(TurnEnded(gameInProgress, null))
+
+      probeClientHost.expectMessage(GameInProgressUpdate(clientJoiner, gameInProgress, null))
+
+      // simulate gameCoordinator sending TurnUpdated
+      clientHost ! TurnUpdated()
+      probeClientHost.expectMessage(TurnUpdated())
+
+      val ack = probeClientJoiner.expectMessageType[SynchronizationAck](10.seconds)
+
+      assert(
+        ack.fromWho.contains(hostId),
+        s"Expected SynchronizationAck containing hostId '$hostId', but got '${ack.fromWho}'"
+      )
+
+      testKit.stop(clientHost)
+      testKit.stop(clientJoiner)
+    }
+
     "should be able to play with a true coordinator" in {
       val (clientHost, probeClientHost, clientHostView) = createClientAndProbeWithView(hostId, hostName)
 
@@ -614,8 +672,9 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(
 
       //END PREPHASE_______________________________________________________
 
-      //simulate first turn played by host
+      //simulate first turn played by host, for test purposes we just end the turn by time ended
       clientHostView.expectMessageType[GameViewMessages.StartTurnPlayer]
+      hostCoo ! GameCoordinatorMessage.TurnTimeEnded()
       clientHostView.expectMessageType[GameViewMessages.EndTurnByTimeEnded](30.seconds)
       probeClientHost.expectMessageType[TurnEnded](30.seconds)
       probeClientJoiner.expectMessageType[GameInProgressUpdate]
@@ -629,7 +688,8 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(
         s"Expected WhoIsPlaying containing joinerId '$joinerId', but got '${m_id.playerID}'"
       )
 
-      //simulate first turn played by joiner
+      //simulate first turn played by joiner, for test purposes we just end the turn by time ended
+      joinerCoo ! GameCoordinatorMessage.TurnTimeEnded()
       probeClientJoiner.expectMessageType[TurnEnded](30.seconds)
       probeClientHost.expectMessageType[GameInProgressUpdate]
       probeClientHost.expectMessageType[TurnUpdated]
@@ -642,64 +702,6 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(
       )
 
       probeClientJoiner.expectMessageType[SynchronizationAck]
-
-      testKit.stop(clientHost)
-      testKit.stop(clientJoiner)
-    }
-
-    "should be able to pass round around" in {
-
-      val (clientHost, probeClientHost, clientHostView) = createClientAndProbeWithView(hostId, hostName)
-
-      val (clientJoiner, probeClientJoiner, clientJoinerView) = createClientAndProbeWithView(joinerId, joinerName)
-
-      hostCreateGame(clientHost, probeClientHost, clientHostView = clientHostView)
-
-      joinHostGame(clientHost, probeClientHost, clientJoiner, probeClientJoiner, clientHostView, clientJoinerView)
-
-      val (h_id, _) = retrieveClientIdAndName(clientHost, probeClientHost)
-      val (j_id, _) = retrieveClientIdAndName(clientJoiner, probeClientJoiner)
-
-      var gameInProgress = createStubGameInProgress(round = 0, List(
-        PlayerPlaying(h_id, hostName, 0, null),
-        PlayerPlaying(j_id, joinerName, 1, null)
-      ))
-
-      val coordinatorProbe = testKit.createTestProbe[Message]()
-
-      startGame(clientHost, probeClientHost, clientHostView, List((clientJoiner, probeClientJoiner, clientJoinerView)), coordinatorProbe, gameInProgress)
-
-      clientHost ! TurnEnded(gameInProgress, null)
-      probeClientHost.expectMessage(TurnEnded(gameInProgress, null))
-
-      probeClientJoiner.expectMessageType[GameInProgressUpdate]
-
-      // simulate gameCoordinator sending TurnUpdated
-      clientJoiner ! TurnUpdated()
-      probeClientJoiner.expectMessage(TurnUpdated())
-
-      probeClientHost.receiveMessage(10.seconds) match {
-        case SynchronizationAck(id) if id.contains(joinerId) => // ok
-        case _ => fail("Host probe expected SynchronizationAck message")
-      }
-
-      gameInProgress = gameInProgress.copy(currentRound = 1)
-
-      clientJoiner ! TurnEnded(gameInProgress, null)
-      probeClientJoiner.expectMessage(TurnEnded(gameInProgress, null))
-
-      probeClientHost.expectMessage(GameInProgressUpdate(clientJoiner, gameInProgress, null))
-
-      // simulate gameCoordinator sending TurnUpdated
-      clientHost ! TurnUpdated()
-      probeClientHost.expectMessage(TurnUpdated())
-
-      val ack = probeClientJoiner.expectMessageType[SynchronizationAck](10.seconds)
-
-      assert(
-        ack.fromWho.contains(hostId),
-        s"Expected SynchronizationAck containing hostId '$hostId', but got '${ack.fromWho}'"
-      )
 
       testKit.stop(clientHost)
       testKit.stop(clientJoiner)
