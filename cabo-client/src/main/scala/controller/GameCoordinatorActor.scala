@@ -129,7 +129,7 @@ object GameCoordinatorActor:
 
     if cardSeenRemaining <= 0 then
       println(s"GCoord actor of ${gameData.playerOwnUserID}, sending StartPlayPhase to ${gameData.viewReference}")
-      gameData.clientReference ! CLMsg.IntialPhaseCompleted(gameData.turnLog)
+      gameData.clientReference ! CLMsg.InitialPhaseCompleted(gameData.turnLog)
       gameData.viewReference ! DGVMsg.WaitAfterRevealingSection()
       waitStartPlayCycle(gameData)
     else

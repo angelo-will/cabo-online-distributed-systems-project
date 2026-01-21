@@ -19,7 +19,7 @@ object GameViewMessages {
    *
    * @param revealingLog
    */
-  case class RevealingCardsPhaseAdversaryLog(revealingLog: TurnLog) extends IGameViewMessage
+  case class PreCyclePhaseAdversaryLog(revealingLog: TurnLog) extends IGameViewMessage
 
   /**
    * Notify to actor that revealing section is ended and it's time to wait for others.

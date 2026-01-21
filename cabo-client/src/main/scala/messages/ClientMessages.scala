@@ -88,7 +88,7 @@ object ClientMessages {
 
   case class DuringGameViewReady(viewRef: ActorRef[IGameViewMessage]) extends ClientCommand
 
-  case class IntialPhaseCompleted(turnLog: TurnLog) extends ClientCommand
+  case class InitialPhaseCompleted(turnLog: TurnLog) extends ClientCommand
 
   case class GameEnded() extends ClientCommand
 

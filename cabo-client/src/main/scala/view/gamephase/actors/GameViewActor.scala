@@ -268,8 +268,8 @@ private class GameViewActor private(
   }
 
   private def handleAdversariesRevealingLog(context: GameContext)(actualState: String): PartialFunction[IGameViewMessage, Behavior[IGameViewMessage]] = {
-    case RevealingCardsPhaseAdversaryLog(revealingLog) =>
-      log(actualState, s"Handling RevealingCardsPhaseAdversaryLog with message: ${RevealingCardsPhaseAdversaryLog(revealingLog)}")
+    case PreCyclePhaseAdversaryLog(revealingLog) =>
+      log(actualState, s"Handling RevealingCardsPhaseAdversaryLog with message: ${PreCyclePhaseAdversaryLog(revealingLog)}")
       context.ui.updateRevealingLog(revealingLog)
       Behaviors.same
   }

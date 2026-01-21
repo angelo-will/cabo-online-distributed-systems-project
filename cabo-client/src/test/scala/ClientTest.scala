@@ -218,18 +218,18 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(
     //In preGame phase
 
     // simulate gameCoordinator sending RevealingCardsPhaseLog in host
-    clientHost ! IntialPhaseCompleted(null)
-    probeClientHost.expectMessage(IntialPhaseCompleted(null))
+    clientHost ! InitialPhaseCompleted(null)
+    probeClientHost.expectMessage(InitialPhaseCompleted(null))
 
     joiners.foreach { case (clientJoiner, probeClientJoiner, clientJoinerView) =>
       // simulate gameCoordinator sending RevealingCardsPhaseLog in joiners
-      clientJoiner ! IntialPhaseCompleted(null)
-      probeClientJoiner.expectMessageType[IntialPhaseCompleted]
+      clientJoiner ! InitialPhaseCompleted(null)
+      probeClientJoiner.expectMessageType[InitialPhaseCompleted]
     }
 
     // host receives the log of the other clients
     probeClientHost.receiveMessages(joiners.size).foreach {
-      case IntialPhaseCompleted(_) => // ok
+      case InitialPhaseCompleted(_) => // ok
       case _ => fail("Host probe expected logs message")
     }
 
@@ -641,7 +641,7 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(
       clientHostView.expectMessageType[CardSeen]
 
       // responses from the coordinator after showing cards
-      probeClientHost.expectMessageType[IntialPhaseCompleted]
+      probeClientHost.expectMessageType[InitialPhaseCompleted]
       clientHostView.expectMessageType[WaitAfterRevealingSection]
 
       //same for joiner
@@ -650,20 +650,20 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(
       joinerCoo ! GameCoordinatorMessage.ShowOwnNthCard(0)
       clientJoinerView.expectMessageType[CardSeen]
 
-      probeClientJoiner.expectMessageType[IntialPhaseCompleted]
+      probeClientJoiner.expectMessageType[InitialPhaseCompleted]
       clientJoinerView.expectMessageType[WaitAfterRevealingSection]
 
       //host receives the log of the other clients
-      probeClientHost.expectMessageType[IntialPhaseCompleted]
+      probeClientHost.expectMessageType[InitialPhaseCompleted]
 
       //host has seen all the logs
-      clientHostView.expectMessageType[RevealingCardsPhaseAdversaryLog]
-      clientHostView.expectMessageType[RevealingCardsPhaseAdversaryLog]
+      clientHostView.expectMessageType[PreCyclePhaseAdversaryLog]
+      clientHostView.expectMessageType[PreCyclePhaseAdversaryLog]
 
       //host respond with all the logs and joiner receives them
       probeClientJoiner.expectMessageType[AllTheLogs]
-      clientJoinerView.expectMessageType[RevealingCardsPhaseAdversaryLog]
-      clientJoinerView.expectMessageType[RevealingCardsPhaseAdversaryLog]
+      clientJoinerView.expectMessageType[PreCyclePhaseAdversaryLog]
+      clientJoinerView.expectMessageType[PreCyclePhaseAdversaryLog]
 
       //joiner ack the reception of all the logs
       probeClientHost.expectMessageType[SynchronizationAck]

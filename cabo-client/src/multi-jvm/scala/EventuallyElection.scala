@@ -12,7 +12,7 @@ import controller.Client.*
 import messages.{ClientMessages, Message}
 import org.scalatest.concurrent.Eventually.eventually
 import org.scalatest.concurrent.Futures.{interval, timeout}
-import messages.ClientMessages.{JoinWithGameCode, IntialPhaseCompleted, StartTheGame, TakeGetInProgressGame}
+import messages.ClientMessages.{JoinWithGameCode, InitialPhaseCompleted, StartTheGame, TakeGetInProgressGame}
 
 import scala.concurrent.Await
 import scala.concurrent.duration.DurationInt
@@ -88,8 +88,8 @@ abstract class EventuallyElection extends MultiNodeSpec(MultiNodeConfig) with ST
         //preGamePhase
         enterBarrier("pre-game-phase")
 
-        client ! IntialPhaseCompleted(null)
-        probeClient.expectMessageType[IntialPhaseCompleted]
+        client ! InitialPhaseCompleted(null)
+        probeClient.expectMessageType[InitialPhaseCompleted]
 
         enterBarrier("all-the-logs-sent")
 
@@ -153,12 +153,12 @@ abstract class EventuallyElection extends MultiNodeSpec(MultiNodeConfig) with ST
         //preGamePhase
 
         //simulate revealing cards phase for host player
-        host ! IntialPhaseCompleted(null)
-        probeHost.expectMessageType[IntialPhaseCompleted]
+        host ! InitialPhaseCompleted(null)
+        probeHost.expectMessageType[InitialPhaseCompleted]
 
         //receive log of other clients
-        probeHost.expectMessageType[IntialPhaseCompleted]
-        probeHost.expectMessageType[IntialPhaseCompleted]
+        probeHost.expectMessageType[InitialPhaseCompleted]
+        probeHost.expectMessageType[InitialPhaseCompleted]
 
         enterBarrier("all-the-logs-sent")
 
@@ -204,8 +204,8 @@ abstract class EventuallyElection extends MultiNodeSpec(MultiNodeConfig) with ST
         //preGamePhase
         enterBarrier("pre-game-phase")
 
-        client ! IntialPhaseCompleted(null)
-        probeClient.expectMessageType[IntialPhaseCompleted]
+        client ! InitialPhaseCompleted(null)
+        probeClient.expectMessageType[InitialPhaseCompleted]
 
         enterBarrier("all-the-logs-sent")
 
