@@ -276,10 +276,11 @@ object GameCoordinatorActor:
   }
 
   private def handleWhoIsPlaying(gameData: GameData): PartialFunction[(ActorContext[IGameCoordinatorMessage], IGameCoordinatorMessage), Behavior[IGameCoordinatorMessage]] = {
-    case (ctx, GCMsg.WhoIsPlayingRequest()) =>
+    case (ctx, GCMsg.WhoIsPlayingRequest(replyTo)) =>
       val playerIDHaveToPlay = getPlayerIDWhoHasToPlay(gameData.game)
       ctx.log.info(s"WhoIsPlayingRequest received, playerID: $playerIDHaveToPlay is playing")
-      gameData.clientReference ! CLMsg.WhoIsPlaying(playerIDHaveToPlay)
+      // to respect the ask pattern, we have to reply to the sender
+      replyTo ! CLMsg.WhoIsPlaying(playerIDHaveToPlay)
       Behaviors.same
   }
 

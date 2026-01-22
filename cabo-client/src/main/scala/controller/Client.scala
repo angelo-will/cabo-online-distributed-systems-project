@@ -1,8 +1,9 @@
 package controller
 
 import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
+import akka.actor.typed.scaladsl.AskPattern.*
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
-import akka.actor.typed.{ActorRef, Behavior}
+import akka.actor.typed.{ActorRef, Behavior, Scheduler}
 import akka.cluster.ClusterEvent.MemberExited
 import akka.util.Timeout
 import messages.*
@@ -13,7 +14,9 @@ import model.Game.{GameInConstruction, GameInProgress}
 import model.{GameParameters, PlayerInLobby, PlayerPlaying, TurnLog}
 
 import java.util.UUID
+import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.DurationInt
+import scala.util.Success
 
 object Client:
 
@@ -147,6 +150,13 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
               timers.startSingleTimer(FailedToSynchronize(), 5.seconds)
               Behaviors.same
             }
+          case PlayerUnreachable(playerInLobby) =>
+            // if a player is unreachable, we remove it from the list of players to wait for and then re-queue the message to be handled when the
+            // synchronization is over by the nextBehavior
+            logInfo(ctx, s"Player: ${playerInLobby.userID} is unreachable during synchronization")
+            checkSync = checkSync.updatedWith(playerInLobby.userID)({ case None => None case Some(v) => Some(true) })
+            ctx.self ! PlayerUnreachable(playerInLobby)
+            Behaviors.same
           case other =>
             logInfo(ctx, s"Stashing message while waiting for synchronization: $other")
             buffer.stash(other)
@@ -557,7 +567,21 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
 
     implicit val timeout: Timeout = 5.seconds
 
-    def otherPlayersOnline = playersStatus.filterNot(p => !p.isOnline || p.playerInfo.userID.equals(this.userId))
+    def otherPlayers = playersStatus.filterNot(p => p.playerInfo.userID.equals(this.userId))
+
+    def AskCoordinatorNextPlayer(ctx: ActorContext[Message]): Unit = {
+      given timeout: Timeout = 3.seconds
+      given scheduler: Scheduler = ctx.system.scheduler
+      given ec: ExecutionContext = ctx.executionContext
+
+      // use pipeToSelf to be sure to manage the response after the awaitSynchronization messages
+      ctx.pipeToSelf(
+        gameCoordinator.ask[WhoIsPlaying](WhoIsPlayingRequest(_))
+      ) {
+        case Success(value) => value
+        case _ => WhoIsPlaying("error")
+      }
+    }
 
     // used by the host to check if who has the next turn is online, if not, it will skip the turn
     def checkPlayerForTheTurn(id: String, ctx: ActorContext[Message]): Unit = {
@@ -602,8 +626,8 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
 
             case (ctx, ElectionWon()) =>
               logInfo(ctx, s"I won the election, becoming the new host")
-              otherPlayersOnline.foreach(_.playerInfo.address ! NewHostElected(ctx.self))
-              gameCoordinator ! WhoIsPlayingRequest()
+              otherPlayers.foreach(_.playerInfo.address ! NewHostElected(ctx.self))
+              gameCoordinator ! WhoIsPlayingRequest(ctx.self)
               buffer.unstashAll(inGameBehavior(gameCoordinator, playersStatus, ctx.self))
 
             case (ctx, NewHostElected(replyTo)) =>
@@ -630,42 +654,35 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
         returnToStart(ctx, gameCoordinator)
 
       case (ctx, TurnEnded(game, log)) =>
-        logInfo(ctx, s"My turn ended: ${this.userId}")
-        otherPlayersOnline.map(_.playerInfo.address).foreach(_ ! GameInProgressUpdate(ctx.self, game, log))
-        awaitSynchronization(ctx, otherPlayersOnline.map(_.playerInfo.userID), () => {
-          logInfo(ctx, s"All players synchronized after my turn, ${this.userId}, waiting for my turn again: ${game.code}")
-          if ctx.self equals hostRef then gameCoordinator ! WhoIsPlayingRequest()
-          inGameBehavior(gameCoordinator, playersStatus, hostRef)
-        }, failures => {
-          //todo - what to do if not all the players have synchronized?
-          logError(ctx, s"Some Players failed to synchronise: ${failures.mkString(", ")}, retrying for them")
-          otherPlayersOnline.filter(p => failures.contains(p.playerInfo.userID)).map(_.playerInfo.address).foreach(_ ! GameInProgressUpdate(ctx.self, game, log))
-          awaitSynchronization(ctx, failures, () => {
+        logInfo(ctx, s"My turn ended: ${this.userId}, round: ${game.currentRound}")
+        otherPlayers.map(_.playerInfo.address).foreach(_ ! GameInProgressUpdate(ctx.self, game, log))
+
+        awaitSynchronization(ctx, otherPlayers.map(_.playerInfo.userID),
+          () => {
             logInfo(ctx, s"All players synchronized after my turn, ${this.userId}, waiting for my turn again: ${game.code}")
-            if ctx.self equals hostRef then gameCoordinator ! WhoIsPlayingRequest()
-            inGameBehavior(gameCoordinator, playersStatus, hostRef)
-          }, _ => {
-            //If failed to synchronize
-            //Brutal policy, we abort the game
-            logError(ctx, s"Failed to synchronize all players after retrying, aborting the game: ${game.code}")
-            ctx.stop(gameCoordinator)
-            otherPlayersOnline.map(_.playerInfo.address).foreach(_ ! GameCancelled())
-            viewActorRef ! GameViewMessages.GameDeleted()
-            returnToStart(ctx, gameCoordinator)
-          })
-          Behaviors.same
+            AskCoordinatorNextPlayer(ctx)
+            val onlineUpdate = playersStatus.map(_.copy(isOnline = true))
+            inGameBehavior(gameCoordinator, onlineUpdate, hostRef)
+          },
+          failures => {
+            //todo - what to do if is the host?
+            logError(ctx, s"Some Players failed to synchronise: ${failures.mkString(", ")}, retrying for them")
+            val onlineUpdate = playersStatus.collect {
+              case ps if failures.contains(ps.playerInfo.userID) && ps.isOnline =>
+                ps.copy(isOnline = false)
+            }
+            AskCoordinatorNextPlayer(ctx)
+            inGameBehavior(gameCoordinator, onlineUpdate, hostRef)
         })
 
       case (ctx, GameInProgressUpdate(replyTo, game, log)) =>
-        logInfo(ctx, s"Game info update")
+        logInfo(ctx, s"Game info update, is turn: ${game.currentRound}")
         gameCoordinator ! GameCoordinatorMessage.LastTurnPlayed(game, log)
         Behaviors.withStash(50) { buffer =>
           withShared({
             case (ctx, TurnUpdated()) =>
               logInfo(ctx, s"GameCoordinator updated the turn")
               replyTo ! SynchronizationAck(userId)
-              // the host checks if the next player is online
-              if ctx.self equals hostRef then gameCoordinator ! WhoIsPlayingRequest()
               buffer.unstashAll(inGameBehavior(gameCoordinator, playersStatus, hostRef))
 
             case (ctx, other) =>
@@ -677,7 +694,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
 
       case (ctx, LeaveTheGame()) =>
         logInfo(ctx, s"Leaving game, informing other players like I am unreachable")
-        otherPlayersOnline.foreach(_.playerInfo.address ! PlayerUnreachable(PlayerInLobby(userId, name, ctx.self)))
+        otherPlayers.foreach(_.playerInfo.address ! PlayerUnreachable(PlayerInLobby(userId, name, ctx.self)))
         returnToStart(ctx, gameCoordinator)
 
       case (ctx, GameEnded()) =>
@@ -722,7 +739,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
                   onlineUpdate.filter(p => !p.playerInfo.userID.equals(this.userId) && p.isOnline && p.rank < myRank).foreach(_.playerInfo.address ! ElectionStarted(myRank, ctx.self))
                   inElectionBehavior(myRank)
                 } else {
-                  if ctx.self equals hostRef then gameCoordinator ! WhoIsPlayingRequest()
+                  if ctx.self equals hostRef then AskCoordinatorNextPlayer(ctx)
                   inGameBehavior(gameCoordinator, onlineUpdate, hostRef)
                 }
               }
@@ -733,13 +750,14 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
       case (ctx, ElectionStarted(candidateRank, replyTo)) =>
         //another player is starting an election
         logInfo(ctx, s"Election started by another player: $replyTo")
+        //todo - correct the -1
         val myRank = playersStatus.find(_.playerInfo.userID == userId).map(_.rank).getOrElse(-1)
         if myRank < candidateRank then {
           //I have lower rank, so I cannot accept the election
           logInfo(ctx, s"My rank ($myRank) is lower than sender rank ($candidateRank), refusing election")
           replyTo ! NoYouCanNot()
           // I start my own election
-          otherPlayersOnline.filter(_.rank < myRank).foreach(_.playerInfo.address ! ElectionStarted(myRank, ctx.self))
+          otherPlayers.filter(_.rank < myRank).foreach(_.playerInfo.address ! ElectionStarted(myRank, ctx.self))
           inElectionBehavior(myRank)
         } else {
           inGameBehavior(gameCoordinator, playersStatus, hostRef)

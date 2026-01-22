@@ -1,7 +1,8 @@
 package messages
 
 import akka.actor.typed.ActorRef
-import model.{Card, Game, TurnLog}
+import messages.ClientMessages.WhoIsPlaying
+import model.{Game, TurnLog}
 
 object GameCoordinatorMessage:
   /**
@@ -89,7 +90,7 @@ object GameCoordinatorMessage:
   /**
    * Request to know who is playing the turn currently
    */
-  case class WhoIsPlayingRequest() extends IGameCoordinatorSyncMessage
+  case class WhoIsPlayingRequest(replyTo: ActorRef[WhoIsPlaying]) extends IGameCoordinatorSyncMessage
 
   // FOR TESTING
 

@@ -691,17 +691,18 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(
       //simulate first turn played by joiner, for test purposes we just end the turn by time ended
       joinerCoo ! GameCoordinatorMessage.TurnTimeEnded()
       probeClientJoiner.expectMessageType[TurnEnded](30.seconds)
-      probeClientHost.expectMessageType[GameInProgressUpdate]
-      probeClientHost.expectMessageType[TurnUpdated]
+
+      probeClientJoiner.expectMessageType[SynchronizationAck]
 
       //host receives who is the next player
-      m_id = probeClientHost.expectMessageType[WhoIsPlaying](10.seconds)
+      m_id = probeClientJoiner.expectMessageType[WhoIsPlaying](10.seconds)
       assert(
         m_id.playerID.contains(hostId),
         s"Expected WhoIsPlaying containing hostId '$hostId', but got '${m_id.playerID}'"
       )
 
-      probeClientJoiner.expectMessageType[SynchronizationAck]
+      probeClientHost.expectMessageType[GameInProgressUpdate]
+      probeClientHost.expectMessageType[TurnUpdated]
 
       testKit.stop(clientHost)
       testKit.stop(clientJoiner)
