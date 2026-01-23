@@ -246,6 +246,12 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(
 
   }
 
+  def stopAndWait(ref: ActorRef[Message]): Unit = {
+    val probe = testKit.createTestProbe[Message]()
+    testKit.stop(ref)
+    probe.expectTerminated(ref)
+  }
+
   "A client" should {
     "be able to join a game created by another player" in {
 
@@ -260,8 +266,8 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(
       // Remove the game from the receptionist
       clientHost ! LeaveTheGame()
 
-      testKit.stop(clientHost)
-      testKit.stop(clientJoiner)
+      stopAndWait(clientHost)
+      stopAndWait(clientJoiner)
     }
 
     "not be able to join a game that is already full" in {
@@ -295,9 +301,9 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(
 
       clientHost ! LeaveTheGame()
 
-      testKit.stop(clientHost)
-      testKit.stop(clientJoiner)
-      testKit.stop(clientTooJoiner)
+      stopAndWait(clientHost)
+      stopAndWait(clientJoiner)
+      stopAndWait(clientTooJoiner)
     }
 
     "receive a notification when another player joins the game" in {
@@ -329,9 +335,9 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(
       // Remove the game from the receptionist
       clientHost ! LeaveTheGame()
 
-      testKit.stop(clientHost)
-      testKit.stop(clientJoiner)
-      testKit.stop(clientTooJoiner)
+      stopAndWait(clientHost)
+      stopAndWait(clientJoiner)
+      stopAndWait(clientTooJoiner)
     }
 
     "be able to leave a joined game" in {
@@ -358,9 +364,9 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(
       // Remove the game from the receptionist
       clientHost ! LeaveTheGame()
 
-      testKit.stop(clientHost)
-      testKit.stop(clientJoiner)
-      testKit.stop(clientTooJoiner)
+      stopAndWait(clientHost)
+      stopAndWait(clientJoiner)
+      stopAndWait(clientTooJoiner)
     }
 
     "be notified if someone leave the game" in {
@@ -400,9 +406,9 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(
       // Remove the game from the receptionist
       clientHost ! LeaveTheGame()
 
-      testKit.stop(clientHost)
-      testKit.stop(clientJoiner)
-      testKit.stop(clientTooJoiner)
+      stopAndWait(clientHost)
+      stopAndWait(clientJoiner)
+      stopAndWait(clientTooJoiner)
     }
 
     "should receive an abort notification if the host leaves the game" in {
@@ -424,9 +430,9 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(
       // The joiner should receive an abort notification
       probeClientJoiner.expectMessage(GameCancelled())
 
-      testKit.stop(clientHost)
-      testKit.stop(clientJoiner)
-      testKit.stop(clientTooJoiner)
+      stopAndWait(clientHost)
+      stopAndWait(clientJoiner)
+      stopAndWait(clientTooJoiner)
     }
 
     "should be able to enter a game using an 'address' (code)" in {
@@ -442,8 +448,8 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(
       // Remove the game from the receptionist
       clientHost ! LeaveTheGame()
 
-      testKit.stop(clientHost)
-      testKit.stop(clientJoiner)
+      stopAndWait(clientHost)
+      stopAndWait(clientJoiner)
     }
 
     "should be able to change the name of the player" in {
@@ -491,7 +497,7 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(
 
       assert(m.userID.contains(hostId) && (m.name equals newCoolName))
 
-      testKit.stop(clientHost)
+      stopAndWait(clientHost)
     }
 
     "should be able to start a game with a false coordinator" in {
@@ -516,8 +522,8 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(
 
       startGame(clientHost, probeClientHost, clientHostView, List((clientJoiner, probeClientJoiner, clientJoinerView)), coordinatorProbe, gameInProgress)
 
-      testKit.stop(clientHost)
-      testKit.stop(clientJoiner)
+      stopAndWait(clientHost)
+      stopAndWait(clientJoiner)
     }
 
     "should be able to start a game with a true coordinator" in {
@@ -538,8 +544,8 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(
 
       probeClientJoiner.expectMessageType[GameHasStarted]
 
-      testKit.stop(clientHost)
-      testKit.stop(clientJoiner)
+      stopAndWait(clientHost)
+      stopAndWait(clientJoiner)
     }
 
     "should be able to pass round around" in {
@@ -596,8 +602,8 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(
         s"Expected SynchronizationAck containing hostId '$hostId', but got '${ack.fromWho}'"
       )
 
-      testKit.stop(clientHost)
-      testKit.stop(clientJoiner)
+      stopAndWait(clientHost)
+      stopAndWait(clientJoiner)
     }
 
     "should be able to play with a true coordinator" in {
@@ -704,7 +710,7 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(
       probeClientHost.expectMessageType[GameInProgressUpdate]
       probeClientHost.expectMessageType[TurnUpdated]
 
-      testKit.stop(clientHost)
-      testKit.stop(clientJoiner)
+      stopAndWait(clientHost)
+      stopAndWait(clientJoiner)
     }
   }
