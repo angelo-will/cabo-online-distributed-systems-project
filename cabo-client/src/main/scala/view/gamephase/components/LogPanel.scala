@@ -2,8 +2,7 @@ package view.gamephase.components
 
 import model.{TurnEvent, TurnLog}
 
-import java.awt.{Color, Font as AwtFont}
-import javax.swing.BorderFactory
+import java.awt.Font as AwtFont
 import scala.swing.{ScrollPane, TextArea}
 
 class LogPanel extends ScrollPane {
@@ -24,7 +23,10 @@ class LogPanel extends ScrollPane {
   }
 
   def updateLastTurnLog(log: TurnLog): Unit = {
-    this.logTextArea.text = "Last turn played:\n" + TurnLogsWriter.simpleTurnLog(log)
+    if log.events.contains(TurnEvent.JumpTurnForTimerEnded()) || log.events.contains(TurnEvent.JumpTurnForDisconnection()) then 
+      this.logTextArea.text += "Last turn played:\n" + TurnLogsWriter.simpleTurnLog(log)
+    else
+      this.logTextArea.text = "Last turn played:\n" + TurnLogsWriter.simpleTurnLog(log)
   }
 }
 
@@ -49,10 +51,10 @@ private object TurnLogsWriter:
         string += s"- changed its card $itsCardIndex with $adversaryID's $adversaryCardIndex one;\n"
       case TurnEvent.OwnCardDiscarded(card, index) => string += s"- kept card drawn and discarded $index-th card. That's $card;\n"
       case TurnEvent.CardDrawnDiscarded(card) => string += s"- discarded drawn card $card;\n"
-      case TurnEvent.EndTurn() => ""
-      case TurnEvent.CaboCalled() => string += s"- has called CABO!"
-      case TurnEvent.JumpTurnForTimerEnded() => string += s"- ended its turn for timer ended."
-      case TurnEvent.JumpTurnForDisconnection() => string += s"- jumped its turn for disconnection."
+      case TurnEvent.EndTurn() => "\n"
+      case TurnEvent.CaboCalled() => string += s"- has called CABO!\n"
+      case TurnEvent.JumpTurnForTimerEnded() => string += s"- ended its turn for timer ended.\n"
+      case TurnEvent.JumpTurnForDisconnection() => string += s"- jumped its turn for disconnection.\n"
     }
     string
   }
