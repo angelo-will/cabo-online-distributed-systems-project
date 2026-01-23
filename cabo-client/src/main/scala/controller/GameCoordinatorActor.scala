@@ -272,11 +272,11 @@ object GameCoordinatorActor:
       val log = new PlayCycleTurnLog(UserBase(userID, nameOfPlayer), actualTurn)
       log.addEvent(TurnEvent.JumpTurnForDisconnection())
       gameData.clientReference ! CLMsg.TurnEnded(gameTurnUpdated, log)
-      val x = gameData.copy(
-        game = gameData.game.copy(currentRound = actualTurn + 1),
-        temporaryGame = gameData.game.copy(currentRound = actualTurn + 1)
+      val newGameData = gameData.copy(
+        game = gameData.game.copy(currentRound = actualTurn),
+        temporaryGame = gameData.game.copy(currentRound = actualTurn)
       )
-      notMyTurn(x)
+      updateNewTurn(newGameData.game, log, newGameData)
   }
 
   private def handleWhoIsPlaying(gameData: GameData): PartialFunction[(ActorContext[IGameCoordinatorMessage], IGameCoordinatorMessage), Behavior[IGameCoordinatorMessage]] = {

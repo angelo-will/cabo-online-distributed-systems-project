@@ -599,7 +599,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
       }
     }
 
-    def inElectionBehavior(myRank: Int): Behavior[Message] = {
+    def inElectionBehavior(myRank: Int, playersStatus: List[PlayerStatus]): Behavior[Message] = {
       Behaviors.withStash(50) { buffer =>
         Behaviors.withTimers { timers =>
           timers.startSingleTimer(ElectionWon(), 5.seconds)
@@ -617,7 +617,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
                 logInfo(ctx, s"My rank ($myRank) is lower than sender rank ($candidateRank), refusing his election")
                 replyTo ! NoYouCanNot()
                 // reset the election to give time to the others to align
-                buffer.unstashAll(inElectionBehavior(myRank))
+                buffer.unstashAll(inElectionBehavior(myRank, playersStatus))
               } else {
                 logInfo(ctx, s"My rank ($myRank) is higher than sender rank ($candidateRank), accepting his election")
                 timers.cancelAll()
@@ -627,7 +627,8 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
             case (ctx, ElectionWon()) =>
               logInfo(ctx, s"I won the election, becoming the new host")
               otherPlayers.foreach(_.playerInfo.address ! NewHostElected(ctx.self))
-              gameCoordinator ! WhoIsPlayingRequest(ctx.self)
+//              gameCoordinator ! WhoIsPlayingRequest(ctx.self)
+              AskCoordinatorNextPlayer(ctx)
               buffer.unstashAll(inGameBehavior(gameCoordinator, playersStatus, ctx.self))
 
             case (ctx, NewHostElected(replyTo)) =>
@@ -668,8 +669,9 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
             //todo - what to do if is the host?
             logError(ctx, s"Some Players failed to synchronise: ${failures.mkString(", ")}, retrying for them")
             val onlineUpdate = playersStatus.collect {
-              case ps if failures.contains(ps.playerInfo.userID) && ps.isOnline =>
+              case ps if failures.contains(ps.playerInfo.userID) =>
                 ps.copy(isOnline = false)
+              case ps => ps
             }
             AskCoordinatorNextPlayer(ctx)
             inGameBehavior(gameCoordinator, onlineUpdate, hostRef)
@@ -737,7 +739,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
                   //start election
                   val myRank = playersStatus.find(_.playerInfo.userID == userId).map(_.rank).getOrElse(-1)
                   onlineUpdate.filter(p => !p.playerInfo.userID.equals(this.userId) && p.isOnline && p.rank < myRank).foreach(_.playerInfo.address ! ElectionStarted(myRank, ctx.self))
-                  inElectionBehavior(myRank)
+                  inElectionBehavior(myRank, onlineUpdate)
                 } else {
                   if ctx.self equals hostRef then AskCoordinatorNextPlayer(ctx)
                   inGameBehavior(gameCoordinator, onlineUpdate, hostRef)
@@ -758,7 +760,13 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
           replyTo ! NoYouCanNot()
           // I start my own election
           otherPlayers.filter(_.rank < myRank).foreach(_.playerInfo.address ! ElectionStarted(myRank, ctx.self))
-          inElectionBehavior(myRank)
+          val onlineUpdate = playersStatus.map { ps =>
+            if ps.playerInfo.address equals hostRef then
+              ps.copy(isOnline = false)
+            else
+              ps
+          }
+          inElectionBehavior(myRank, onlineUpdate)
         } else {
           inGameBehavior(gameCoordinator, playersStatus, hostRef)
         }
