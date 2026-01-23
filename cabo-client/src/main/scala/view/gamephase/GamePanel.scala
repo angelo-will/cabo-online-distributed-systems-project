@@ -8,8 +8,7 @@ import view.gamephase.dialogs.{DisplayEndingResultsDialog, AllOpponentsDisconnec
 import view.gamephase.dialogs.DisplayEndingResultsDialog.*
 import view.gamephase.traits.{IGameView, IGameViewUserCommandListener}
 
-import java.awt.{Color, GridBagLayout, Font as AwtFont}
-import javax.swing.BorderFactory
+import java.awt.Font as AwtFont
 import scala.swing.GridBagPanel.Fill
 import scala.swing.*
 import scala.swing.event.ButtonClicked
@@ -59,6 +58,7 @@ class GamePanel(viewListener: IGameViewUserCommandListener, gameInProgress: GPro
 
   private var caboHasCalled = false
   private val c = new Constraints
+  private val userName = gameInProgress.getPlayerWithID(userID).name
 
   //  peer.setBorder(BorderFactory.createLineBorder(Color.CYAN, 3))
 
@@ -69,7 +69,7 @@ class GamePanel(viewListener: IGameViewUserCommandListener, gameInProgress: GPro
     .map(p => p.userID -> new PlayerPanel(p.name, index => viewListener.adversaryCardSelected(p.userID, index)))
     .toMap
 
-  private val playerPanel = new PlayerPanel("YOU", n => viewListener.ownCardSelected(n))
+  private val playerPanel = new PlayerPanel(userName, n => viewListener.ownCardSelected(n))
   playerPanel.enableCardsButton(true)
 
   // Game Info
