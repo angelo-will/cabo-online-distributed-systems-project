@@ -20,6 +20,7 @@ object TurnEvent:
       new JsonSubTypes.Type(value = classOf[TurnEvent.CaboCalled], name = "caboCalled"),
       new JsonSubTypes.Type(value = classOf[TurnEvent.EndTurn], name = "endTurn"),
       new JsonSubTypes.Type(value = classOf[TurnEvent.JumpTurnForTimerEnded], name = "jumpTurnForTimerEnded"),
+      new JsonSubTypes.Type(value = classOf[TurnEvent.JumpTurnForDisconnection], name = "jumpTurnForDisconnection"),
     )
   )
   sealed trait TurnEvent extends Message
