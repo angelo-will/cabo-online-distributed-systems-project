@@ -46,10 +46,6 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(
 
   override def afterAll(): Unit = testKit.shutdownTestKit()
 
-  def correctPlayerID(name: String, ref: ActorRef[Message]): String = {
-    name + ref.path.address.hashCode()
-  }
-
   def retrieveClientIdAndName(client: ActorRef[Message], clientProbe: TestProbe[Message]): (String, String) = {
 
     val probe = testKit.createTestProbe[Message]()
@@ -66,13 +62,13 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(
   def createClientAndProbeWithView(id: String = "ClientID", name: String = "ClientName"): (ActorRef[Message], TestProbe[Message], TestProbe[Message]) = {
     val probe = testKit.createTestProbe[Message]()
     val viewProbe = testKit.createTestProbe[Message]()
-    val client = testKit.spawn(Behaviors.monitor(probe.ref, Client(id, name, viewProbe.ref)), id)
+    val client = testKit.spawn(Behaviors.monitor(probe.ref, Client(id, name, viewProbe.ref)))
     (client, probe, viewProbe)
   }
 
   def createClientAndProbe(id: String = "ClientID", name: String = "ClientName"): (ActorRef[Message], TestProbe[Message]) = {
     val probe = testKit.createTestProbe[Message]()
-    val client = testKit.spawn(Behaviors.monitor(probe.ref, Client(id, name)), id)
+    val client = testKit.spawn(Behaviors.monitor(probe.ref, Client(id, name)))
     (client, probe)
   }
 
