@@ -9,7 +9,7 @@ import view.gamephase.actors.GameViewActor
 
 object ViewsProxyActor {
 
-  case class SwitchToInitialView() extends IViewMessage
+  case class SwitchToInitialView(userName: String) extends IViewMessage
 
   case class SwitchToGameView() extends IViewMessage
 
@@ -32,7 +32,7 @@ private class ViewsProxyActor(ctx: ActorContext[IViewMessage], userId: String, u
       case SwitchToGameView() =>
         ctx.log.info("Switching to GAME View")
         val actorName = s"DuringGameView-$userId-${System.currentTimeMillis()}"
-        val gameView= ctx.spawn(GameViewActor(userId, clientRef, null), actorName)
+        val gameView = ctx.spawn(GameViewActor(userId, clientRef, null), actorName)
         game(gameView)
       case msg: IPreGameViewMessage =>
         currentView ! msg
@@ -45,7 +45,7 @@ private class ViewsProxyActor(ctx: ActorContext[IViewMessage], userId: String, u
 
   private def game(currentView: ActorRef[IGameViewMessage]): Behavior[IViewMessage] = {
     Behaviors.receiveMessage {
-      case SwitchToInitialView() =>
+      case SwitchToInitialView(userName) =>
         ctx.log.info("Switching to INITIAL View")
         ctx.stop(currentView)
         val actorName = s"InitialView-$userId-${System.currentTimeMillis()}"

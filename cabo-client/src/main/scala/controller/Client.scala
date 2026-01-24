@@ -559,7 +559,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
   private def returnToStart[T](ctx: ActorContext[Message], toStop: ActorRef[T]) = {
     ctx.stop(toStop)
     connectionHandler ! ConnectionHandler.UpdateList(List())
-    viewActorRef ! ViewsProxyActor.SwitchToInitialView()
+    viewActorRef ! ViewsProxyActor.SwitchToInitialView(name)
     start
   }
 
