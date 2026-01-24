@@ -23,6 +23,7 @@ enum DialogType:
   case WaitingAccessToGameOfUser extends DialogType
 
 class PreGameMainFrame(val viewListener: IPreGameViewListener, val playerName: String) extends MainFrame:
+  private val CODE_FOR_WAITING_CREATION_DIALOG = "WaitingCreationDialog"
   val screenSize: Dimension = Toolkit.getDefaultToolkit.getScreenSize
   val screenWidth: Int = screenSize.getWidth.toInt
   val screenHeight: Int = screenSize.getHeight.toInt
@@ -44,7 +45,8 @@ class PreGameMainFrame(val viewListener: IPreGameViewListener, val playerName: S
     }
   })
 
-  private val dialogsMap: scala.collection.mutable.Map[DialogType, Dialog] = scala.collection.mutable.Map.empty
+//  private val dialogsMap: scala.collection.mutable.Map[DialogType, Dialog] = scala.collection.mutable.Map.empty
+  private val dialogsMap: scala.collection.mutable.Map[String, Dialog] = scala.collection.mutable.Map.empty
 
 
   private val containerPanel = new BoxPanel(Orientation.Vertical) {
@@ -55,8 +57,8 @@ class PreGameMainFrame(val viewListener: IPreGameViewListener, val playerName: S
     (makePublic: Boolean, maxTimeRound: Int, maxNumRound: Int, maxPlayers: Int) => {
       SwingUtilities.invokeLater(() => {
         viewListener.createGame(makePublic, maxTimeRound, maxNumRound, maxPlayers)
-        dialogsMap(DialogType.WaitingCreationGame) = new WaitingCreationGameDialog()
-        dialogsMap(DialogType.WaitingCreationGame).open()
+        dialogsMap(CODE_FOR_WAITING_CREATION_DIALOG) = new WaitingCreationGameDialog()
+        dialogsMap(CODE_FOR_WAITING_CREATION_DIALOG).open()
       })
     }
   )
@@ -65,8 +67,8 @@ class PreGameMainFrame(val viewListener: IPreGameViewListener, val playerName: S
     new IListGamesListener {
       override def joinGame(game: Game.GameInConstruction): Unit = {
         viewListener.joinGame(game)
-        dialogsMap(DialogType.WaitingAccessToGameOfUser) = new WaitingAccessToGameDialog()
-        dialogsMap(DialogType.WaitingAccessToGameOfUser).open()
+        dialogsMap(game.code) = new WaitingAccessToGameDialog()
+        dialogsMap(game.code).open()
       }
 
       override def updateGamesList(): Unit = {
@@ -82,8 +84,8 @@ class PreGameMainFrame(val viewListener: IPreGameViewListener, val playerName: S
       override def joinWithGameCode(gameCode: String): Unit = {
         SwingUtilities.invokeLater(() => {
           viewListener.joinWithGameCode(gameCode)
-          dialogsMap(DialogType.WaitingAccessToGameFromServer) = new WaitingAccessToGameDialog()
-          dialogsMap(DialogType.WaitingAccessToGameFromServer).open()
+          dialogsMap(gameCode) = new WaitingAccessToGameDialog()
+          dialogsMap(gameCode).open()
         })
       }
 
@@ -143,12 +145,17 @@ class PreGameMainFrame(val viewListener: IPreGameViewListener, val playerName: S
 
   def userFailedToEnterInTheGame(gameCode: String): Unit =
     SwingUtilities.invokeLater(() =>
-      Dialog.showMessage(
-        parent = this,
-        message = s"Error: Impossible to enter in the game with code ${gameCode}.",
-        title = "Error entering game",
-        messageType = Dialog.Message.Error
-      )
+      dialogsMap.get(gameCode) match
+        case Some(dialog) =>
+          dialog.dispose()
+          dialogsMap.remove(gameCode)
+          Dialog.showMessage(
+            parent = this,
+            message = s"Error: Impossible to enter in the game with code ${gameCode}.",
+            title = "Error entering game",
+            messageType = Dialog.Message.Error
+          )
+        case None => println(s"No dialog found for game code: ${gameCode}")
     )
 
   def gameStarted(): Unit =
