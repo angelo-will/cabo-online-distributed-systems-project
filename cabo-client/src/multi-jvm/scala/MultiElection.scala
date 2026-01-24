@@ -107,7 +107,7 @@ abstract class MultiElection extends MultiNodeSpec(MultiNodeConfig) with STMulti
 
         enterBarrier("host4-removed")
 
-        val m = probeClient.expectMessageType[ElectionStarted]
+        val m = probeClient.expectMessageType[ElectionStarted](10.seconds)
         assert((m.replyTo.toString.toLowerCase contains "client4-2") && m.candidateRank == 3)
 
         probeClient.expectMessageType[ElectionWon](10.seconds)
@@ -227,7 +227,7 @@ abstract class MultiElection extends MultiNodeSpec(MultiNodeConfig) with STMulti
 
         enterBarrier("host4-removed")
 
-        val m = probeClient.expectMessageType[PlayerUnreachable]
+        val m = probeClient.expectMessageType[PlayerUnreachable](10.seconds)
 
         assert(m.playerInLobby.userID contains "host4")
 

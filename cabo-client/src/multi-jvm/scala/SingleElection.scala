@@ -103,7 +103,7 @@ abstract class SingleElection extends MultiNodeSpec(MultiNodeConfig) with STMult
 
         testConductor.exit(node2, 0)
 
-        val m = probeClient.expectMessageType[PlayerUnreachable]
+        val m = probeClient.expectMessageType[PlayerUnreachable](10.seconds)
 
         assert(m.playerInLobby.userID contains "host3")
 
