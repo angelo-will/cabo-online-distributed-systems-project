@@ -266,17 +266,11 @@ object GameCoordinatorActor:
       updateNewTurn(game, turnLog, gameData)
     case (ctx, GCMsg.GetEmptyTurn(userID)) =>
       ctx.log.info(s"GetEmptyTurn received")
-      val actualTurn = gameData.game.currentRound
-      val gameTurnUpdated = gameData.game.copy(currentRound = actualTurn)
       val nameOfPlayer = gameData.game.getPlayerWithID(userID).name
-      val log = new PlayCycleTurnLog(UserBase(userID, nameOfPlayer), actualTurn)
+      val log = new PlayCycleTurnLog(UserBase(userID, nameOfPlayer), gameData.game.currentRound)
       log.addEvent(TurnEvent.JumpTurnForDisconnection())
-      gameData.clientReference ! CLMsg.TurnEnded(gameTurnUpdated, log)
-      val newGameData = gameData.copy(
-        game = gameData.game.copy(currentRound = actualTurn),
-        temporaryGame = gameData.game.copy(currentRound = actualTurn)
-      )
-      updateNewTurn(newGameData.game, log, newGameData)
+      gameData.clientReference ! CLMsg.TurnEnded(gameData.game, log)
+      updateNewTurn(gameData.game, log, gameData)
   }
 
   private def handleWhoIsPlaying(gameData: GameData): PartialFunction[(ActorContext[IGameCoordinatorMessage], IGameCoordinatorMessage), Behavior[IGameCoordinatorMessage]] = {
@@ -371,8 +365,10 @@ object GameCoordinatorActor:
         newGameData.viewReference ! DGVMsg.LastTurnPlayed(turnLog, actualGame)
         newGameData.viewReference ! DGVMsg.StartTurnPlayer(playerIDHaveToPlay)
         if isMyTurnNext then
+          println(s"Game CoordinatorActor - it's my turn next!")
           myTurnBeforeDraw(newGameData)
         else
+          println(s"Game CoordinatorActor - it's NOT my turn next!")
           notMyTurn(newGameData)
       case _ => transitionToShowingResults(isGameEnded, newGameData, turnLog)
   }

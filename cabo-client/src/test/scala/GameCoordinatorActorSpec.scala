@@ -166,7 +166,7 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
         endTurnByTime()
         skipViewProbeMessage()
         skipClientProbeMessage()
-        gameCoordinatorActor ! GCMessage.LastTurnPlayed(game, new PlayCycleTurnLog(UserBase("",""), 0))
+        gameCoordinatorActor ! GCMessage.LastTurnPlayed(game, new PlayCycleTurnLog(UserBase("", ""), 0))
         viewProbe.expectMessageType[GameViewMessages.LastTurnPlayed]
       }
     }
@@ -177,7 +177,7 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
         endTurnByTime()
         skipViewProbeMessage()
         skipClientProbeMessage()
-        gameCoordinatorActor ! GCMessage.LastTurnPlayed(game, new PlayCycleTurnLog(UserBase("",""), 0))
+        gameCoordinatorActor ! GCMessage.LastTurnPlayed(game, new PlayCycleTurnLog(UserBase("", ""), 0))
         clientProbe.expectMessageType[ClientMessages.TurnUpdated]
       }
     }
@@ -197,9 +197,14 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
       "drawn card with power to show one of own card" in {
         val game00 = jumpToFirstTurnAndGetGame()
         endMyTurnForMaxTimeReached()
+
         val card = CardStack.buildSortedFullDeck.cards.find(_.power == Power.SeeYourCard()).get
-        val game01 = game00.copy(deckStack = CardStack(List(card)))
-        jumpRoundsUntilMyTurnAgain(game01)
+        val game01 = game00.copy(currentRound = 0, deckStack = CardStack(List(card)))
+        gameCoordinatorActor ! GCMessage.LastTurnPlayed(game01, new PlayCycleTurnLog(UserBase("", ""), 0))
+        clientProbe.expectMessageType[ClientMessages.TurnUpdated]
+        viewProbe.expectMessageType[GameViewMessages.LastTurnPlayed]
+        viewProbe.expectMessageType[GameViewMessages.StartTurnPlayer]
+
         val cardDrawn = drawAngGetCardFromDeck()
         val cardIndex = 0
         val cardToSee = game01.getPlayerWithID(userID).hand.cards(cardIndex)
@@ -212,8 +217,13 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
         val game00 = jumpToFirstTurnAndGetGame()
         endMyTurnForMaxTimeReached()
         val card = CardStack.buildSortedFullDeck.cards.find(_.power == Power.SeeYourOpponentCard()).get
-        val game01 = game00.copy(deckStack = CardStack(List(card)))
-        jumpRoundsUntilMyTurnAgain(game01)
+        val game01 = game00.copy(currentRound = 0, deckStack = CardStack(List(card)))
+        gameCoordinatorActor ! GCMessage.LastTurnPlayed(game01, new PlayCycleTurnLog(UserBase("", ""), 0))
+
+        clientProbe.expectMessageType[ClientMessages.TurnUpdated]
+        viewProbe.expectMessageType[GameViewMessages.LastTurnPlayed]
+        viewProbe.expectMessageType[GameViewMessages.StartTurnPlayer]
+
         val cardDrawn = drawAngGetCardFromDeck()
         val adversaryID = game01.players.find(_.userID != userID).get.userID
         val cardIndex = 0
@@ -227,8 +237,13 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
         val game00 = jumpToFirstTurnAndGetGame()
         endMyTurnForMaxTimeReached()
         val card = CardStack.buildSortedFullDeck.cards.find(_.power == Power.ChangeOneOfYourCardWithOpponent()).get
-        val game01 = game00.copy(deckStack = CardStack(List(card)))
-        jumpRoundsUntilMyTurnAgain(game01)
+        val game01 = game00.copy(currentRound = 0, deckStack = CardStack(List(card)))
+        gameCoordinatorActor ! GCMessage.LastTurnPlayed(game01, new PlayCycleTurnLog(UserBase("", ""), 0))
+
+        clientProbe.expectMessageType[ClientMessages.TurnUpdated]
+        viewProbe.expectMessageType[GameViewMessages.LastTurnPlayed]
+        viewProbe.expectMessageType[GameViewMessages.StartTurnPlayer]
+
         val cardDrawn = drawAngGetCardFromDeck()
 
         val adversaryID = game01.players.find(_.userID != userID).get.userID
@@ -271,7 +286,7 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
         viewProbe.expectMessageType[GameViewMessages.LastTurnPlayed]
         viewProbe.expectMessageType[GameViewMessages.StartTurnPlayer]
         val game = ended.game.copy(currentRound = ended.game.currentRound + 1)
-        gameCoordinatorActor ! GCMessage.LastTurnPlayed(game, new PlayCycleTurnLog(UserBase("",""), 0))
+        gameCoordinatorActor ! GCMessage.LastTurnPlayed(game, new PlayCycleTurnLog(UserBase("", ""), 0))
         clientProbe.expectMessageType[ClientMessages.TurnUpdated]
         viewProbe.expectMessageType[GameViewMessages.LastTurnPlayed]
         viewProbe.expectMessageType[GameViewMessages.GameEndedByCabo]
@@ -290,7 +305,7 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
         val newRound = ended.game.currentRound + 1
         val emptyDeck = CardStack.buildEmptyDeck
         val game = ended.game.copy(deckStack = emptyDeck, currentRound = ended.game.currentRound + 1)
-        gameCoordinatorActor ! GCMessage.LastTurnPlayed(game, new PlayCycleTurnLog(UserBase("",""), 0))
+        gameCoordinatorActor ! GCMessage.LastTurnPlayed(game, new PlayCycleTurnLog(UserBase("", ""), 0))
         clientProbe.expectMessageType[ClientMessages.TurnUpdated]
         viewProbe.expectMessageType[GameViewMessages.LastTurnPlayed]
         viewProbe.expectMessageType[GameViewMessages.GameEndedByEmptyDeck]
@@ -307,7 +322,7 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
         viewProbe.expectMessageType[GameViewMessages.LastTurnPlayed]
         viewProbe.expectMessageType[GameViewMessages.StartTurnPlayer]
         val game = ended.game.copy(currentRound = 100)
-        gameCoordinatorActor ! GCMessage.LastTurnPlayed(game, new PlayCycleTurnLog(UserBase("",""), 0))
+        gameCoordinatorActor ! GCMessage.LastTurnPlayed(game, new PlayCycleTurnLog(UserBase("", ""), 0))
         clientProbe.expectMessageType[ClientMessages.TurnUpdated]
         viewProbe.expectMessageType[GameViewMessages.LastTurnPlayed]
         viewProbe.expectMessageType[GameViewMessages.GameEndedByTurnsLimit]
@@ -371,22 +386,6 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
     gameCoordinatorActor ! GCMessage.StartPlayCycle()
     viewProbe.expectMessageType[GameViewMessages.StartTurnPlayer]
     game
-  }
-
-  @tailrec
-  private def jumpRoundsUntilMyTurnAgain(newGameState: GameInProgress, maxCycle: Int = 5): GameInProgress = {
-    gameCoordinatorActor ! GCMessage.GetEmptyTurn(userID)
-    val turnEnded = clientProbe.expectMessageType[ClientMessages.TurnEnded]
-    val x = newGameState.copy(currentRound = turnEnded.game.currentRound)
-
-    gameCoordinatorActor ! GCMessage.LastTurnPlayed(x, turnEnded.turnLog)
-    clientProbe.expectMessageType[ClientMessages.TurnUpdated]
-    viewProbe.expectMessageType[GameViewMessages.LastTurnPlayed]
-    val startTurnMsg = viewProbe.expectMessageType[GameViewMessages.StartTurnPlayer]
-
-    if startTurnMsg.playerID == userID then x
-    else if maxCycle <= 0 then throw new RuntimeException("Max cycle reached in jumpRoundsUntilMyTurnAgain to avoid infinite recursion.")
-    else jumpRoundsUntilMyTurnAgain(newGameState, maxCycle - 1)
   }
 
   private def reqGameInformation() =
