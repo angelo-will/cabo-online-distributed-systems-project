@@ -51,8 +51,6 @@ abstract class SingleElection extends MultiNodeSpec(MultiNodeConfig) with STMult
     }
 
     "change host if the host disconnects with a single election" in {
-      // This test can be implemented similarly by having the host disconnect and verifying that another player is promoted to host.
-
       // node1 is a joinee because node2 will be the host and disconnect
       runOn(node1) {
         // Client code

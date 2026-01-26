@@ -78,8 +78,6 @@ abstract class DisconnectionNotify extends MultiNodeSpec(MultiNodeConfig) with S
         testConductor.exit(node2, 0)
 
         probeHost.expectMessageType[PlayerUnreachable]
-
-        //        enterBarrier("player-disconnected")
       }
 
       runOn(node2) {
@@ -107,15 +105,12 @@ abstract class DisconnectionNotify extends MultiNodeSpec(MultiNodeConfig) with S
         probeClient.expectMessageType[YouJoinedTheGame]
 
         enterBarrier("player-joined")
-
-        //        enterBarrier("player-disconnected")
       }
 
       runOn(node3) {
         enterBarrier("host-game-created")
         enterBarrier("join-message-sent")
         enterBarrier("player-joined")
-        //        enterBarrier("player-disconnected")
       }
     }
     enterBarrier("test-completed")

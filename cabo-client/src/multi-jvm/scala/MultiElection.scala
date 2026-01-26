@@ -173,11 +173,6 @@ abstract class MultiElection extends MultiNodeSpec(MultiNodeConfig) with STMulti
 
         // theoretically not necessary but to keep the barriers aligned
         enterBarrier("removed-host-check")
-
-        //        host ! LeaveTheGame()
-        //
-        //        enterBarrier("host4-removed")
-
       }
 
       runOn(node3) {
