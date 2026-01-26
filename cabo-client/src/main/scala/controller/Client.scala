@@ -4,7 +4,7 @@ import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
 import akka.actor.typed.scaladsl.AskPattern.*
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior, Scheduler}
-import akka.cluster.ClusterEvent.MemberExited
+import akka.cluster.ClusterEvent.MemberRemoved
 import akka.util.Timeout
 import messages.*
 import messages.ClientMessages.*
@@ -79,7 +79,7 @@ object Client:
       case null => ctx.spawn(ViewsProxyActor(clientID, name, ctx.self), "views-manager")
       case ref => ref
     }
-    val connectionHandler = ctx.spawn(ConnectionHandler[MemberExited](ctx.self), "ConnectionHandler")
+    val connectionHandler = ctx.spawn(ConnectionHandler[MemberRemoved](ctx.self), "ConnectionHandler")
 
     new Client(clientID, name, viewActorRef, connectionHandler).start
   }
