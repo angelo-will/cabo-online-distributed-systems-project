@@ -70,7 +70,7 @@ object Client:
   case class AllTheLogs(logs: List[TurnLog]) extends ClientInternalCommand
 
   //  case class PlayerStatus(playerID: String, address: ActorRef[ClientInternalCommand], rank: Int, isOnline: Boolean)
-  case class PlayerStatus(playerInfo: PlayerInLobby, rank: Int, isOnline: Boolean)
+  case class PlayerStatus(playerInfo: PlayerInLobby, rank: Int, isOnline: Boolean, hasLeft: Boolean)
 
   def apply(userId: String = "Player", name: String = "defaultCoolName", optionalViewActor: ActorRef[IViewMessage] = null): Behavior[Message] = Behaviors.setup { ctx =>
     //    val clientID = userId+ctx.self.path.address.hashCode()
@@ -234,7 +234,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
 
     playersInLobby.flatMap { a =>
       rankById.get(a.userID).map { r =>
-        PlayerStatus(a, r._2, true)
+        PlayerStatus(a, r._2, true, false)
       }
     }
   }
@@ -513,6 +513,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
         }, _ => {
           //If failed to synchronize
           //Brutal policy, we abort the game
+          // todo - can we continue with the hasLeft property?
           logError(ctx, s"Failed to synchronize all players after revealing cards phase, aborting the game")
           ctx.stop(gameCoordinator)
           otherPlayersOnline.map(_.playerInfo.address).foreach(_ ! GameCancelled())
@@ -567,7 +568,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
 
     implicit val timeout: Timeout = 5.seconds
 
-    def otherPlayers = playersStatus.filterNot(p => p.playerInfo.userID.equals(this.userId))
+    def otherPlayersInGame = playersStatus.filterNot(p => p.playerInfo.userID.equals(this.userId) || p.hasLeft)
 
     def AskCoordinatorNextPlayer(ctx: ActorContext[Message]): Unit = {
       given timeout: Timeout = 3.seconds
@@ -587,7 +588,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
     def checkPlayerForTheTurn(id: String, ctx: ActorContext[Message]): Unit = {
       playersStatus.find(_.playerInfo.userID equals id) match {
         case Some(value) =>
-          if (!value.isOnline) {
+          if (!value.isOnline || value.hasLeft) {
             logInfo(ctx, s"Turn for offline player: ${value.playerInfo.userID}, skipping turn")
             gameCoordinator ! GameCoordinatorMessage.GetEmptyTurn(value.playerInfo.userID)
           } else {
@@ -626,8 +627,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
 
             case (ctx, ElectionWon()) =>
               logInfo(ctx, s"I won the election, becoming the new host")
-              otherPlayers.foreach(_.playerInfo.address ! NewHostElected(ctx.self))
-//              gameCoordinator ! WhoIsPlayingRequest(ctx.self)
+              otherPlayersInGame.foreach(_.playerInfo.address ! NewHostElected(ctx.self))
               AskCoordinatorNextPlayer(ctx)
               buffer.unstashAll(inGameBehavior(gameCoordinator, playersStatus, ctx.self))
 
@@ -645,6 +645,30 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
       }
     }
 
+    def checkContinue(ctx: ActorContext[Message], playerInLobby: PlayerInLobby, onlineUpdate: List[PlayerStatus]) = {
+      if onlineUpdate.count(p => p.isOnline || !p.hasLeft) < 2 then {
+        logInfo(ctx, s"Less than 2 players online, aborting the game")
+        viewActorRef ! GameViewMessages.AllOpponentsDisconnected()
+        Behaviors.same
+      } else {
+        viewActorRef ! GameViewMessages.OpponentDisconnected(playerInLobby)
+
+        // inform connection handler to check the status for only those who are online
+        connectionHandler ! ConnectionHandler.UpdateList(onlineUpdate.filter(_.isOnline).map(_.playerInfo))
+
+        if playerInLobby.address equals hostRef then {
+          logInfo(ctx, s"Player: ${playerInLobby.userID} was the host, starting election")
+          //start election
+          val myRank = playersStatus.find(_.playerInfo.userID == userId).map(_.rank).getOrElse(-1)
+          onlineUpdate.filter(p => !p.playerInfo.userID.equals(this.userId) && p.isOnline && p.rank < myRank).foreach(_.playerInfo.address ! ElectionStarted(myRank, ctx.self))
+          inElectionBehavior(myRank, onlineUpdate)
+        } else {
+          if ctx.self equals hostRef then AskCoordinatorNextPlayer(ctx)
+          inGameBehavior(gameCoordinator, onlineUpdate, hostRef)
+        }
+      }
+    }
+
     withShared({
       // GAME LOGIC LEVEL MESSAGES - START
 
@@ -656,17 +680,16 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
 
       case (ctx, TurnEnded(game, log)) =>
         logInfo(ctx, s"My turn ended: ${this.userId}, round: ${game.currentRound}")
-        otherPlayers.map(_.playerInfo.address).foreach(_ ! GameInProgressUpdate(ctx.self, game, log))
+        otherPlayersInGame.map(_.playerInfo.address).foreach(_ ! GameInProgressUpdate(ctx.self, game, log))
 
-        awaitSynchronization(ctx, otherPlayers.map(_.playerInfo.userID),
+        awaitSynchronization(ctx, otherPlayersInGame.map(_.playerInfo.userID),
           () => {
             logInfo(ctx, s"All players synchronized after my turn, ${this.userId}, waiting for my turn again: ${game.code}")
             AskCoordinatorNextPlayer(ctx)
-            val onlineUpdate = playersStatus.map(_.copy(isOnline = true))
-            inGameBehavior(gameCoordinator, onlineUpdate, hostRef)
+            // if all players synchronized, set all to online, because now for me they are all reachable
+            inGameBehavior(gameCoordinator, playersStatus.map(_.copy(isOnline = true)), hostRef)
           },
           failures => {
-            //todo - what to do if is the host?
             logError(ctx, s"Some Players failed to synchronise: ${failures.mkString(", ")}, retrying for them")
             val onlineUpdate = playersStatus.collect {
               case ps if failures.contains(ps.playerInfo.userID) =>
@@ -695,9 +718,19 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
         }
 
       case (ctx, LeaveTheGame()) =>
-        logInfo(ctx, s"Leaving game, informing other players like I am unreachable")
-        otherPlayers.foreach(_.playerInfo.address ! PlayerUnreachable(PlayerInLobby(userId, name, ctx.self)))
+        logInfo(ctx, s"Leaving game normally")
+        otherPlayersInGame.foreach(_.playerInfo.address ! IWantToLeaveTheGame(PlayerInLobby(userId, name, ctx.self)))
         returnToStart(ctx, gameCoordinator)
+
+      case (ctx, IWantToLeaveTheGame(player)) =>
+        logInfo(ctx, s"Player: ${player.userID} wants to leave the game")
+        val updatedStatus = playersStatus.map { ps =>
+          if ps.playerInfo.userID == player.userID then
+            ps.copy(hasLeft = true, isOnline = false)
+          else
+            ps
+        }
+        checkContinue(ctx, player, updatedStatus)
 
       case (ctx, GameEnded()) =>
         logInfo(ctx, s"Game has ended, returning to initial phase")
@@ -724,27 +757,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
                   ps
               }
 
-              if onlineUpdate.count(_.isOnline) < 2 then {
-                logInfo(ctx, s"Less than 2 players online, aborting the game")
-                viewActorRef ! GameViewMessages.AllOpponentsDisconnected()
-                Behaviors.same
-              } else {
-                viewActorRef ! GameViewMessages.OpponentDisconnected(playerInLobby)
-
-                // inform connection handler to check the status for only those who are online
-                connectionHandler ! ConnectionHandler.UpdateList(onlineUpdate.filter(_.isOnline).map(_.playerInfo))
-
-                if p.playerInfo.address equals hostRef then {
-                  logInfo(ctx, s"Player: ${playerInLobby.userID} was the host, starting election")
-                  //start election
-                  val myRank = playersStatus.find(_.playerInfo.userID == userId).map(_.rank).getOrElse(-1)
-                  onlineUpdate.filter(p => !p.playerInfo.userID.equals(this.userId) && p.isOnline && p.rank < myRank).foreach(_.playerInfo.address ! ElectionStarted(myRank, ctx.self))
-                  inElectionBehavior(myRank, onlineUpdate)
-                } else {
-                  if ctx.self equals hostRef then AskCoordinatorNextPlayer(ctx)
-                  inGameBehavior(gameCoordinator, onlineUpdate, hostRef)
-                }
-              }
+              checkContinue(ctx, playerInLobby, onlineUpdate)
             }
         }
 
@@ -759,7 +772,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
           logInfo(ctx, s"My rank ($myRank) is lower than sender rank ($candidateRank), refusing election")
           replyTo ! NoYouCanNot()
           // I start my own election
-          otherPlayers.filter(_.rank < myRank).foreach(_.playerInfo.address ! ElectionStarted(myRank, ctx.self))
+          otherPlayersInGame.filter(_.rank < myRank).foreach(_.playerInfo.address ! ElectionStarted(myRank, ctx.self))
           val onlineUpdate = playersStatus.map { ps =>
             if ps.playerInfo.address equals hostRef then
               ps.copy(isOnline = false)

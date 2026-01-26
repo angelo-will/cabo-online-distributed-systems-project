@@ -19,6 +19,9 @@ import messages.GameCoordinatorMessage.*
 import messages.GameViewMessages.*
 import messages.{GameCoordinatorMessage, GameViewMessages, IGameCoordinatorMessage, Message}
 import messages.PreGameViewMessages.*
+import model.TurnEvent.JumpTurnForDisconnection
+import org.scalatest.concurrent.Eventually.eventually
+import org.scalatest.concurrent.Futures.{interval, timeout}
 
 class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(
   """
@@ -249,6 +252,138 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(
   }
 
   "A client" should {
+
+    "be able to leave while playing" in {
+
+      val (clientHost, probeClientHost, hostView) = createClientAndProbeWithView(hostId, hostName)
+      val (clientJoiner, probeClientJoiner, joinerView) = createClientAndProbeWithView(joinerId, joinerName)
+      val (clientTooJoiner, probeClientTooJoiner, joinerTooView) = createClientAndProbeWithView(joinerTooId, joinerTooName)
+
+      hostCreateGame(clientHost, probeClientHost, hostView)
+
+      joinHostGame(clientHost, probeClientHost, clientJoiner, probeClientJoiner, hostView, joinerView)
+      joinHostGame(clientHost, probeClientHost, clientTooJoiner, probeClientTooJoiner, hostView, joinerTooView)
+
+      probeClientJoiner.expectMessageType[UpdateAboutGame]
+      joinerView.expectMessageType[GameInfoUpdate]
+
+      clientHost ! StartTheGame()
+      probeClientHost.expectMessage(StartTheGame())
+
+      hostView.expectMessageType[SwitchToGameView]
+
+      probeClientHost.expectMessageType[StartGameBehavior]
+
+      probeClientHost.expectMessageType[TakeGetInProgressGame]
+
+      probeClientJoiner.expectMessageType[GameHasStarted]
+      probeClientTooJoiner.expectMessageType[GameHasStarted]
+
+      // ack from joiner to enter prePreGame
+      probeClientHost.expectMessageType[SynchronizationAck]
+      probeClientHost.expectMessageType[SynchronizationAck]
+
+      joinerView.expectMessageType[GameStarted]
+      joinerView.expectMessageType[SwitchToGameView]
+
+      joinerTooView.expectMessageType[GameStarted]
+      joinerTooView.expectMessageType[SwitchToGameView]
+
+      val j = joinerView.expectMessageType[GameViewMessages.StartGame]
+      val joinerCoo = j.gameCoordinatorRef
+
+      val jr = joinerTooView.expectMessageType[GameViewMessages.StartGame]
+      val joinerTooCoo = jr.gameCoordinatorRef
+
+      val h = hostView.expectMessageType[GameViewMessages.StartGame]
+      val hostCoo = h.gameCoordinatorRef
+
+      //PREPHASE___________________________________________________________
+
+      // host
+      // simulate request to show 2 cards
+      hostCoo ! GameCoordinatorMessage.ShowOwnNthCard(0)
+      hostView.expectMessageType[CardSeen]
+      hostCoo ! GameCoordinatorMessage.ShowOwnNthCard(0)
+      hostView.expectMessageType[CardSeen]
+
+      // responses from the coordinator after showing cards
+      probeClientHost.expectMessageType[InitialPhaseCompleted]
+      hostView.expectMessageType[WaitAfterRevealingSection]
+
+      //same for joiner
+      joinerCoo ! GameCoordinatorMessage.ShowOwnNthCard(0)
+      joinerView.expectMessageType[CardSeen]
+      joinerCoo ! GameCoordinatorMessage.ShowOwnNthCard(0)
+      joinerView.expectMessageType[CardSeen]
+
+      probeClientJoiner.expectMessageType[InitialPhaseCompleted]
+      joinerView.expectMessageType[WaitAfterRevealingSection]
+
+      //same for joinerToo
+      joinerTooCoo ! GameCoordinatorMessage.ShowOwnNthCard(0)
+      joinerTooView.expectMessageType[CardSeen]
+      joinerTooCoo ! GameCoordinatorMessage.ShowOwnNthCard(0)
+      joinerTooView.expectMessageType[CardSeen]
+
+      probeClientTooJoiner.expectMessageType[InitialPhaseCompleted]
+//      joinerTooView.expectMessageType[WaitAfterRevealingSection]
+
+      //host receives the log of the other clients
+      probeClientHost.expectMessageType[InitialPhaseCompleted]
+      probeClientHost.expectMessageType[InitialPhaseCompleted]
+
+      //host has seen all the logs
+//      hostView.expectMessageType[PreCyclePhaseAdversaryLog]
+//      hostView.expectMessageType[PreCyclePhaseAdversaryLog]
+//      hostView.expectMessageType[PreCyclePhaseAdversaryLog]
+
+      //host respond with all the logs and joiner receives them
+      probeClientJoiner.expectMessageType[AllTheLogs]
+//      clientJoinerView.expectMessageType[PreCyclePhaseAdversaryLog]
+//      clientJoinerView.expectMessageType[PreCyclePhaseAdversaryLog]
+
+      probeClientTooJoiner.expectMessageType[AllTheLogs]
+
+      //joiner ack the reception of all the logs
+      probeClientHost.expectMessageType[SynchronizationAck]
+      probeClientHost.expectMessageType[SynchronizationAck]
+
+      //host and join send StartPlayCycle to coordinator
+
+      //END PREPHASE_______________________________________________________
+
+      // Remove the game from the receptionist
+      clientHost ! LeaveTheGame()
+      probeClientHost.expectMessageType[LeaveTheGame]
+
+      var m = probeClientJoiner.expectMessageType[IWantToLeaveTheGame]
+      assert(m.player.userID.contains(hostId))
+
+      m = probeClientTooJoiner.expectMessageType[IWantToLeaveTheGame]
+      assert(m.player.userID.contains(hostId))
+
+      eventually(timeout(10.seconds), interval(500.millis)) {
+        val m = probeClientJoiner.receiveMessage()
+        assert(m.isInstanceOf[ElectionWon])
+      }
+
+      eventually(timeout(10.seconds), interval(500.millis)) {
+        val m = probeClientTooJoiner.receiveMessage()
+        assert(m.isInstanceOf[NewHostElected])
+      }
+
+      var m_w = probeClientJoiner.expectMessageType[WhoIsPlaying]
+      assert(m_w.playerID.contains(hostId))
+
+      var m_te = probeClientJoiner.expectMessageType[TurnEnded]
+      assert(m_te.turnLog.events.contains(JumpTurnForDisconnection()))
+
+      stopAndWait(clientHost)
+      stopAndWait(clientJoiner)
+      stopAndWait(clientTooJoiner)
+    }
+
     "be able to join a game created by another player" in {
 
       val (clientHost, probeClientHost, hostView) = createClientAndProbeWithView(hostId, hostName)
