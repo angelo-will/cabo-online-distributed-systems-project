@@ -113,7 +113,7 @@ object GameCoordinatorActor:
 
   private def waitingStart(gameData: GameData): Behavior[IGameCoordinatorMessage] = {
     Behaviors.receivePartial {
-      case (ctx, GCMsg.StartRevealingSection()) =>
+      case (ctx, GCMsg.StartPrePlayCycleSection()) =>
         ctx.log.info("GameLogic Actor started")
         ctx.log.info(s"Game has started with this data:\n${gameData.game}")
         gameData.viewReference ! DGVMsg.StartGame(gameData.game, ctx.self)

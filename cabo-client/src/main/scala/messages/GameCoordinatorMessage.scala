@@ -62,7 +62,7 @@ object GameCoordinatorMessage:
   /**
    * Notify to start the revealing section of the game.
    */
-  case class StartRevealingSection() extends IGameCoordinatorSyncMessage
+  case class StartPrePlayCycleSection() extends IGameCoordinatorSyncMessage
 
   /**
    * Notify to start the play cycle of the game.

@@ -364,7 +364,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
         game.players.filter(!_.address.equals(ctx.self)).foreach(_.address ! GameHasStarted(hostRef, gameInProgress))
         awaitSynchronization(ctx, game.players.filter(!_.address.equals(ctx.self)).map(_.userID), () => {
           logInfo(ctx, s"All players synchronized, starting the game: ${gameInProgress.code}")
-          gameCoordinator ! GameCoordinatorMessage.StartRevealingSection()
+          gameCoordinator ! GameCoordinatorMessage.StartPrePlayCycleSection()
           prePlayCyclePhaseHost(gameCoordinator, createPlayersStatus(game.players, gameInProgress.players), hostRef)
         }, _ => {
           //If failed to synchronize
@@ -484,7 +484,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
         viewActorRef ! PreGameViewMessages.GameStarted()
         viewActorRef ! ViewsProxyActor.SwitchToGameView()
         val gameCoordinator = ctx.spawn(GameCoordinatorActor(ctx.self, viewActorRef, userId, gameInProgress), "GameCoordinatorActor")
-        gameCoordinator ! GameCoordinatorMessage.StartRevealingSection()
+        gameCoordinator ! GameCoordinatorMessage.StartPrePlayCycleSection()
         connectionHandler ! ConnectionHandler.UpdateList(game.players)
         prePlayCyclePhaseJoined(gameCoordinator, createPlayersStatus(game.players, gameInProgress.players), hostRef)
     })

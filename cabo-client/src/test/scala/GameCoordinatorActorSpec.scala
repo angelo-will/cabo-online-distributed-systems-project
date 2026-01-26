@@ -47,7 +47,7 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
     "send data to view" when {
       "game is started" in {
         skipGeneration()
-        gameCoordinatorActor ! GCMessage.StartRevealingSection()
+        gameCoordinatorActor ! GCMessage.StartPrePlayCycleSection()
         viewProbe.expectMessageType[GameViewMessages.StartGame]
       }
     }
@@ -367,7 +367,7 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
 
   private def jumpToRevealingSection() = {
     skipGeneration()
-    gameCoordinatorActor ! GCMessage.StartRevealingSection()
+    gameCoordinatorActor ! GCMessage.StartPrePlayCycleSection()
     viewProbe.expectMessageType[GameViewMessages.StartGame].game
   }
 

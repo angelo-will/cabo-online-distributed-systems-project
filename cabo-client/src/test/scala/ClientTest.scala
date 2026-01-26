@@ -191,7 +191,7 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(
     clientHost ! TakeGetInProgressGame(game)
     probeClientHost.expectMessage(TakeGetInProgressGame(game))
 
-    coordinatorProbe.expectMessageType[StartRevealingSection]
+    coordinatorProbe.expectMessageType[StartPrePlayCycleSection]
 
     joiners.foreach { case (clientJoiner, probeClientJoiner, clientJoinerView) =>
 
