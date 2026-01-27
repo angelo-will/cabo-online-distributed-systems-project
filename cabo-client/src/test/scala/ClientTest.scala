@@ -440,6 +440,10 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(
       assert(m.player.userID.contains(joinerId))
       joinerTooView.expectMessageType[OpponentDisconnected]
 
+      // message resent by each other
+      probeClientHost.expectMessageType[IWantToLeaveTheGame]
+      probeClientTooJoiner.expectMessageType[IWantToLeaveTheGame]
+
       var m_w = probeClientHost.expectMessageType[WhoIsPlaying]
       assert(m_w.playerID.contains(hostId))
 
