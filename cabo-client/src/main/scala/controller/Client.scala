@@ -403,7 +403,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
           case (ctx, FailedToContactHost()) =>
             logInfo(ctx, "Failed to contact host")
             viewActorRef ! PreGameViewMessages.GameJoinedFailed(gameCode)
-            //Failed to join, waiting for other commands from the user
+            timers.cancelAll()
             joiningAGame
         })
       }
@@ -426,7 +426,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
         ctx.spawnAnonymous(contactInReceptionistAndAsk
           (akka.actor.typed.receptionist.ServiceKey[Message](gameCode))
           (_ ! IWantToPlay(PlayerInLobby(userId, name, ctx.self), ctx.self))
-          (() => viewActorRef ! PreGameViewMessages.GameJoinedFailed(gameCode))
+          (() => ctx.self ! FailedToContactHost())
         )
 
         responseForJoining(gameCode)
