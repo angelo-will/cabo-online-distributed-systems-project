@@ -321,6 +321,11 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(
 
     //host and join send StartPlayCycle to coordinator
 
+    hostView.expectMessageType[StartTurnPlayer]
+    joiners.foreach { case (_, _, joinerView) =>
+      joinerView.expectMessageType[StartTurnPlayer]
+    }
+
     //END PREPHASE_______________________________________________________
 
     coordinators
@@ -328,7 +333,7 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(
 
   "A client" should {
 
-    "be able to leave while playing" in {
+    "be able to leave while playing if it is the host" in {
 
       val (clientHost, probeClientHost, hostView) = createClientAndProbeWithView(hostId, hostName)
       val (clientJoiner, probeClientJoiner, joinerView) = createClientAndProbeWithView(joinerId, joinerName)
@@ -370,6 +375,62 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(
       assert(m_w.playerID.contains(hostId))
 
       var m_te = probeClientJoiner.expectMessageType[TurnEnded]
+      assert(m_te.turnLog.events.contains(JumpTurnForDisconnection()))
+
+      stopAndWait(clientHost)
+      stopAndWait(clientJoiner)
+      stopAndWait(clientTooJoiner)
+    }
+
+    "be able to leave while playing if it is a joiner" in {
+
+      val (clientHost, probeClientHost, hostView) = createClientAndProbeWithView(hostId, hostName)
+      val (clientJoiner, probeClientJoiner, joinerView) = createClientAndProbeWithView(joinerId, joinerName)
+      val (clientTooJoiner, probeClientTooJoiner, joinerTooView) = createClientAndProbeWithView(joinerTooId, joinerTooName)
+
+      hostCreateGame(clientHost, probeClientHost, hostView)
+
+      joinHostGame(clientHost, probeClientHost, clientJoiner, probeClientJoiner, hostView, joinerView)
+      joinHostGame(clientHost, probeClientHost, clientTooJoiner, probeClientTooJoiner, hostView, joinerTooView)
+
+      probeClientJoiner.expectMessageType[UpdateAboutGame]
+      joinerView.expectMessageType[GameInfoUpdate]
+
+      val List(hostCoo, _, _) = startGameTrue(clientHost, probeClientHost, hostView,
+        List((clientJoiner, probeClientJoiner, joinerView), (clientTooJoiner, probeClientTooJoiner, joinerTooView))
+      )
+
+      // Now the player leaves the game
+      clientJoiner ! LeaveTheGame()
+      probeClientJoiner.expectMessage(LeaveTheGame())
+
+      var m = probeClientHost.expectMessageType[IWantToLeaveTheGame]
+      assert(m.player.userID.contains(joinerId))
+      hostView.expectMessageType[OpponentDisconnected]
+
+      m = probeClientTooJoiner.expectMessageType[IWantToLeaveTheGame]
+      assert(m.player.userID.contains(joinerId))
+      joinerTooView.expectMessageType[OpponentDisconnected]
+
+      var m_w = probeClientHost.expectMessageType[WhoIsPlaying]
+      assert(m_w.playerID.contains(hostId))
+
+      hostCoo ! GameCoordinatorMessage.TurnTimeEnded()
+      hostView.expectMessageType[GameViewMessages.EndTurnByTimeEnded](30.seconds)
+      probeClientHost.expectMessageType[TurnEnded](30.seconds)
+
+      // has left, so no messages expected
+      probeClientJoiner.expectNoMessage()
+
+      probeClientTooJoiner.expectMessageType[GameInProgressUpdate]
+      probeClientTooJoiner.expectMessageType[TurnUpdated]
+
+      probeClientHost.expectMessageType[SynchronizationAck]
+
+      m_w = probeClientHost.expectMessageType[WhoIsPlaying]
+      assert(m_w.playerID.contains(joinerId))
+
+      var m_te = probeClientHost.expectMessageType[TurnEnded]
       assert(m_te.turnLog.events.contains(JumpTurnForDisconnection()))
 
       stopAndWait(clientHost)
@@ -744,7 +805,6 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(
       )
 
       //simulate first turn played by host, for test purposes we just end the turn by time ended
-      clientHostView.expectMessageType[GameViewMessages.StartTurnPlayer]
       hostCoo ! GameCoordinatorMessage.TurnTimeEnded()
       clientHostView.expectMessageType[GameViewMessages.EndTurnByTimeEnded](30.seconds)
       probeClientHost.expectMessageType[TurnEnded](30.seconds)
