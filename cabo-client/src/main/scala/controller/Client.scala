@@ -646,10 +646,10 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
     }
 
     def checkContinue(ctx: ActorContext[Message], playerInLobby: PlayerInLobby, onlineUpdate: List[PlayerStatus]) = {
-      if onlineUpdate.count(p => p.isOnline || !p.hasLeft) < 2 then {
+      if onlineUpdate.count(p => p.isOnline && !p.hasLeft) < 2 then {
         logInfo(ctx, s"Less than 2 players online, aborting the game")
         viewActorRef ! GameViewMessages.AllOpponentsDisconnected()
-        Behaviors.same
+        inGameBehavior(gameCoordinator, onlineUpdate, hostRef)
       } else {
         viewActorRef ! GameViewMessages.OpponentDisconnected(playerInLobby)
 

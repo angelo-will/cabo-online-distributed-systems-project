@@ -333,6 +333,34 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(
 
   "A client" should {
 
+    "leave if remains alone in a game" in {
+
+      val (clientHost, probeClientHost, hostView) = createClientAndProbeWithView(hostId, hostName)
+      val (clientJoiner, probeClientJoiner, joinerView) = createClientAndProbeWithView(joinerId, joinerName)
+
+      hostCreateGame(clientHost, probeClientHost, hostView)
+
+      joinHostGame(clientHost, probeClientHost, clientJoiner, probeClientJoiner, hostView, joinerView)
+
+      startGameTrue(clientHost, probeClientHost, hostView,
+        List((clientJoiner, probeClientJoiner, joinerView))
+      )
+
+      // Now the player leaves the game
+      clientJoiner ! LeaveTheGame()
+      probeClientJoiner.expectMessage(LeaveTheGame())
+
+      // The host should receive a notification about the player leaving
+      val m = probeClientHost.expectMessageType[IWantToLeaveTheGame]
+      assert(m.player.userID.contains(joinerId))
+
+      // The host should automatically leave the game as it is the only one left
+      hostView.expectMessageType[AllOpponentsDisconnected]
+
+      stopAndWait(clientHost)
+      stopAndWait(clientJoiner)
+    }
+
     "be able to leave while playing if it is the host" in {
 
       val (clientHost, probeClientHost, hostView) = createClientAndProbeWithView(hostId, hostName)
