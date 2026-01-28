@@ -7,12 +7,10 @@ import messages.IGameCoordinatorMessage
 import messages.{ClientMessages, GameViewMessages, IViewMessage}
 import model.Game.{GameInConstruction, GameInProgress}
 import model.Suit.*
-import model.{Card, CardStack, Game, GameParameters, PlayCycleTurnLog, PlayerInLobby, Power, TurnEvent, UserBase}
+import model.*
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
-
-import scala.annotation.tailrec
 
 class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
   with AnyWordSpecLike
@@ -341,7 +339,6 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
     viewProbe.expectMessageType[GameViewMessages.LastTurnPlayed]
     viewProbe.expectMessageType[GameViewMessages.StartTurnPlayer]
     clientProbe.expectMessageType[ClientMessages.TurnEnded]
-    //    clientProbe.expectMessageType[ClientMessages.TurnUpdated]
   }
 
   private def startActorAndGenerateGameData(): Unit = {
@@ -360,8 +357,6 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
   }
 
   private def skipGeneration(): Unit = {
-    //    startActorAndGenerateGameData()
-    //    clientProbe.expectMessageType[ClientMessages.TakeGetInProgressGame]
     startActorWithSortedDeckData()
   }
 
