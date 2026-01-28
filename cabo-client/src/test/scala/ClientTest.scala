@@ -112,6 +112,16 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(
     clientJoiner ! JoinAGame()
     probeClientJoiner.expectMessage(JoinAGame())
 
+    clientJoinerView match {
+      case null => // do nothing
+      case vp =>
+        val m = vp.expectMessageType[FailedToPublishToServer]
+      //        vp.receiveMessage() match {
+      //          case FailedToPublishToServer() => // trying to find games
+      //          case _ => fail("Joiner View expected message about server publishing")
+      //        }
+    }
+
     clientJoiner ! JoinWithGameCode(hostPlayerID + "game")
     probeClientJoiner.expectMessage(JoinWithGameCode(hostPlayerID + "game"))
 
@@ -136,15 +146,6 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(
       case _ => fail("Expected YouJoinedTheGame message")
     }
 
-    clientJoinerView match {
-      case null => // do nothing
-      case vp =>
-        val m = vp.expectMessageType[FailedToPublishToServer]
-      //        vp.receiveMessage() match {
-      //          case FailedToPublishToServer() => // trying to find games
-      //          case _ => fail("Joiner View expected message about server publishing")
-      //        }
-    }
 
     clientJoinerView match {
       case null => // do nothing
@@ -440,6 +441,7 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(
       assert(m.player.userID.contains(joinerId))
       joinerTooView.expectMessageType[OpponentDisconnected]
 
+      // todo - check race condition in probeClientHost
       // message resent by each other
       probeClientHost.expectMessageType[IWantToLeaveTheGame]
       probeClientTooJoiner.expectMessageType[IWantToLeaveTheGame]
@@ -645,7 +647,7 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(
       probeClientHost.expectMessage(LeaveTheGame())
 
       // The joiner should receive an abort notification
-      probeClientJoiner.expectMessage(GameCancelled())
+      probeClientJoiner.expectMessageType[GameCancelled]
 
       stopAndWait(clientHost)
       stopAndWait(clientJoiner)
