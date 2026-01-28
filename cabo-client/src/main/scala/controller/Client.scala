@@ -22,6 +22,12 @@ object Client:
 
   trait ClientInternalCommand extends ClientCommand
 
+  // trait useful to check that the message is for the correct game in the in-game phase
+  trait GameScopedMessage {
+    def gameCode: String
+    def replyTo: ActorRef[Message]
+  }
+
   private case class ListingResponseListing(listing: Receptionist.Listing) extends ClientInternalCommand
 
   // Commands about the state before joining/creating a game
@@ -35,9 +41,9 @@ object Client:
 
   case class UpdateAboutGame(game: GameInConstruction) extends ClientInternalCommand
 
-  case class IWantToLeaveTheGame(player: PlayerInLobby) extends ClientInternalCommand
+  case class IWantToLeaveTheGame(gameCode: String, replyTo: ActorRef[Message], player: PlayerInLobby) extends ClientInternalCommand with GameScopedMessage
 
-  case class GameCancelled() extends ClientInternalCommand
+  case class GameCancelled(gameCode: String, replyTo: ActorRef[Message]) extends ClientInternalCommand with GameScopedMessage
 
   case class GameHasStarted(hostRef: ActorRef[ClientCommand], gameInProgress: GameInProgress) extends ClientInternalCommand
 
@@ -49,7 +55,9 @@ object Client:
 
   case class FailedToSynchronize() extends ClientInternalCommand
 
-  case class GameInProgressUpdate(replyTo: ActorRef[ClientInternalCommand], game: GameInProgress, turnLog: TurnLog) extends ClientInternalCommand
+  case class GameInProgressUpdate(replyTo: ActorRef[Message], game: GameInProgress, turnLog: TurnLog) extends ClientInternalCommand with GameScopedMessage {
+    override def gameCode: String = game.code
+  }
 
   // messages added for test purpose
 
@@ -59,13 +67,13 @@ object Client:
 
   //messages for new host election
 
-  case class ElectionStarted(candidateRank: Int, replyTo: ActorRef[ClientInternalCommand]) extends ClientInternalCommand
+  case class ElectionStarted(gameCode: String, candidateRank: Int, replyTo: ActorRef[Message]) extends ClientInternalCommand with GameScopedMessage
 
-  case class NoYouCanNot() extends ClientInternalCommand
+  case class NoYouCanNot(gameCode: String, replyTo: ActorRef[Message]) extends ClientInternalCommand with GameScopedMessage
 
   case class ElectionWon() extends ClientInternalCommand
 
-  case class NewHostElected(replyTo: ActorRef[ClientInternalCommand]) extends ClientInternalCommand
+  case class NewHostElected(gameCode: String, replyTo: ActorRef[Message]) extends ClientInternalCommand with GameScopedMessage
 
   case class AllTheLogs(logs: List[TurnLog]) extends ClientInternalCommand
 
@@ -305,7 +313,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
           Behaviors.same
         }
 
-      case (ctx, IWantToLeaveTheGame(player)) =>
+      case (ctx, IWantToLeaveTheGame(_, _, player)) =>
         //A player wants to leave the game
         logInfo(ctx, s"Player: ${player.userID} wants to leave the game: ${game.code}")
         removePlayerFromGame(ctx, player)
@@ -323,7 +331,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
             (ServerKey)
             (_ ! ServerMessages.AbortGame(game, ctx.self))
             (() => viewActorRef ! PreGameViewMessages.FailedToPublishToServer()))
-        game.players.filter(!_.address.equals(ctx.self)).foreach(_.address ! GameCancelled())
+        game.players.filter(!_.address.equals(ctx.self)).foreach(_.address ! GameCancelled(game.code, ctx.self))
         ctx.system.receptionist ! Receptionist.deregister(akka.actor.typed.receptionist.ServiceKey[Message](game.code), ctx.self)
         viewActorRef ! PreGameViewMessages.GameAborted()
         connectionHandler ! ConnectionHandler.UpdateList(List())
@@ -371,7 +379,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
           //Brutal policy, we abort the game
           logError(ctx, s"Failed to synchronize all players, aborting the game: ${gameInProgress.code}")
           ctx.stop(gameCoordinator)
-          game.players.filter(!_.address.equals(ctx.self)).foreach(_.address ! GameCancelled())
+          game.players.filter(!_.address.equals(ctx.self)).foreach(_.address ! GameCancelled(gameInProgress.code, ctx.self))
           viewActorRef ! PreGameViewMessages.GameAborted()
           connectionHandler ! ConnectionHandler.UpdateList(List())
           start
@@ -467,11 +475,11 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
 
       case (ctx, LeaveTheGame()) =>
         logInfo(ctx, s"Leaving game: ${game.code}")
-        game.players.head.address ! IWantToLeaveTheGame(PlayerInLobby(userId, name, ctx.self))
+        game.players.head.address ! IWantToLeaveTheGame(game.code, ctx.self, PlayerInLobby(userId, name, ctx.self))
         connectionHandler ! ConnectionHandler.UpdateList(List())
         start
 
-      case (ctx, GameCancelled()) =>
+      case (ctx, GameCancelled(_, _)) =>
         returnToStart(ctx)
 
       case (ctx, PlayerUnreachable(playerInLobby)) =>
@@ -516,7 +524,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
           // todo - can we continue with the hasLeft property?
           logError(ctx, s"Failed to synchronize all players after revealing cards phase, aborting the game")
           ctx.stop(gameCoordinator)
-          otherPlayersOnline.map(_.playerInfo.address).foreach(_ ! GameCancelled())
+          otherPlayersOnline.map(_.playerInfo.address).foreach(_ ! GameCancelled(gameCode, ctx.self))
           viewActorRef ! GameViewMessages.GameDeleted()
           connectionHandler ! ConnectionHandler.UpdateList(List())
           start
@@ -548,8 +556,8 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
         hostRef ! SynchronizationAck(userId)
         gameCoordinator ! GameCoordinatorMessage.StartPlayCycle()
         inGameBehavior(gameCode, gameCoordinator, playersStatus, hostRef)
-
-      case (ctx, GameCancelled()) =>
+        
+      case (ctx, GameCancelled(_, _)) =>
         logInfo(ctx, s"Game has been cancelled, returning to initial phase")
         viewActorRef ! GameViewMessages.GameDeleted()
         returnToStart(ctx, gameCoordinator)
@@ -600,41 +608,78 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
       }
     }
 
+//    def verifyGameCode(ctx: ActorContext[Message], code: String, replyTo: ActorRef[Message], ifCorrect: Behavior[Message]): Behavior[Message] = {
+//      if (code != gameCode) {
+//        logError(ctx, s"Received GameInProgressUpdate for different game: $code, telling sender to ignore")
+//        // tell the sender that I'm no longer in the game
+//        replyTo ! IWantToLeaveTheGame(gameCode, ctx.self, PlayerInLobby(userId, name, ctx.self))
+//        Behaviors.same
+//      } else {
+//        ifCorrect
+//      }
+//    }
+
+    def verifyGameCode[M <: GameScopedMessage](ctx: ActorContext[Message], msg: M)(ifCorrect: => Behavior[Message]): Behavior[Message] = {
+      if (msg.gameCode != gameCode) {
+        logError(ctx, s"Received message for wrong game: ${msg.gameCode}")
+        msg.replyTo ! IWantToLeaveTheGame(
+          gameCode,
+          ctx.self,
+          PlayerInLobby(userId, name, ctx.self)
+        )
+        Behaviors.same
+      } else {
+        ifCorrect
+      }
+    }
+
+
     def inElectionBehavior(myRank: Int, playersStatus: List[PlayerStatus]): Behavior[Message] = {
       Behaviors.withStash(50) { buffer =>
         Behaviors.withTimers { timers =>
           timers.startSingleTimer(ElectionWon(), 5.seconds)
           withShared({
-            case (ctx, NoYouCanNot()) =>
-              logInfo(ctx, "Someone has a lower rank, stopping my election")
-              timers.cancelAll()
-              buffer.unstashAll(inGameBehavior(gameCode, gameCoordinator, playersStatus, hostRef))
-
-            case (ctx, ElectionStarted(candidateRank, replyTo)) =>
-              //another player is starting an election
-              logInfo(ctx, s"Election started by another player: $replyTo")
-              if myRank < candidateRank then {
-                //i have lower rank, so i can not accept the election
-                logInfo(ctx, s"My rank ($myRank) is lower than sender rank ($candidateRank), refusing his election")
-                replyTo ! NoYouCanNot()
-                // reset the election to give time to the others to align
-                buffer.unstashAll(inElectionBehavior(myRank, playersStatus))
-              } else {
-                logInfo(ctx, s"My rank ($myRank) is higher than sender rank ($candidateRank), accepting his election")
+            case (ctx, msg: NoYouCanNot) =>
+              //              verifyGameCode(ctx, gameCode, replyTo, {
+              //                logInfo(ctx, "Someone has a lower rank, stopping my election")
+              //                timers.cancelAll()
+              //                buffer.unstashAll(inGameBehavior(gameCode, gameCoordinator, playersStatus, hostRef))
+              //              })
+              verifyGameCode(ctx, msg) {
+                logInfo(ctx, "Someone has a lower rank, stopping my election")
                 timers.cancelAll()
                 buffer.unstashAll(inGameBehavior(gameCode, gameCoordinator, playersStatus, hostRef))
               }
 
+            case (ctx, ElectionStarted(code, candidateRank, replyTo)) =>
+              //another player is starting an election
+              verifyGameCode(ctx, ElectionStarted(code, candidateRank, replyTo)) {
+                logInfo(ctx, s"Election started by another player: $replyTo")
+                if myRank < candidateRank then {
+                  //i have lower rank, so i can not accept the election
+                  logInfo(ctx, s"My rank ($myRank) is lower than sender rank ($candidateRank), refusing his election")
+                  replyTo ! NoYouCanNot(gameCode, ctx.self)
+                  // reset the election to give time to the others to align
+                  buffer.unstashAll(inElectionBehavior(myRank, playersStatus))
+                } else {
+                  logInfo(ctx, s"My rank ($myRank) is higher than sender rank ($candidateRank), accepting his election")
+                  timers.cancelAll()
+                  buffer.unstashAll(inGameBehavior(gameCode, gameCoordinator, playersStatus, hostRef))
+                }
+              }
+
             case (ctx, ElectionWon()) =>
               logInfo(ctx, s"I won the election, becoming the new host")
-              otherPlayersInGame.foreach(_.playerInfo.address ! NewHostElected(ctx.self))
+              otherPlayersInGame.foreach(_.playerInfo.address ! NewHostElected(gameCode, ctx.self))
               AskCoordinatorNextPlayer(ctx)
               buffer.unstashAll(inGameBehavior(gameCode, gameCoordinator, playersStatus, ctx.self))
 
-            case (ctx, NewHostElected(replyTo)) =>
-              logInfo(ctx, s"New host elected while there was an election: $replyTo")
-              timers.cancelAll()
-              buffer.unstashAll(inGameBehavior(gameCode, gameCoordinator, playersStatus, replyTo))
+            case (ctx, NewHostElected(code, replyTo)) =>
+              verifyGameCode(ctx, NewHostElected(code, replyTo)) {
+                logInfo(ctx, s"New host elected while there was an election: $replyTo")
+                timers.cancelAll()
+                buffer.unstashAll(inGameBehavior(gameCode, gameCoordinator, playersStatus, replyTo))
+              }
 
             case (ctx, other) =>
               logInfo(ctx, s"Stashing message during election: $other")
@@ -657,7 +702,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
           logInfo(ctx, s"Player: ${playerInLobby.userID} was the host, starting election")
           //start election
           val myRank = playersStatus.find(_.playerInfo.userID == userId).map(_.rank).getOrElse(-1)
-          onlineUpdate.filter(p => !p.playerInfo.userID.equals(this.userId) && p.isOnline && p.rank < myRank).foreach(_.playerInfo.address ! ElectionStarted(myRank, ctx.self))
+          onlineUpdate.filter(p => !p.playerInfo.userID.equals(this.userId) && p.isOnline && p.rank < myRank).foreach(_.playerInfo.address ! ElectionStarted(gameCode, myRank, ctx.self))
           inElectionBehavior(myRank, onlineUpdate)
         } else {
           if ctx.self equals hostRef then AskCoordinatorNextPlayer(ctx)
@@ -670,10 +715,17 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
       // GAME LOGIC LEVEL MESSAGES - START
 
       // send by the host when it cannot synchronize all the players at the start of the game
-      case (ctx, GameCancelled()) =>
-        logInfo(ctx, s"Game has been cancelled, returning to initial phase")
-        viewActorRef ! GameViewMessages.GameDeleted()
-        returnToStart(ctx, gameCoordinator)
+//      case (ctx, GameCancelled(gameCode, replyTo)) =>
+//        logInfo(ctx, s"Game has been cancelled, returning to initial phase")
+//        viewActorRef ! GameViewMessages.GameDeleted()
+//        returnToStart(ctx, gameCoordinator)
+
+      case (ctx, msg: GameCancelled) =>
+        verifyGameCode(ctx, msg) {
+          logInfo(ctx, s"Game has been cancelled, returning to initial phase")
+          viewActorRef ! GameViewMessages.GameDeleted()
+          returnToStart(ctx, gameCoordinator)
+        }
 
       case (ctx, TurnEnded(game, log)) =>
         logInfo(ctx, s"My turn ended: ${this.userId}, round: ${game.currentRound}")
@@ -698,12 +750,24 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
         })
 
       case (ctx, GameInProgressUpdate(replyTo, game, log)) =>
-        if (game.code != gameCode) {
-          logError(ctx, s"Received GameInProgressUpdate for different game: ${game.code}, telling sender to ignore")
-          // tell the sender that I'm no longer in the game
-          replyTo ! IWantToLeaveTheGame(PlayerInLobby(userId, name, ctx.self))
-          Behaviors.same
-        } else {
+//        verifyGameCode(ctx, game.code, replyTo, {
+//          logInfo(ctx, s"Game info update, is turn: ${game.currentRound}")
+//          gameCoordinator ! GameCoordinatorMessage.LastTurnPlayed(game, log)
+//          Behaviors.withStash(50) { buffer =>
+//            withShared({
+//              case (ctx, TurnUpdated()) =>
+//                logInfo(ctx, s"GameCoordinator updated the turn")
+//                replyTo ! SynchronizationAck(userId)
+//                buffer.unstashAll(inGameBehavior(gameCode, gameCoordinator, playersStatus, hostRef))
+//
+//              case (ctx, other) =>
+//                logInfo(ctx, s"Stashing message until turn is updated: $other")
+//                buffer.stash(other)
+//                Behaviors.same
+//            })
+//          }
+//        })
+        verifyGameCode(ctx, GameInProgressUpdate(replyTo, game, log)) {
           logInfo(ctx, s"Game info update, is turn: ${game.currentRound}")
           gameCoordinator ! GameCoordinatorMessage.LastTurnPlayed(game, log)
           Behaviors.withStash(50) { buffer =>
@@ -723,18 +787,18 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
 
       case (ctx, LeaveTheGame()) =>
         logInfo(ctx, s"Leaving game normally")
-        otherPlayersInGame.foreach(_.playerInfo.address ! IWantToLeaveTheGame(PlayerInLobby(userId, name, ctx.self)))
+        otherPlayersInGame.foreach(_.playerInfo.address ! IWantToLeaveTheGame(gameCode, ctx.self, PlayerInLobby(userId, name, ctx.self)))
         returnToStart(ctx, gameCoordinator)
 
-      case (ctx, IWantToLeaveTheGame(player)) =>
+      case (ctx, IWantToLeaveTheGame(code, replyTo, player)) =>
         otherPlayersInGame.find(_.playerInfo.userID == player.userID) match {
           case None =>
             logError(ctx, s"Received leave request for unknown player: ${player.userID}")
-            inGameBehavior(gameCode, gameCoordinator, playersStatus, hostRef)
+            inGameBehavior(code, gameCoordinator, playersStatus, hostRef)
           case Some(p) =>
             if p.hasLeft then {
               logInfo(ctx, s"Received leave request for already left player: ${p.playerInfo.userID}")
-              inGameBehavior(gameCode, gameCoordinator, playersStatus, hostRef)
+              inGameBehavior(code, gameCoordinator, playersStatus, hostRef)
             } else {
               logInfo(ctx, s"Player: ${player.userID} wants to leave the game")
               val updatedStatus = playersStatus.map { ps =>
@@ -744,13 +808,12 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
                   ps
               }
               // rebound the message to increase the consistency of the state among players
-              updatedStatus.filterNot(p => p.playerInfo.userID.equals(userId) || p.hasLeft).foreach(_.playerInfo.address ! IWantToLeaveTheGame(player))
+              updatedStatus.filterNot(p => p.playerInfo.userID.equals(userId) || p.hasLeft).foreach(_.playerInfo.address ! IWantToLeaveTheGame(gameCode, ctx.self, player))
               // I no longer need to check the status of a player who has left
               connectionHandler ! ConnectionHandler.UpdateList(updatedStatus.filter(_.isOnline).map(_.playerInfo))
               checkContinue(ctx, player, updatedStatus)
             }
         }
-
 
       case (ctx, GameEnded()) =>
         logInfo(ctx, s"Game has ended, returning to initial phase")
@@ -782,31 +845,35 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
         }
 
       // ELECTION HOST LOGIC MESSAGES - START
-      case (ctx, ElectionStarted(candidateRank, replyTo)) =>
-        //another player is starting an election
-        logInfo(ctx, s"Election started by another player: $replyTo")
-        //todo - correct the -1
-        val myRank = playersStatus.find(_.playerInfo.userID == userId).map(_.rank).getOrElse(-1)
-        if myRank < candidateRank then {
-          //I have lower rank, so I cannot accept the election
-          logInfo(ctx, s"My rank ($myRank) is lower than sender rank ($candidateRank), refusing election")
-          replyTo ! NoYouCanNot()
-          // I start my own election
-          otherPlayersInGame.filter(_.rank < myRank).foreach(_.playerInfo.address ! ElectionStarted(myRank, ctx.self))
-          val onlineUpdate = playersStatus.map { ps =>
-            if ps.playerInfo.address equals hostRef then
-              ps.copy(isOnline = false)
-            else
-              ps
+      case (ctx, ElectionStarted(code, candidateRank, replyTo)) =>
+        verifyGameCode(ctx, ElectionStarted(code, candidateRank, replyTo)) {
+          //another player is starting an election
+          logInfo(ctx, s"Election started by another player: $replyTo")
+          //todo - correct the -1
+          val myRank = playersStatus.find(_.playerInfo.userID == userId).map(_.rank).getOrElse(-1)
+          if myRank < candidateRank then {
+            //I have lower rank, so I cannot accept the election
+            logInfo(ctx, s"My rank ($myRank) is lower than sender rank ($candidateRank), refusing election")
+            replyTo ! NoYouCanNot(gameCode, ctx.self)
+            // I start my own election
+            otherPlayersInGame.filter(_.rank < myRank).foreach(_.playerInfo.address ! ElectionStarted(gameCode, myRank, ctx.self))
+            val onlineUpdate = playersStatus.map { ps =>
+              if ps.playerInfo.address equals hostRef then
+                ps.copy(isOnline = false)
+              else
+                ps
+            }
+            inElectionBehavior(myRank, onlineUpdate)
+          } else {
+            inGameBehavior(gameCode, gameCoordinator, playersStatus, hostRef)
           }
-          inElectionBehavior(myRank, onlineUpdate)
-        } else {
-          inGameBehavior(gameCode, gameCoordinator, playersStatus, hostRef)
         }
 
-      case (ctx, NewHostElected(replyTo)) =>
-        logInfo(ctx, "New host elected: " + replyTo)
-        inGameBehavior(gameCode, gameCoordinator, playersStatus, replyTo)
+      case (ctx, NewHostElected(gameCode, replyTo)) =>
+        verifyGameCode(ctx, NewHostElected(gameCode, replyTo)) {
+          logInfo(ctx, "New host elected: " + replyTo)
+          inGameBehavior(gameCode, gameCoordinator, playersStatus, replyTo)
+        }
 
       case (ctx, WhoIsPlaying(currentPlayerID)) =>
         logInfo(ctx, s"Who is playing request received, current player is: $currentPlayerID")
