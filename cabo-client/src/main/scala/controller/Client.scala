@@ -9,6 +9,7 @@ import akka.util.Timeout
 import messages.*
 import messages.ClientMessages.*
 import messages.GameCoordinatorMessage.WhoIsPlayingRequest
+import messages.GameViewMessages.WaitAfterPreCycleSection
 import messages.ServerMessages.{AbortGame, ServerKey}
 import model.Game.{GameInConstruction, GameInProgress}
 import model.{GameParameters, PlayerInLobby, PlayerPlaying, TurnLog}
@@ -75,6 +76,10 @@ object Client:
 
   case class NewHostElected(gameCode: String, replyTo: ActorRef[Message]) extends ClientInternalCommand with GameScopedMessage
 
+  // messages for the pre-play cycle phase
+  
+  case class AdversaryLogInfo(log: TurnLog) extends ClientInternalCommand
+  
   case class AllTheLogs(logs: List[TurnLog]) extends ClientInternalCommand
 
   //  case class PlayerStatus(playerID: String, address: ActorRef[ClientInternalCommand], rank: Int, isOnline: Boolean)
@@ -538,7 +543,12 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
     withShared({
       case (ctx, InitialPhaseCompleted(log)) =>
         logInfo(ctx, s"Received ${InitialPhaseCompleted(log)}")
+        viewActorRef ! WaitAfterPreCycleSection()
         hostCheckIfReady(ctx, log)
+
+      case (ctx, AdversaryLogInfo(log)) =>
+        logInfo (ctx, s"Received ${AdversaryLogInfo(log)}")
+        hostCheckIfReady (ctx, log)
     })
   }
 
@@ -547,7 +557,8 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
     withShared({
       case (ctx, InitialPhaseCompleted(log)) =>
         logInfo(ctx, s"Received ${InitialPhaseCompleted(log)}")
-        hostRef ! InitialPhaseCompleted(log)
+        viewActorRef ! WaitAfterPreCycleSection()
+        hostRef ! AdversaryLogInfo(log)
         Behaviors.same
 
       case (ctx, AllTheLogs(logs)) =>

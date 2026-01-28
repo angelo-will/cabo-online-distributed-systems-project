@@ -83,8 +83,8 @@ private class GameViewActor private(
         .orElse(handleAdversariesRevealingLog(context)(stateName))
         .orElse(handleGameDeleted(context)(stateName))
         .orElse({
-          case WaitAfterRevealingSection() =>
-            log(stateName, s"Handling message: ${WaitAfterRevealingSection()}")
+          case WaitAfterPreCycleSection() =>
+            log(stateName, s"Handling message: ${WaitAfterPreCycleSection()}")
             context.ui.enterWaitingPhase()
             waitFirstTurn(context)
         })

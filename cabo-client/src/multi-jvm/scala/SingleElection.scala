@@ -156,8 +156,8 @@ abstract class SingleElection extends MultiNodeSpec(MultiNodeConfig) with STMult
         probeHost.expectMessageType[InitialPhaseCompleted]
 
         //receive log of other clients
-        probeHost.expectMessageType[InitialPhaseCompleted]
-        probeHost.expectMessageType[InitialPhaseCompleted]
+        probeHost.expectMessageType[AdversaryLogInfo]
+        probeHost.expectMessageType[AdversaryLogInfo]
 
         enterBarrier("all-the-logs-sent")
 

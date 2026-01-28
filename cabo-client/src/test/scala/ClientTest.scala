@@ -229,7 +229,7 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(
 
     // host receives the log of the other clients
     probeClientHost.receiveMessages(joiners.size).foreach {
-      case InitialPhaseCompleted(_) => // ok
+      case AdversaryLogInfo(_) => // ok
       case _ => fail("Host probe expected logs message")
     }
 
@@ -287,7 +287,7 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(
     hostView.expectMessageType[CardSeen]
 
     probeHost.expectMessageType[InitialPhaseCompleted]
-    hostView.expectMessageType[WaitAfterRevealingSection]
+    hostView.expectMessageType[WaitAfterPreCycleSection]
 
     joiners.foreach { case (joiner, probeJoiner, joinerView) =>
       val j = joinerView.expectMessageType[GameViewMessages.StartGame]
@@ -299,13 +299,13 @@ class ClientTest extends ScalaTestWithActorTestKit(ConfigFactory.parseString(
       joinerView.expectMessageType[CardSeen]
 
       probeJoiner.expectMessageType[InitialPhaseCompleted]
-      joinerView.expectMessageType[WaitAfterRevealingSection]
+      joinerView.expectMessageType[WaitAfterPreCycleSection]
 
       coordinators = coordinators :+ joinerCoo
     }
 
     //host receives the log of the other clients
-    probeHost.receiveMessages(joiners.size).foreach(m => assert(m.isInstanceOf[InitialPhaseCompleted], "Host expected InitialPhaseCompleted message"))
+    probeHost.receiveMessages(joiners.size).foreach(m => assert(m.isInstanceOf[AdversaryLogInfo], "Host expected InitialPhaseCompleted message"))
 
     //+1 for own log
     hostView.receiveMessages(joiners.size+1).foreach(m => assert(m.isInstanceOf[PreCyclePhaseAdversaryLog], "Host View expected PreCyclePhaseAdversaryLog message"))

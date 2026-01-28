@@ -24,7 +24,7 @@ object GameViewMessages {
   /**
    * Notify to actor that revealing section is ended and it's time to wait for others.
    */
-  case class WaitAfterRevealingSection() extends IGameViewMessage
+  case class WaitAfterPreCycleSection() extends IGameViewMessage
 
   /**
    * Notify to actor the last turn played, could be itself or an adversary.
