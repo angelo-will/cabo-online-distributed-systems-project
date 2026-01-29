@@ -8,6 +8,7 @@ import messages._
 import messages.GameCoordinatorMessage as GCMsg
 import messages.ClientMessages.ClientCommand
 import messages.GameViewMessages.*
+import messages.GameViewMessages.WaitAfterPreCycleSection as WaitAfterRevealingSection
 import messages.ViewUserCommandMessages.*
 
 import view.gamephase.GameMainFrame
@@ -83,12 +84,12 @@ private class GameViewActor private(
         .orElse(handleAdversariesRevealingLog(context)(stateName))
         .orElse(handleGameDeleted(context)(stateName))
         .orElse({
-          case WaitAfterPreCycleSection() =>
-            log(stateName, s"Handling message: ${WaitAfterPreCycleSection()}")
+          case WaitAfterRevealingSection() =>
+            log(stateName, s"Handling message: ${WaitAfterRevealingSection}")
             context.ui.enterWaitingPhase()
             waitFirstTurn(context)
         })
-      //        .orElse(sharedHandlers(context)(stateName))
+        .orElse(sharedHandlers(context)(stateName))
     }
   }
 

@@ -65,6 +65,7 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
         jumpToRevealingSection()
         for i <- 0 until Game.cardsInitialVisible do
           showYourNthCard(i)
+        clientProbe.expectMessageType[ClientMessages.InitialPhaseCompleted]
       }
     }
     "send who start game" when {
@@ -72,6 +73,7 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
         jumpToRevealingSection()
         for i <- 0 until Game.cardsInitialVisible do
           showYourNthCard(i)
+        clientProbe.expectMessageType[ClientMessages.InitialPhaseCompleted]
         gameCoordinatorActor ! GCMessage.StartPlayCycle()
         viewProbe.expectMessageType[GameViewMessages.StartTurnPlayer]
       }
