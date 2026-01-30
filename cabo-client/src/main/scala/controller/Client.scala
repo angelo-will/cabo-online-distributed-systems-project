@@ -530,7 +530,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
 
     def otherPlayersOnline = playersStatus.filterNot(p => !p.isOnline || p.playerInfo.userID.equals(this.userId))
 
-    val MaxTimeoutPrePhase = 180.seconds
+    val MaxTimeoutPrePhase = 30.seconds
 
     var phaseLogs: List[TurnLog] = List()
 
@@ -576,7 +576,12 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
         case (ctx, InitialPhaseCompleted(log)) =>
           logInfo(ctx, s"Received ${InitialPhaseCompleted(log)}")
           viewActorRef ! WaitAfterPreCycleSection()
-          if ctx.self equals hostRef then hostCheckIfReady(ctx, log) else hostRef ! AdversaryLogInfo(log); Behaviors.same
+          if ctx.self equals hostRef then
+            hostCheckIfReady(ctx, log)
+          else {
+            hostRef ! AdversaryLogInfo(log)
+            Behaviors.same
+          }
 
         case (ctx, AllTheLogs(logs)) =>
           logInfo(ctx, s"Received all the logs from host")
