@@ -6,6 +6,7 @@ import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior, Scheduler}
 import akka.cluster.ClusterEvent.MemberRemoved
 import akka.util.Timeout
+import controller.ViewsProxyActor.SwitchToInitialView
 import messages.*
 import messages.ClientMessages.*
 import messages.GameCoordinatorMessage.WhoIsPlayingRequest
@@ -593,6 +594,10 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
         case (ctx, AdversaryLogInfo(log)) =>
           logInfo(ctx, s"Received ${AdversaryLogInfo(log)}")
           hostCheckIfReady (ctx, log)
+
+        case (ctx, LeaveTheGame()) =>
+          logInfo(ctx, s"Leaving game: $gameCode during pre-play cycle phase")
+          returnToStart(ctx,  gameCoordinator)
 
         case (ctx, PlayerUnreachable(_)) =>
           logInfo(ctx, s"A player is unreachable, aborting the game")
