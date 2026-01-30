@@ -264,7 +264,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
       if gameUpdated.gameParameters.isPublic then
         ctx.spawnAnonymous(contactInReceptionistAndAsk
           (ServerKey)
-          (_ ! ServerMessages.UpdateGame(game, ctx.self))
+          (_ ! ServerMessages.UpdateGame(gameUpdated, ctx.self))
           (() => viewActorRef ! PreGameViewMessages.FailedToPublishToServer()))
     }
 
