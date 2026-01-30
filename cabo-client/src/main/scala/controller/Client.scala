@@ -378,7 +378,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
         awaitSynchronization(ctx, game.players.filter(!_.address.equals(ctx.self)).map(_.userID), () => {
           logInfo(ctx, s"All players synchronized, starting the game: ${gameInProgress.code}")
           gameCoordinator ! GameCoordinatorMessage.StartPrePlayCycleSection()
-          prePlayCyclePhaseHost(gameInProgress.code, gameCoordinator, createPlayersStatus(game.players, gameInProgress.players), hostRef)
+          prePlayCyclePhase(gameInProgress.code, gameCoordinator, createPlayersStatus(game.players, gameInProgress.players), hostRef)
         }, _ => {
           //If failed to synchronize
           //Brutal policy, we abort the game
@@ -499,13 +499,17 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
         val gameCoordinator = ctx.spawn(GameCoordinatorActor(ctx.self, viewActorRef, userId, gameInProgress), "GameCoordinatorActor")
         gameCoordinator ! GameCoordinatorMessage.StartPrePlayCycleSection()
         connectionHandler ! ConnectionHandler.UpdateList(game.players)
-        prePlayCyclePhaseJoined(gameInProgress.code, gameCoordinator, createPlayersStatus(game.players, gameInProgress.players), hostRef)
+        prePlayCyclePhase(gameInProgress.code, gameCoordinator, createPlayersStatus(game.players, gameInProgress.players), hostRef)
     })
   }
 
-  private def prePlayCyclePhaseHost(gameCode: String, gameCoordinator: ActorRef[IGameCoordinatorMessage], playersStatus: List[PlayerStatus], hostRef: ActorRef[ClientInternalCommand]): Behavior[Message] = {
+  private def prePlayCyclePhase(gameCode: String, gameCoordinator: ActorRef[IGameCoordinatorMessage], playersStatus: List[PlayerStatus], hostRef: ActorRef[ClientCommand]): Behavior[Message] = {
 
     def otherPlayersOnline = playersStatus.filterNot(p => !p.isOnline || p.playerInfo.userID.equals(this.userId))
+
+    val MaxTimeoutPrePhase = 180.seconds
+
+    var phaseLogs: List[TurnLog] = List()
 
     def gameFailurePolicy(ctx: ActorContext[Message]): Behavior[Message] = {
       otherPlayersOnline.map(_.playerInfo.address).foreach(_ ! GameCancelled(gameCode, ctx.self))
@@ -516,8 +520,6 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
           returnToStart(ctx, gameCoordinator)
       }
     }
-
-    var phaseLogs: List[TurnLog] = List()
 
     def hostCheckIfReady(ctx: ActorContext[Message], log: TurnLog): Behavior[Message] = {
       phaseLogs = phaseLogs :+ log
@@ -546,12 +548,19 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
     }
 
     Behaviors.withTimers { timers =>
-      timers.startSingleTimer(GameCancelled(gameCode, hostRef), 120.seconds)
+      timers.startSingleTimer(GameCancelled(gameCode, hostRef), MaxTimeoutPrePhase)
       withShared({
         case (ctx, InitialPhaseCompleted(log)) =>
           logInfo(ctx, s"Received ${InitialPhaseCompleted(log)}")
           viewActorRef ! WaitAfterPreCycleSection()
-          hostCheckIfReady(ctx, log)
+          if ctx.self equals hostRef then hostCheckIfReady(ctx, log) else hostRef ! AdversaryLogInfo(log); Behaviors.same
+
+        case (ctx, AllTheLogs(logs)) =>
+          logInfo(ctx, s"Received all the logs from host")
+          logs.foreach(viewActorRef ! GameViewMessages.PreCyclePhaseAdversaryLog(_))
+          hostRef ! SynchronizationAck(userId)
+          gameCoordinator ! GameCoordinatorMessage.StartPlayCycle()
+          inGameBehavior(gameCode, gameCoordinator, playersStatus, hostRef)
 
         case (ctx, AdversaryLogInfo(log)) =>
           logInfo(ctx, s"Received ${AdversaryLogInfo(log)}")
@@ -564,49 +573,114 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
         case (ctx, GameCancelled(_, _)) =>
           logInfo(ctx, s"Game has been cancelled, returning to initial phase")
           gameFailurePolicy(ctx)
-      })
+      }, "preGamePhase")
     }
   }
 
-  private def prePlayCyclePhaseJoined(gameCode: String, gameCoordinator: ActorRef[IGameCoordinatorMessage], playersStatus: List[PlayerStatus], hostRef: ActorRef[ClientCommand]): Behavior[Message] = {
-
-    def otherPlayersOnline = playersStatus.filterNot(p => !p.isOnline || p.playerInfo.userID.equals(this.userId))
-
-    def waitToReturnToStart(ctx: ActorContext[Message]): Behavior[Message] = {
-      Behaviors.receivePartial {
-        case (ctx, LeaveTheGame()) =>
-          returnToStart(ctx, gameCoordinator)
-      }
-    }
-
-    withShared({
-      case (ctx, InitialPhaseCompleted(log)) =>
-        logInfo(ctx, s"Received ${InitialPhaseCompleted(log)}")
-        viewActorRef ! WaitAfterPreCycleSection()
-        hostRef ! AdversaryLogInfo(log)
-        Behaviors.same
-
-      case (ctx, AllTheLogs(logs)) =>
-        logInfo(ctx, s"Received all the logs from host")
-        logs.foreach(viewActorRef ! GameViewMessages.PreCyclePhaseAdversaryLog(_))
-        hostRef ! SynchronizationAck(userId)
-        gameCoordinator ! GameCoordinatorMessage.StartPlayCycle()
-        inGameBehavior(gameCode, gameCoordinator, playersStatus, hostRef)
-
-      case (ctx, PlayerUnreachable(_)) =>
-        logInfo(ctx, s"A player is unreachable, aborting the game")
-        // similar to host, but separated because it is a different behavior
-        otherPlayersOnline.map(_.playerInfo.address).foreach(_ ! GameCancelled(gameCode, ctx.self))
-        viewActorRef ! GameViewMessages.GameDeleted()
-        waitToReturnToStart(ctx)
-        
-      case (ctx, GameCancelled(_, _)) =>
-        logInfo(ctx, s"Game has been cancelled, returning to initial phase")
-        viewActorRef ! GameViewMessages.GameDeleted()
-        waitToReturnToStart(ctx)
-
-    }, "preGamePhase")
-  }
+//  private def prePlayCyclePhaseHost(gameCode: String, gameCoordinator: ActorRef[IGameCoordinatorMessage], playersStatus: List[PlayerStatus], hostRef: ActorRef[ClientInternalCommand]): Behavior[Message] = {
+//
+//    def otherPlayersOnline = playersStatus.filterNot(p => !p.isOnline || p.playerInfo.userID.equals(this.userId))
+//
+//    def gameFailurePolicy(ctx: ActorContext[Message]): Behavior[Message] = {
+//      otherPlayersOnline.map(_.playerInfo.address).foreach(_ ! GameCancelled(gameCode, ctx.self))
+//      viewActorRef ! GameViewMessages.GameDeleted()
+//      // waiting for view to process the deletion
+//      Behaviors.receivePartial {
+//        case (ctx, LeaveTheGame()) =>
+//          returnToStart(ctx, gameCoordinator)
+//      }
+//    }
+//
+//    var phaseLogs: List[TurnLog] = List()
+//
+//    def hostCheckIfReady(ctx: ActorContext[Message], log: TurnLog): Behavior[Message] = {
+//      phaseLogs = phaseLogs :+ log
+//
+//      if phaseLogs.size == playersStatus.size then {
+//        logInfo(ctx, s"All players have sent their logs, informing other players")
+//        // informing view of the logs
+//        phaseLogs.foreach(viewActorRef ! GameViewMessages.PreCyclePhaseAdversaryLog(_))
+//        // sending all the logs to other players
+//        otherPlayersOnline.map(_.playerInfo.address).foreach(_ ! AllTheLogs(phaseLogs))
+//        // synchronizing all players
+//        awaitSynchronization(ctx, otherPlayersOnline.map(_.playerInfo.userID), () => {
+//          logInfo(ctx, s"All players synchronized after revealing cards phase, proceeding to game start")
+//          gameCoordinator ! GameCoordinatorMessage.StartPlayCycle()
+//          inGameBehavior(gameCode, gameCoordinator, playersStatus, hostRef)
+//        }, _ => {
+//          //If failed to synchronize
+//          //Brutal policy, we abort the game
+//          logInfo(ctx, s"Failed to synchronize all players after revealing cards phase, aborting the game")
+//          gameFailurePolicy(ctx)
+//        })
+//      }
+//      else {
+//        Behaviors.same
+//      }
+//    }
+//
+//    Behaviors.withTimers { timers =>
+//      timers.startSingleTimer(GameCancelled(gameCode, hostRef), 120.seconds)
+//      withShared({
+//        case (ctx, InitialPhaseCompleted(log)) =>
+//          logInfo(ctx, s"Received ${InitialPhaseCompleted(log)}")
+//          viewActorRef ! WaitAfterPreCycleSection()
+//          hostCheckIfReady(ctx, log)
+//
+//        case (ctx, AdversaryLogInfo(log)) =>
+//          logInfo(ctx, s"Received ${AdversaryLogInfo(log)}")
+//          hostCheckIfReady (ctx, log)
+//
+//        case (ctx, PlayerUnreachable(_)) =>
+//          logInfo(ctx, s"A player is unreachable, aborting the game")
+//          gameFailurePolicy(ctx)
+//
+//        case (ctx, GameCancelled(_, _)) =>
+//          logInfo(ctx, s"Game has been cancelled, returning to initial phase")
+//          gameFailurePolicy(ctx)
+//      })
+//    }
+//  }
+//
+//  private def prePlayCyclePhaseJoined(gameCode: String, gameCoordinator: ActorRef[IGameCoordinatorMessage], playersStatus: List[PlayerStatus], hostRef: ActorRef[ClientCommand]): Behavior[Message] = {
+//
+//    def otherPlayersOnline = playersStatus.filterNot(p => !p.isOnline || p.playerInfo.userID.equals(this.userId))
+//
+//    def waitToReturnToStart(ctx: ActorContext[Message]): Behavior[Message] = {
+//      Behaviors.receivePartial {
+//        case (ctx, LeaveTheGame()) =>
+//          returnToStart(ctx, gameCoordinator)
+//      }
+//    }
+//
+//    withShared({
+//      case (ctx, InitialPhaseCompleted(log)) =>
+//        logInfo(ctx, s"Received ${InitialPhaseCompleted(log)}")
+//        viewActorRef ! WaitAfterPreCycleSection()
+//        hostRef ! AdversaryLogInfo(log)
+//        Behaviors.same
+//
+//      case (ctx, AllTheLogs(logs)) =>
+//        logInfo(ctx, s"Received all the logs from host")
+//        logs.foreach(viewActorRef ! GameViewMessages.PreCyclePhaseAdversaryLog(_))
+//        hostRef ! SynchronizationAck(userId)
+//        gameCoordinator ! GameCoordinatorMessage.StartPlayCycle()
+//        inGameBehavior(gameCode, gameCoordinator, playersStatus, hostRef)
+//
+//      case (ctx, PlayerUnreachable(_)) =>
+//        logInfo(ctx, s"A player is unreachable, aborting the game")
+//        // similar to host, but separated because it is a different behavior
+//        otherPlayersOnline.map(_.playerInfo.address).foreach(_ ! GameCancelled(gameCode, ctx.self))
+//        viewActorRef ! GameViewMessages.GameDeleted()
+//        waitToReturnToStart(ctx)
+//
+//      case (ctx, GameCancelled(_, _)) =>
+//        logInfo(ctx, s"Game has been cancelled, returning to initial phase")
+//        viewActorRef ! GameViewMessages.GameDeleted()
+//        waitToReturnToStart(ctx)
+//
+//    }, "preGamePhase")
+//  }
 
   private def returnToStart[T](ctx: ActorContext[Message], toStop: ActorRef[T]) = {
     ctx.stop(toStop)
