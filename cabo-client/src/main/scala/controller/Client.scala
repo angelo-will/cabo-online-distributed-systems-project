@@ -188,13 +188,13 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
 
   private def withShared(
                           specific: PartialFunction[(ActorContext[Message], Message), Behavior[Message]],
-                          whereAmI: String = ""
+                          behaviorName: String = ""
                         ): Behavior[Message] = {
     Behaviors.receivePartial(sharedHandler
       .orElse(specific)
       .orElse({
         case (ctx, msg) =>
-          logWarn(ctx, s"In $whereAmI Unhandled message in Client actor: $msg")
+          logWarn(ctx, s"In $behaviorName: Unhandled message: $msg")
           Behaviors.same
       })
     )
@@ -595,7 +595,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
 
       case (ctx, PlayerUnreachable(_)) =>
         logInfo(ctx, s"A player is unreachable, aborting the game")
-        // similar to host, but separated because it is not the host
+        // similar to host, but separated because it is a different behavior
         otherPlayersOnline.map(_.playerInfo.address).foreach(_ ! GameCancelled(gameCode, ctx.self))
         viewActorRef ! GameViewMessages.GameDeleted()
         waitToReturnToStart(ctx)
