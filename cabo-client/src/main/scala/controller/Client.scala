@@ -1,5 +1,5 @@
 package controller
-
+import akka.actor.typed.scaladsl.TimerScheduler
 import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
 import akka.actor.typed.scaladsl.AskPattern.*
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
@@ -545,10 +545,11 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
       }
     }
 
-    def hostCheckIfReady(ctx: ActorContext[Message], log: TurnLog): Behavior[Message] = {
+    def hostCheckIfReady(ctx: ActorContext[Message], log: TurnLog, timers: TimerScheduler[Message]): Behavior[Message] = {
       phaseLogs = phaseLogs :+ log
 
       if phaseLogs.size == playersStatus.size then {
+        timers.cancelAll()
         logInfo(ctx, s"All players have sent their logs, informing other players")
         // informing view of the logs
         phaseLogs.foreach(viewActorRef ! GameViewMessages.PreCyclePhaseAdversaryLog(_))
@@ -578,7 +579,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
           logInfo(ctx, s"Received ${InitialPhaseCompleted(log)}")
           viewActorRef ! WaitAfterPreCycleSection()
           if ctx.self equals hostRef then
-            hostCheckIfReady(ctx, log)
+            hostCheckIfReady(ctx, log, timers)
           else {
             hostRef ! AdversaryLogInfo(log)
             Behaviors.same
@@ -586,6 +587,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
 
         case (ctx, AllTheLogs(logs)) =>
           logInfo(ctx, s"Received all the logs from host")
+          timers.cancelAll()
           logs.foreach(viewActorRef ! GameViewMessages.PreCyclePhaseAdversaryLog(_))
           hostRef ! SynchronizationAck(userId)
           gameCoordinator ! GameCoordinatorMessage.StartPlayCycle()
@@ -593,18 +595,21 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
 
         case (ctx, AdversaryLogInfo(log)) =>
           logInfo(ctx, s"Received ${AdversaryLogInfo(log)}")
-          hostCheckIfReady (ctx, log)
+          hostCheckIfReady (ctx, log, timers)
 
         case (ctx, LeaveTheGame()) =>
           logInfo(ctx, s"Leaving game: $gameCode during pre-play cycle phase")
+          timers.cancelAll()
           returnToStart(ctx,  gameCoordinator)
 
         case (ctx, PlayerUnreachable(_)) =>
           logInfo(ctx, s"A player is unreachable, aborting the game")
+          timers.cancelAll()
           gameFailurePolicy(ctx)
 
         case (ctx, GameCancelled(_, _)) =>
           logInfo(ctx, s"Game has been cancelled, returning to initial phase")
+          timers.cancelAll()
           gameFailurePolicy(ctx)
       }, "preGamePhase")
     }
