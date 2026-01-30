@@ -3,7 +3,7 @@ package controller
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import messages.ClientMessages.ClientCommand
-import messages.{GameViewMessages, IGameViewMessage, IPreGameViewMessage, IViewMessage, Message, PreGameViewMessages}
+import messages.{IGameViewMessage, IPreGameViewMessage, IViewMessage, PreGameViewMessages}
 import view.pregamephase.actors.PreGameViewActor
 import view.gamephase.actors.GameViewActor
 
@@ -32,7 +32,7 @@ private class ViewsProxyActor(ctx: ActorContext[IViewMessage], userId: String, u
       case SwitchToGameView() =>
         ctx.log.info("Switching to GAME View")
         val actorName = s"DuringGameView-$userId-${System.currentTimeMillis()}"
-        val gameView = ctx.spawn(GameViewActor(userId, clientRef, null), actorName)
+        val gameView = ctx.spawn(GameViewActor(userId, userName, clientRef, null), actorName)
         game(gameView)
       case msg: IPreGameViewMessage =>
         currentView ! msg

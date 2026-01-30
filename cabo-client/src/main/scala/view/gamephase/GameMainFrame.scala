@@ -1,16 +1,14 @@
 package view.gamephase
 
-import model.{CardStack, GameParameters, GameStatus, Hand, IGameParameters, PlayerPlaying}
 import model.Game.GameInProgress
 import view.gamephase.traits.{IGameView, IGameViewUserCommandListener}
 
 import java.awt.{Dimension, Toolkit}
-import java.util.{Timer, TimerTask}
 import scala.swing.BorderPanel.Position
 import scala.swing.{BorderPanel, BoxPanel, Label, MainFrame, Orientation, Panel, Point, Swing}
 
-class GameMainFrame(val viewListener: IGameViewUserCommandListener) extends MainFrame:
-  title = "Cabo - The Game"
+class GameMainFrame(val viewListener: IGameViewUserCommandListener, val userName: String) extends MainFrame:
+  title = "Cabo - The Game - Player: " + userName
 
   // Set frame dimension
   val screenSize: Dimension = Toolkit.getDefaultToolkit.getScreenSize
@@ -54,7 +52,6 @@ class GameMainFrame(val viewListener: IGameViewUserCommandListener) extends Main
   def startGame(game: GameInProgress, userID: String): IGameView = {
     println(s"DuringGameMainFrame > startGame: Starting game... $userID")
     duringGamePanel = Some(new GamePanel(viewListener, game, userID))
-    //    duringGamePanel.get.peer.putClientProperty("JComponent.outline", "true")
     setPanel(duringGamePanel.get)
 
     duringGamePanel.get

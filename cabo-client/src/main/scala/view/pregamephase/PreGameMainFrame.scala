@@ -1,12 +1,9 @@
 package view.pregamephase
 
-import akka.actor.typed.{ActorRef, ActorSystem}
-import messages.Message
-import model.{Game, GameParameters, PlayerInLobby}
+import model.Game
 import view.*
 import view.pregamephase.components.{CreateGamePanel, GameListPanel, JoinGameWithLinkPanel, WelcomePanel}
 import view.pregamephase.components.*
-import view.pregamephase.IPreGameViewListener
 
 import java.awt
 import java.awt.event.WindowAdapter
@@ -45,7 +42,7 @@ class PreGameMainFrame(val viewListener: IPreGameViewListener, val playerName: S
     }
   })
 
-//  private val dialogsMap: scala.collection.mutable.Map[DialogType, Dialog] = scala.collection.mutable.Map.empty
+  //  private val dialogsMap: scala.collection.mutable.Map[DialogType, Dialog] = scala.collection.mutable.Map.empty
   private val dialogsMap: scala.collection.mutable.Map[String, Dialog] = scala.collection.mutable.Map.empty
 
 
