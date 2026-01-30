@@ -23,7 +23,7 @@ object Client:
 
   trait ClientInternalCommand extends ClientCommand
 
-  // trait useful to check that the message is for the correct game in the in-game phase
+  // trait useful to check whether a message is for the correct game in the in-game phase or not
   trait GameScopedMessage {
     def gameCode: String
     def replyTo: ActorRef[ClientInternalCommand]
@@ -538,9 +538,6 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
           //Brutal policy, we abort the game
           // todo - can we continue with the hasLeft property?
           logInfo(ctx, s"Failed to synchronize all players after revealing cards phase, aborting the game")
-//          otherPlayersOnline.map(_.playerInfo.address).foreach(_ ! GameCancelled(gameCode, ctx.self))
-//          viewActorRef ! GameViewMessages.GameDeleted()
-//          returnToStart(ctx, gameCoordinator)
           gameFailurePolicy(ctx)
         })
       }
@@ -563,16 +560,10 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
 
         case (ctx, PlayerUnreachable(_)) =>
           logInfo(ctx, s"A player is unreachable, aborting the game")
-//          otherPlayersOnline.map(_.playerInfo.address).foreach(_ ! GameCancelled(gameCode, ctx.self))
-//          viewActorRef ! GameViewMessages.GameDeleted()
-//          returnToStart(ctx, gameCoordinator)
           gameFailurePolicy(ctx)
 
         case (ctx, GameCancelled(_, _)) =>
           logInfo(ctx, s"Game has been cancelled, returning to initial phase")
-//          otherPlayersOnline.map(_.playerInfo.address).foreach(_ ! GameCancelled(gameCode, ctx.self))
-//          viewActorRef ! GameViewMessages.GameDeleted()
-//          returnToStart(ctx, gameCoordinator)
           gameFailurePolicy(ctx)
       })
     }
@@ -661,25 +652,10 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
       }
     }
 
-//    def verifyGameCode(ctx: ActorContext[Message], code: String, replyTo: ActorRef[Message], ifCorrect: Behavior[Message]): Behavior[Message] = {
-//      if (code != gameCode) {
-//        logError(ctx, s"Received GameInProgressUpdate for different game: $code, telling sender to ignore")
-//        // tell the sender that I'm no longer in the game
-//        replyTo ! IWantToLeaveTheGame(gameCode, ctx.self, PlayerInLobby(userId, name, ctx.self))
-//        Behaviors.same
-//      } else {
-//        ifCorrect
-//      }
-//    }
-
     def verifyGameCode[M <: GameScopedMessage](ctx: ActorContext[Message], msg: M)(ifCorrect: => Behavior[Message]): Behavior[Message] = {
       if (msg.gameCode != gameCode) {
         logError(ctx, s"Received message for wrong game: ${msg.gameCode}")
-        msg.replyTo ! IWantToLeaveTheGame(
-          gameCode,
-          ctx.self,
-          PlayerInLobby(userId, name, ctx.self)
-        )
+        msg.replyTo ! IWantToLeaveTheGame(gameCode, ctx.self, PlayerInLobby(userId, name, ctx.self))
         Behaviors.same
       } else {
         ifCorrect
@@ -693,11 +669,6 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
           timers.startSingleTimer(ElectionWon(), 5.seconds)
           withShared({
             case (ctx, msg: NoYouCanNot) =>
-              //              verifyGameCode(ctx, gameCode, replyTo, {
-              //                logInfo(ctx, "Someone has a lower rank, stopping my election")
-              //                timers.cancelAll()
-              //                buffer.unstashAll(inGameBehavior(gameCode, gameCoordinator, playersStatus, hostRef))
-              //              })
               verifyGameCode(ctx, msg) {
                 logInfo(ctx, "Someone has a lower rank, stopping my election")
                 timers.cancelAll()
@@ -767,11 +738,6 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
     withShared({
       // GAME LOGIC LEVEL MESSAGES - START
 
-      //      case (ctx, GameCancelled(gameCode, replyTo)) =>
-      //        logInfo(ctx, s"Game has been cancelled, returning to initial phase")
-      //        viewActorRef ! GameViewMessages.GameDeleted()
-      //        returnToStart(ctx, gameCoordinator)
-
       // send by the host when it cannot synchronize all the players at the start of the game
       case (ctx, msg: GameCancelled) =>
         verifyGameCode(ctx, msg) {
@@ -803,23 +769,6 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
         })
 
       case (ctx, GameInProgressUpdate(replyTo, game, log)) =>
-//        verifyGameCode(ctx, game.code, replyTo, {
-//          logInfo(ctx, s"Game info update, is turn: ${game.currentRound}")
-//          gameCoordinator ! GameCoordinatorMessage.LastTurnPlayed(game, log)
-//          Behaviors.withStash(50) { buffer =>
-//            withShared({
-//              case (ctx, TurnUpdated()) =>
-//                logInfo(ctx, s"GameCoordinator updated the turn")
-//                replyTo ! SynchronizationAck(userId)
-//                buffer.unstashAll(inGameBehavior(gameCode, gameCoordinator, playersStatus, hostRef))
-//
-//              case (ctx, other) =>
-//                logInfo(ctx, s"Stashing message until turn is updated: $other")
-//                buffer.stash(other)
-//                Behaviors.same
-//            })
-//          }
-//        })
         verifyGameCode(ctx, GameInProgressUpdate(replyTo, game, log)) {
           logInfo(ctx, s"Game info update, is turn: ${game.currentRound}")
           gameCoordinator ! GameCoordinatorMessage.LastTurnPlayed(game, log)
