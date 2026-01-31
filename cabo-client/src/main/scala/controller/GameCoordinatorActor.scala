@@ -130,7 +130,6 @@ object GameCoordinatorActor:
     if cardSeenRemaining <= 0 then
       println(s"GCoord actor of ${gameData.playerOwnUserID}, sending StartPlayPhase to ${gameData.viewReference}")
       gameData.clientReference ! CLMsg.InitialPhaseCompleted(gameData.turnLog)
-//      gameData.viewReference ! DGVMsg.WaitAfterRevealingSection()
       waitStartPlayCycle(gameData)
     else
       Behaviors.receivePartial {
@@ -253,9 +252,8 @@ object GameCoordinatorActor:
                                     gameData: GameData,
                                   ): PartialFunction[(ActorContext[IGameCoordinatorMessage], IGameCoordinatorMessage), Behavior[IGameCoordinatorMessage]] = {
     case (ctx, GCMsg.SendGameStatus(ref)) =>
-      // todo: which keep?
-      //ref ! GCMsg.GameInformation(gameData.game)
       ref ! GCMsg.GameInformation(gameData.temporaryGame)
+      // ref ! GCMsg.GameInformation(gameData.game)
       Behaviors.same
   }
 
