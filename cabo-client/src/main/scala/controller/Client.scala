@@ -51,6 +51,7 @@ object Client:
 
   case class GameHasStarted(hostRef: ActorRef[ClientCommand], gameInProgress: GameInProgress) extends ClientInternalCommand
 
+  // message send by the connection handler when a player is unreachable
   case class PlayerUnreachable(playerInLobby: PlayerInLobby) extends ClientInternalCommand
 
   case class SynchronizationAck(fromWho: String) extends ClientInternalCommand
@@ -60,11 +61,13 @@ object Client:
   case class GameInProgressUpdate(replyTo: ActorRef[Message], game: GameInProgress, turnLog: TurnLog) extends ClientInternalCommand with GameScopedMessage {
     override def gameCode: String = game.code
   }
+
   // messages for the pre-play cycle phase
   case class AdversaryLogInfo(log: TurnLog) extends ClientInternalCommand
 
   case class AllTheLogs(logs: List[TurnLog]) extends ClientInternalCommand
   //messages for new host election
+
   case class ElectionStarted(gameCode: String, candidateRank: Int, replyTo: ActorRef[Message]) extends ClientInternalCommand with GameScopedMessage
 
   case class NoYouCanNot(gameCode: String, replyTo: ActorRef[Message]) extends ClientInternalCommand with GameScopedMessage
@@ -72,7 +75,7 @@ object Client:
   case class ElectionWon() extends ClientInternalCommand
 
   case class NewHostElected(gameCode: String, replyTo: ActorRef[Message]) extends ClientInternalCommand with GameScopedMessage
-  
+
   // messages added for test purpose
   case class StartGameBehavior(thisBehavior: () => Behavior[IGameCoordinatorMessage], hostRef: ActorRef[ClientCommand]) extends ClientInternalCommand
 
@@ -805,7 +808,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
               checkContinue(ctx, playerInLobby, onlineUpdate)
             }
         }
-        
+
       case (ctx, ElectionStarted(code, candidateRank, replyTo)) =>
         verifyGameCode(ctx, ElectionStarted(code, candidateRank, replyTo)) {
           //another player is starting an election
