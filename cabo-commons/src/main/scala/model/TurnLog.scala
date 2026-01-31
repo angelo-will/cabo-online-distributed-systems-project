@@ -4,7 +4,7 @@ import model.TurnEvent.*
 import model.TurnPhase.*
 import model.PhaseEvents.*
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
-import messages.{CborSerializable, Message}
+import messages.Message
 
 object TurnEvent:
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")

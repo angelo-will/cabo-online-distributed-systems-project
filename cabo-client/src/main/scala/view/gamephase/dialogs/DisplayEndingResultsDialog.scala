@@ -2,7 +2,7 @@ package view.gamephase.dialogs
 
 import model.EndGameReason.*
 import model.Game.GameInProgress
-import model.{EndGameReason, Hand}
+import model.EndGameReason
 import view.gamephase.dialogs.DisplayEndingResultsDialog.*
 
 import java.awt.Font

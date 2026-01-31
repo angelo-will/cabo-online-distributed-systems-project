@@ -16,7 +16,6 @@ class LogPanel extends ScrollPane {
   contents = logTextArea
   verticalScrollBarPolicy = ScrollPane.BarPolicy.Always
   horizontalScrollBarPolicy = ScrollPane.BarPolicy.Never
-  //  peer.setBorder(BorderFactory.createLineBorder(Color.MAGENTA, 3))
 
   def updateRevealingPhaseLog(log: TurnLog): Unit = {
     logTextArea.text += TurnLogsWriter.initialPhaseTurnLog(log)

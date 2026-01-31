@@ -1,7 +1,7 @@
 package messages
 
 import akka.actor.typed.ActorRef
-import model.{Card, Game, PlayerInLobby, PlayerPlaying, TurnLog}
+import model.{Card, Game, PlayerInLobby, TurnLog}
 import model.Game.GameInProgress
 
 object GameViewMessages {

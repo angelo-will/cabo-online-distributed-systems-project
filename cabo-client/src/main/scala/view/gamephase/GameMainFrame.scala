@@ -5,7 +5,7 @@ import view.gamephase.traits.{IGameView, IGameViewUserCommandListener}
 
 import java.awt.{Dimension, Toolkit}
 import scala.swing.BorderPanel.Position
-import scala.swing.{BorderPanel, BoxPanel, Label, MainFrame, Orientation, Panel, Point, Swing}
+import scala.swing.*
 
 class GameMainFrame(val viewListener: IGameViewUserCommandListener, val userName: String) extends MainFrame:
   title = "Cabo - The Game - Player: " + userName

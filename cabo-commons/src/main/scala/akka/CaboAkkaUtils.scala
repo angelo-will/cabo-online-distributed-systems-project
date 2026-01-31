@@ -1,9 +1,7 @@
 package akka
 
-import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.typed.{ActorSystem, Behavior}
 import com.typesafe.config.{Config, ConfigFactory}
-import messages.Message
 
 object CaboAkkaUtils {
 

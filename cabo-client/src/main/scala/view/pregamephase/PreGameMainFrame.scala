@@ -2,7 +2,6 @@ package view.pregamephase
 
 import model.Game
 import view.*
-import view.pregamephase.components.{CreateGamePanel, GameListPanel, JoinGameWithLinkPanel, WelcomePanel}
 import view.pregamephase.components.*
 
 import java.awt

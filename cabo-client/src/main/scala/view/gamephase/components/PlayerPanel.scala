@@ -6,7 +6,6 @@ import scala.swing.event.ButtonClicked
 import scala.swing.*
 
 class PlayerPanel(val playerName: String,val f: (index: Int) => Unit) extends BoxPanel(Orientation.Vertical) {
-  //  border = Swing.EmptyBorder(10, 10, 10, 10)
   private val nameLabel = new Label(playerName) {
     font = new AwtFont("Arial", AwtFont.BOLD, 14)
     horizontalAlignment = Alignment.Center
@@ -22,7 +21,6 @@ class PlayerPanel(val playerName: String,val f: (index: Int) => Unit) extends Bo
         case ButtonClicked(_) =>
           println(s"Player '$playerName' card $i clicked")
           f(i)
-        //          f(i - 1) // Call the function with the index (0-based)
       }
     }
   }

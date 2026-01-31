@@ -1,21 +1,18 @@
 import akka.cluster.ddata.Replicator.*
-import akka.cluster.ddata.{ORSet, ORSetKey, SelfUniqueAddress}
-import akka.cluster.ddata.typed.scaladsl.{DistributedData, Replicator}
 import akka.cluster.ddata.typed.scaladsl.Replicator.{Get, Update}
-import akka.cluster.ddata.Replicator.Changed
+import akka.cluster.ddata.typed.scaladsl.{DistributedData, Replicator}
+import akka.cluster.ddata.{ORSet, ORSetKey, SelfUniqueAddress}
 import messages.ServerMessages
 import model.Game.GameInConstruction
 
 
-object Server:
-
-  import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
-  import akka.actor.typed.ActorRef
-  import akka.actor.typed.Behavior
-  import akka.actor.typed.scaladsl.Behaviors
-  import messages.Message
+object Server{
 
   import ServerMessages.*
+  import akka.actor.typed.{ActorRef, Behavior}
+  import akka.actor.typed.receptionist.Receptionist
+  import akka.actor.typed.scaladsl.Behaviors
+  import messages.Message
 
   private sealed trait InternalCommand extends Message
 
@@ -53,7 +50,6 @@ object Server:
             }
           },
           InternalRemoveResponse.apply
-//          rsp => InternalRemoveResponse(rsp, onComplete)
         )
       }
 
@@ -195,35 +191,4 @@ object Server:
     }
 
   }
-
-//  private def idle(serverCode: String, game: Games): Behavior[Message] = Behaviors.receivePartial {
-//    handleRegisterGame(game, idle(serverCode, _))
-//      .orElse(handleGameStarted(game, idle(serverCode, _)))
-//      .orElse(handleGameAborted(game, idle(serverCode, _)))
-//      .orElse(handleGamesRequest(game, idle(serverCode, _)))
-//  }
-//
-//  private def handleRegisterGame(games: Games, nextBehaviors: Games => Behavior[Message]): PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
-//    case (ctx, RegisterGame(game, ref)) =>
-//      ctx.log.info(s"Registering game: $game")
-//      val updatedGames = games :+ game
-//      ref ! GameRegistered(game, ctx.self)
-//      nextBehaviors(updatedGames)
-//
-//  private def handleGameStarted(games: Games, nextBehaviors: Games => Behavior[Message]): PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
-//    case (ctx, StartGame(game, ref)) =>
-//      ctx.log.info(s"Game started: $game, deleting from list")
-//      val updatedGames = games.filterNot(_.code == game.code)
-//      nextBehaviors(updatedGames)
-//
-//  private def handleGameAborted(games: Games, nextBehaviors: Games => Behavior[Message]): PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
-//    case (ctx, AbortGame(game, ref)) =>
-//      ctx.log.info(s"Deleting game: $game")
-//      val updatedGames = games.filterNot(_.code == game.code)
-//      nextBehaviors(updatedGames)
-//
-//  private def handleGamesRequest(games: Games, nextBehaviors: Games => Behavior[Message]): PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
-//    case (ctx, GetGames(ref)) =>
-//      ctx.log.info(s"Getting games")
-//      ref ! GamesList(games)
-//      nextBehaviors(games)
+}

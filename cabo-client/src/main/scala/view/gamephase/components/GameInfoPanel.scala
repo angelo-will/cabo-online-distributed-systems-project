@@ -2,15 +2,12 @@ package view.gamephase.components
 
 import model.Game.GameInProgress
 
-import java.awt.{Color, Font as AwtFont}
-import javax.swing.BorderFactory
+import java.awt.Font as AwtFont
 import scala.swing.*
 
 class GameInfoPanel(game: GameInProgress) extends BoxPanel(Orientation.Vertical) {
 
-  val stringForCaboNotCalled = "Nobody has called Cabo."
-  //  peer.setBorder(BorderFactory.createLineBorder(Color.RED, 3))
-  //    border = Swing.EmptyBorder(10, 10, 10, 10)
+  private val stringForCaboNotCalled = "Nobody has called Cabo."
   private val gameCodeLabel = new Label(s"Game Code: ${game.code}") {
     font = new AwtFont("Arial", AwtFont.BOLD, 16)
     horizontalAlignment = Alignment.Center
