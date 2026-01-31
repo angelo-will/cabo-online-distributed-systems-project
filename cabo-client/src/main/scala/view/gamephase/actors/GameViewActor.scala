@@ -17,11 +17,12 @@ import view.gamephase.traits.IGameView
 object GameViewActor {
   def apply(
              userID: String,
+             userName: String,
              clientRef: ActorRef[ClientCommand],
              mainMenuRef: ActorRef[IPreGameViewMessage]
            ): Behavior[IGameViewMessage] = {
     Behaviors.setup { ctx =>
-      new GameViewActor(ctx, userID, clientRef, mainMenuRef).start()
+      new GameViewActor(ctx, userID, userName, clientRef, mainMenuRef).start()
     }
   }
 }
@@ -29,6 +30,7 @@ object GameViewActor {
 private class GameViewActor private(
                                      val ctx: ActorContext[IGameViewMessage],
                                      val userID: String,
+                                     val userName: String,
                                      val clientRef: ActorRef[ClientCommand],
                                      val mainMenuRef: ActorRef[IPreGameViewMessage]
                                    ) {
@@ -57,7 +59,7 @@ private class GameViewActor private(
 
   def start(): Behavior[IGameViewMessage] = Behaviors.setup { _ =>
     log("start", "DuringGameViewActor started")
-    val frame = new GameMainFrame(GameViewUserCommandListener(ctx.self))
+    val frame = new GameMainFrame(GameViewUserCommandListener(ctx.self), userName)
     frame.open()
     frame.visible = true
 
@@ -438,8 +440,8 @@ private class GameViewActor private(
       context.ui.opponentImpossibleToReach(player)
       Behaviors.same
   }
-  
-  private def handleAllOpponentsDisconnected(context: GameContext)(actualState:String): PartialFunction[IGameViewMessage, Behavior[IGameViewMessage]] = {
+
+  private def handleAllOpponentsDisconnected(context: GameContext)(actualState: String): PartialFunction[IGameViewMessage, Behavior[IGameViewMessage]] = {
     case AllOpponentsDisconnected() =>
       log(actualState, s"Handling AllOpponentsDisconnected with message: ${AllOpponentsDisconnected()}")
       context.ui.allOpponentsDisconnected()
