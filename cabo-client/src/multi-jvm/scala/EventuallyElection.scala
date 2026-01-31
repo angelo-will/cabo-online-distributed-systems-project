@@ -12,7 +12,7 @@ import controller.Client.*
 import messages.{ClientMessages, Message}
 import org.scalatest.concurrent.Eventually.eventually
 import org.scalatest.concurrent.Futures.{interval, timeout}
-import messages.ClientMessages.{JoinWithGameCode, InitialPhaseCompleted, StartTheGame, TakeGetInProgressGame}
+import messages.ClientMessages.{JoinWithGameCode, InitialPhaseCompleted, StartTheGame, TakeGameInProgress}
 
 import scala.concurrent.Await
 import scala.concurrent.duration.DurationInt
@@ -141,7 +141,7 @@ abstract class EventuallyElection extends MultiNodeSpec(MultiNodeConfig) with ST
 
         probeHost.expectMessageType[StartGameBehavior]
 
-        probeHost.expectMessageType[TakeGetInProgressGame]
+        probeHost.expectMessageType[TakeGameInProgress]
 
         probeHost.expectMessageType[SynchronizationAck]
         probeHost.expectMessageType[SynchronizationAck]

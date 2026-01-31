@@ -75,7 +75,7 @@ object GameCoordinatorActor:
 
   def apply(client: ActorRef[CCommand], viewToContact: ActorRef[IGameViewMessage], userId: String, gameToStart: GameInConstruction): Behavior[IGameCoordinatorMessage] = {
     val game = generateGameInProgressFromInConstruction(gameToStart)
-    client ! CLMsg.TakeGetInProgressGame(game)
+    client ! CLMsg.TakeGameInProgress(game)
     apply(client, viewToContact, userId, game)
   }
 

@@ -12,7 +12,7 @@ import controller.Client.*
 import messages.{ClientMessages, Message}
 import org.scalatest.concurrent.Eventually.eventually
 import org.scalatest.concurrent.Futures.{interval, timeout}
-import messages.ClientMessages.{JoinWithGameCode, InitialPhaseCompleted, StartTheGame, TakeGetInProgressGame}
+import messages.ClientMessages.{JoinWithGameCode, InitialPhaseCompleted, StartTheGame, TakeGameInProgress}
 
 import scala.concurrent.duration.DurationInt
 import scala.language.implicitConversions
@@ -140,7 +140,7 @@ abstract class SingleElection extends MultiNodeSpec(MultiNodeConfig) with STMult
 
         probeHost.expectMessageType[StartGameBehavior]
 
-        probeHost.expectMessageType[TakeGetInProgressGame]
+        probeHost.expectMessageType[TakeGameInProgress]
 
         probeHost.expectMessageType[SynchronizationAck]
         probeHost.expectMessageType[SynchronizationAck]

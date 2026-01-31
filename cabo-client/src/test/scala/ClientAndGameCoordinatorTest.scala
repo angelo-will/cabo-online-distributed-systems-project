@@ -25,7 +25,7 @@ class ClientAndGameCoordinatorTest extends ClientTestCommons {
 
       probeClientHost.expectMessageType[StartGameBehavior]
 
-      probeClientHost.expectMessageType[TakeGetInProgressGame]
+      probeClientHost.expectMessageType[TakeGameInProgress]
 
       probeClientJoiner.expectMessageType[GameHasStarted]
 

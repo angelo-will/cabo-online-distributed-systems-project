@@ -371,7 +371,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
 
         Behaviors.withStash(10) { buffer =>
           Behaviors.receiveMessage {
-            case TakeGetInProgressGame(gameInProgress) =>
+            case TakeGameInProgress(gameInProgress) =>
               logInfo(ctx, s"Game in progress received: ${gameInProgress.code}")
               game.players.filter(!_.address.equals(ctx.self)).foreach(_.address ! GameHasStarted(hostRef, gameInProgress))
               buffer.unstashAll(awaitSynchronization(ctx, game.players.filter(!_.address.equals(ctx.self)).map(_.userID), () => {

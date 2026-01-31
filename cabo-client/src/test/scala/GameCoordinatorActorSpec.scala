@@ -39,7 +39,7 @@ class GameCoordinatorActorSpec extends ScalaTestWithActorTestKit
     "send state" when {
       "game data are created" in {
         startActorAndGenerateGameData()
-        clientProbe.expectMessageType[ClientMessages.TakeGetInProgressGame]
+        clientProbe.expectMessageType[ClientMessages.TakeGameInProgress]
       }
     }
     "send data to view" when {
