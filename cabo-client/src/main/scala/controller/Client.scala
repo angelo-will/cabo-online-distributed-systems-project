@@ -81,8 +81,8 @@ object Client:
 
   case class RemoveCheckPlayerStatus() extends ClientInternalCommand
 
-  def apply(userId: String = "Player", name: String = "defaultCoolName", optionalViewActor: ActorRef[IViewMessage] = null): Behavior[Message] = Behaviors.setup { ctx =>
-    //    val clientID = userId+ctx.self.path.address.hashCode()
+  def apply(userId: String = "Player", name: String = "DefaultName", optionalViewActor: ActorRef[IViewMessage] = null): Behavior[Message] = Behaviors.setup { ctx =>
+
     val clientID = userId + UUID.randomUUID().hashCode()
     val viewActorRef = optionalViewActor match {
       case null => ctx.spawn(ViewsProxyActor(clientID, name, ctx.self), "views-manager")
