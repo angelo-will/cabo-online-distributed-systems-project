@@ -172,8 +172,8 @@ class ClientTestCommons extends ScalaTestWithActorTestKit(ConfigFactory.parseStr
     clientHost ! StartGameBehavior(coordinatorStub, clientHost)
     probeClientHost.expectMessage(StartGameBehavior(coordinatorStub, clientHost))
 
-    clientHost ! TakeGetInProgressGame(game)
-    probeClientHost.expectMessage(TakeGetInProgressGame(game))
+    clientHost ! TakeGameInProgress(game)
+    probeClientHost.expectMessage(TakeGameInProgress(game))
 
     coordinatorProbe.expectMessageType[StartPrePlayCycleSection]
 
@@ -247,7 +247,7 @@ class ClientTestCommons extends ScalaTestWithActorTestKit(ConfigFactory.parseStr
 
     probeHost.expectMessageType[StartGameBehavior]
 
-    probeHost.expectMessageType[TakeGetInProgressGame]
+    probeHost.expectMessageType[TakeGameInProgress]
 
     joiners.foreach { case (joiner, probeJoiner, joinerView) => probeJoiner.expectMessageType[GameHasStarted] }
 
