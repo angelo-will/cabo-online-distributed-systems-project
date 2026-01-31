@@ -159,8 +159,7 @@ class ClientAndGameCoordinatorTest extends ClientTestCommons {
       m = probeClientTooJoiner.expectMessageType[IWantToLeaveTheGame]
       assert(m.player.userID.contains(joinerId))
       joinerTooView.expectMessageType[OpponentDisconnected]
-
-      // todo - check race condition in probeClientHost
+      
       // message resent by each other
       probeClientHost.expectMessageType[IWantToLeaveTheGame]
       probeClientTooJoiner.expectMessageType[IWantToLeaveTheGame]
