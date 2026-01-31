@@ -11,7 +11,7 @@ class ClientAndGameCoordinatorTest extends ClientTestCommons {
 
   "A client, using a GameCoordinator, " should {
 
-    "should be able to start a game with a true coordinator" in {
+    "be able to start a game with a true coordinator" in {
       val (clientHost, probeClientHost, clientHostView) = createClientAndProbeWithView(hostId, hostName)
 
       val (clientJoiner, probeClientJoiner, clientJoinerView) = createClientAndProbeWithView(joinerId, joinerName)
@@ -33,7 +33,7 @@ class ClientAndGameCoordinatorTest extends ClientTestCommons {
       stopAndWait(clientJoiner)
     }
 
-    "should be able to play with a true coordinator" in {
+    "be able to play with a true coordinator" in {
       val (clientHost, probeClientHost, clientHostView) = createClientAndProbeWithView(hostId, hostName)
 
       val (clientJoiner, probeClientJoiner, clientJoinerView) = createClientAndProbeWithView(joinerId, joinerName)

@@ -12,7 +12,7 @@ class ClientTest extends ClientTestCommons:
 
   "A client" should {
 
-    "should be able to change the name of the player" in {
+    "be able to change the player's name" in {
 
       val (clientHost, probeClientHost, hostView) = createClientAndProbeWithView(hostId, hostName)
 
@@ -77,7 +77,7 @@ class ClientTest extends ClientTestCommons:
       stopAndWait(clientJoiner)
     }
 
-    "should be able to enter a game using the code of the game" in {
+    "be able to enter a game using the game codee" in {
 
       val (clientHost, probeClientHost, hostView) = createClientAndProbeWithView(hostId, hostName)
 
@@ -94,7 +94,7 @@ class ClientTest extends ClientTestCommons:
       stopAndWait(clientJoiner)
     }
 
-    "not be able to join a game that is already full" in {
+    "not be able to join a game if the maximum number of players is already connected" in {
 
       val (clientHost, probeClientHost, hostView) = createClientAndProbeWithView(hostId, hostName)
 
@@ -164,7 +164,7 @@ class ClientTest extends ClientTestCommons:
       stopAndWait(clientTooJoiner)
     }
 
-    "be able to leave a joined game" in {
+    "be able to leave a game it joined" in {
 
       val (clientHost, probeClientHost, hostView) = createClientAndProbeWithView(hostId, hostName)
 
@@ -193,7 +193,7 @@ class ClientTest extends ClientTestCommons:
       stopAndWait(clientTooJoiner)
     }
 
-    "be notified if someone leave the game" in {
+    "be notified if someone leaves the game" in {
 
       val (clientHost, probeClientHost, hostView) = createClientAndProbeWithView(hostId, hostName)
 
@@ -235,7 +235,7 @@ class ClientTest extends ClientTestCommons:
       stopAndWait(clientTooJoiner)
     }
 
-    "should receive an abort notification if the host leaves the game" in {
+    "receive an abort notification if the host leaves the game" in {
 
       val (clientHost, probeClientHost, hostView) = createClientAndProbeWithView(hostId, hostName)
 
@@ -259,7 +259,7 @@ class ClientTest extends ClientTestCommons:
       stopAndWait(clientTooJoiner)
     }
 
-    "should be able to start a game with a false coordinator" in {
+    "be able to start a game with a stub coordinator" in {
 
       val (clientHost, probeClientHost, clientHostView) = createClientAndProbeWithView(hostId, hostName)
 
@@ -285,7 +285,7 @@ class ClientTest extends ClientTestCommons:
       stopAndWait(clientJoiner)
     }
 
-    "should be able to pass round around" in {
+    "be able to pass round around" in {
 
       val (clientHost, probeClientHost, clientHostView) = createClientAndProbeWithView(hostId, hostName)
 
