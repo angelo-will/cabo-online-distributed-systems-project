@@ -2,8 +2,6 @@ ThisBuild / version := "0.1.0-SNAPSHOT"
 
 ThisBuild / scalaVersion := "3.3.3"
 
-//ThisBuild / resolvers += "Akka library repository".at("https://repo.akka.io/maven")
-
 val akkaVersion = "2.8.8"
 
 lazy val deps = Seq(
@@ -79,34 +77,22 @@ lazy val seed = (project in file("cabo-seed"))
   )
   .dependsOn(commons)
 
-//lazy val client = (project in file("cabo-client"))
-//  .settings(
-//    name := "project-cabo-client",
-//    libraryDependencies ++= clientDeps
-//  )
-//  .enablePlugins(MultiJvmPlugin)
-//  .configs(MultiJvm)
-//  .dependsOn(commons)
-
 // --- TASK TO CREATE JAR E PUT IN ROOT ---
 lazy val install = taskKey[Unit]("generate jars")
 
 install := {
-  // 1. Esegue assembly su tutti e 3 i progetti
   val clientJar = (client / assembly).value
   val serverJar = (server / assembly).value
   val seedJar  = (seed / assembly).value
 
-  // 2. Definisce la destinazione (root del progetto)
   val dest = baseDirectory.value
 
-  // 3. Copia i file
   IO.copyFile(clientJar, dest / "client.jar")
   IO.copyFile(serverJar, dest / "server.jar")
   IO.copyFile(seedJar,  dest / "seed.jar")
 
   println("\n-------------------------------------------------------")
-  println(" SUCCESS! I file sono pronti nella cartella principale:")
+  println(" SUCCESS! Jars have been generated:")
   println(s" 1. ${(dest / "seed.jar").getPath}")
   println(s" 2. ${(dest / "server.jar").getPath}")
   println(s" 3. ${(dest / "client.jar").getPath}")
