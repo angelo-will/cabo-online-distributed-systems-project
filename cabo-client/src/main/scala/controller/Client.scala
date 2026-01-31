@@ -531,7 +531,7 @@ private case class Client(userId: String, var name: String, viewActorRef: ActorR
 
     def otherPlayersOnline = playersStatus.filterNot(p => !p.isOnline || p.playerInfo.userID.equals(this.userId))
 
-    val MaxTimeoutPrePhase = 30.seconds
+    val MaxTimeoutPrePhase = 180.seconds
 
     var phaseLogs: List[TurnLog] = List()
 
